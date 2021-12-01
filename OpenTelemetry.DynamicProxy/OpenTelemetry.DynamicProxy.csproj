@@ -7,10 +7,11 @@
     <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">True</GeneratePackageOnBuild>
     <IncludeSymbols>True</IncludeSymbols>
     <RepositoryUrl>https://github.com/pengweiqhca/opentelemetry-proxy</RepositoryUrl>
+    <PackageId>PW.OpenTelemetry.DynamicProxy</PackageId>
     <PackageProjectUrl>https://github.com/pengweiqhca/opentelemetry-proxy/tree/main/OpenTelemetry.DynamicProxy</PackageProjectUrl>
     <PackageTags>apm track profiling tracer otlp OpenTelemetry proxy Intercept</PackageTags>
     <TargetFrameworks>net461;netstandard2.0;netstandard2.1</TargetFrameworks>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>

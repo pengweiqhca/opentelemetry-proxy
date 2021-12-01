@@ -14,7 +14,17 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
     public void Invoke(IInvocation invocation)
     {
         if (!_activityInvokers.TryGetValue(invocation.Method, out var invoker))
-            _activityInvokers[invocation.Method] = invoker = CreateActivityInvoker(invocation);
+        {
+            invoker = CreateActivityInvoker(invocation);
+
+            try
+            {
+                _activityInvokers[invocation.Method] = invoker;
+            }
+            catch (NullReferenceException)
+            {
+            }
+        }
 
         invoker.Invoke(invocation);
     }
