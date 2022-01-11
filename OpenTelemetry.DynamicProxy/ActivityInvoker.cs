@@ -6,26 +6,26 @@ internal class ActivityInvoker : IActivityInvoker
 {
     private readonly ActivitySource _activitySource;
 
-    public string? ActivityName { get; }
+    private readonly ActivityKind _kind;
 
-    public ActivityKind Kind { get; }
+    private readonly string? _activityName;
 
     public ActivityInvoker(ActivitySource activitySource, string? activityName, ActivityKind kind)
     {
         _activitySource = activitySource;
 
-        ActivityName = activityName;
+        _kind = kind;
 
-        Kind = kind;
+        _activityName = activityName;
     }
 
     public void Invoke(IInvocation invocation)
     {
         Activity? activity;
         if (!_activitySource.HasListeners() ||
-            (activity = _activitySource.StartActivity(string.IsNullOrWhiteSpace(ActivityName)
+            (activity = _activitySource.StartActivity(string.IsNullOrWhiteSpace(_activityName)
                 ? $"{_activitySource.Name}.{invocation.Method.Name}"
-                : ActivityName!, Kind, Activity.Current?.Context ?? default)) == null)
+                : _activityName!, _kind, Activity.Current?.Context ?? default)) == null)
         {
             invocation.Proceed();
 
@@ -64,4 +64,62 @@ internal class ActivityInvoker : IActivityInvoker
     }
 
     protected virtual void InvokeAfter(IInvocation invocation, Activity activity) => Stop(activity);
+}
+
+internal class ActivityNameInvoker : IActivityInvoker
+{
+    private readonly string? _activityName;
+    private readonly int _maxUseableTimes;
+    private readonly bool _suppressInstrumentation;
+
+    public ActivityNameInvoker(string? activityName, int maxUseableTimes, bool suppressInstrumentation)
+    {
+        _activityName = activityName;
+        _maxUseableTimes = maxUseableTimes;
+        _suppressInstrumentation = suppressInstrumentation;
+    }
+
+    public void Invoke(IInvocation invocation)
+    {
+        if (_suppressInstrumentation)
+        {
+            var disposable = SuppressInstrumentationScope.Begin();
+
+            try
+            {
+                invocation.Proceed();
+            }
+            catch
+            {
+                disposable.Dispose();
+
+                throw;
+            }
+
+            InvokeAfter(invocation, disposable);
+        }
+        else
+        {
+            ActivityName.SetName(string.IsNullOrWhiteSpace(_activityName) ? $"{invocation.TargetType.FullName}.{invocation.Method.Name}" : _activityName, _maxUseableTimes);
+
+            try
+            {
+                invocation.Proceed();
+            }
+            catch
+            {
+                ActivityName.SetName(null, 0);
+
+                throw;
+            }
+
+            InvokeAfter(invocation, null);
+        }
+    }
+
+    protected virtual void InvokeAfter(IInvocation invocation, IDisposable? disposable)
+    {
+        if (disposable == null) ActivityName.SetName(null, 0);
+        else disposable.Dispose();
+    }
 }

@@ -10,6 +10,8 @@ public class ActivitySourceAttribute : Attribute
     /// <summary>Default value is type full name</summary>
     public string? ActivitySourceName { get; }
 
+    public ActivityKind Kind { get; set; } = ActivityKind.Internal;
+
     public static string GetActivitySourceName(Type type)
     {
         var name = type.GetCustomAttribute<ActivitySourceAttribute>()?.ActivitySourceName;

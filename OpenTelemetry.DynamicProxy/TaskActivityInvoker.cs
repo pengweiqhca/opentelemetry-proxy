@@ -1,3 +1,5 @@
+using System;
+
 namespace OpenTelemetry.DynamicProxy;
 
 internal class TaskActivityInvoker : ActivityInvoker
@@ -22,6 +24,27 @@ internal class TaskActivityInvoker : ActivityInvoker
         }
 
         Stop(activity);
+    }
+}
+
+internal class TaskActivityNameInvoker : ActivityNameInvoker
+{
+    public TaskActivityNameInvoker(string? activityName, int maxUseableTimes, bool suppressInstrumentation)
+        : base(activityName, maxUseableTimes, suppressInstrumentation) { }
+
+    protected override void InvokeAfter(IInvocation invocation, IDisposable? disposable) =>
+        invocation.ReturnValue = Await((Task)invocation.ReturnValue, invocation, disposable);
+
+    private async Task Await(Task task, IInvocation invocation, IDisposable? disposable)
+    {
+        try
+        {
+            await task.ConfigureAwait(false);
+        }
+        finally
+        {
+            base.InvokeAfter(invocation, disposable);
+        }
     }
 }
 
@@ -51,5 +74,26 @@ internal class TaskActivityInvoker<TResult> : ActivityInvoker
         Stop(activity);
 
         return result;
+    }
+}
+
+internal class TaskActivityNameInvoker<TResult> : ActivityNameInvoker
+{
+    public TaskActivityNameInvoker(string? activityName, int maxUseableTimes, bool suppressInstrumentation)
+        : base(activityName, maxUseableTimes, suppressInstrumentation) { }
+
+    protected override void InvokeAfter(IInvocation invocation, IDisposable? disposable) =>
+        invocation.ReturnValue = Await((Task<TResult>)invocation.ReturnValue, invocation, disposable);
+
+    private async Task<TResult> Await(Task<TResult> task, IInvocation invocation, IDisposable? disposable)
+    {
+        try
+        {
+            return await task.ConfigureAwait(false);
+        }
+        finally
+        {
+            base.InvokeAfter(invocation, disposable);
+        }
     }
 }

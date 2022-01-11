@@ -4,12 +4,19 @@ internal static class ActivityInvokerHelper
 {
     public static IActivityInvoker Noop { get; } = new NoopActivityInvoker();
 
-    public static bool TryGetActivityName(MethodInfo method, Type type, out string? activityName, out ActivityKind kind)
+    /// <returns>0: Not a activity</returns>
+    public static ActivitySettings GetActivityName(MethodInfo method, Type type, out string? activityName, out ActivityKind kind, out int maxUseableTimes)
     {
         activityName = null;
         kind = ActivityKind.Internal;
+        maxUseableTimes = 0;
 
-        if (method.GetCustomAttribute<NonActivityAttribute>(true) != null) return false;
+        var naa = method.GetCustomAttribute<NonActivityAttribute>(true);
+
+        if (naa != null)
+            return naa.SuppressInstrumentation
+                ? ActivitySettings.NonActivityAndSuppressInstrumentation
+                : ActivitySettings.NonActivity;
 
         var attr = method.GetCustomAttribute<ActivityAttribute>(true);
 
@@ -18,11 +25,35 @@ internal static class ActivityInvokerHelper
             activityName = attr.ActivityName;
 
             kind = attr.Kind;
-        }
-        else if (type.GetCustomAttribute<ActivitySourceAttribute>(true) == null)
-            return false;
 
-        return true;
+            return ActivitySettings.Activity;
+        }
+
+        var asa = type.GetCustomAttribute<ActivitySourceAttribute>(true);
+
+        if (asa != null)
+        {
+            kind = asa.Kind;
+
+            return ActivitySettings.Activity;
+        }
+
+        var ana = method.GetCustomAttribute<ActivityNameAttribute>(true);
+        if (ana == null)
+        {
+            ana = type.GetCustomAttribute<ActivityNameAttribute>(true);
+
+            if (ana == null) return ActivitySettings.NonActivity;
+
+            if (!string.IsNullOrWhiteSpace(ana.ActivityName))
+                activityName = $"{ana.ActivityName}.{method.Name}";
+        }
+        else
+            activityName = ana.ActivityName;
+
+        maxUseableTimes = ana.MaxUseableTimes;
+
+        return ActivitySettings.ActivityNameOnly;
     }
 
     public static Type GetActivityInvokerType(Type returnType)
@@ -39,6 +70,24 @@ internal static class ActivityInvokerHelper
         else if (type == typeof(ValueTask<>)) type = typeof(ValueTaskActivityInvoker<>);
         else if (type == typeof(IAsyncEnumerable<>)) type = typeof(AsyncStreamActivityInvoker<>);
         else return typeof(ActivityInvoker);
+
+        return type.MakeGenericType(returnType.GetGenericArguments()[0]);
+    }
+
+    public static Type GetActivityNameInvokerType(Type returnType)
+    {
+        var type = returnType;
+
+        if (type == typeof(Task)) return typeof(TaskActivityNameInvoker);
+        if (type == typeof(ValueTask)) return typeof(ValueTaskActivityNameInvoker);
+        if (!type.IsGenericType) return typeof(ActivityNameInvoker);
+
+        type = type.GetGenericTypeDefinition();
+
+        if (type == typeof(Task<>)) type = typeof(TaskActivityNameInvoker<>);
+        else if (type == typeof(ValueTask<>)) type = typeof(ValueTaskActivityNameInvoker<>);
+        else if (type == typeof(IAsyncEnumerable<>)) type = typeof(AsyncStreamActivityNameInvoker<>);
+        else return typeof(ActivityNameInvoker);
 
         return type.MakeGenericType(returnType.GetGenericArguments()[0]);
     }

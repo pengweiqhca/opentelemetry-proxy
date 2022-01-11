@@ -10,3 +10,8 @@ If declare [Activity] in method(interface method or virtaul method), call method
 
 ## [NonActivity]
 If declare [NonActivity] in method, call method will not automatically generate activity.
+
+## [ActivityName]
+Modify inner activity DisplayName, must call `.AddProcessor(new ActivityNameProcessor())`. If type have [ActivitySource] or method have [Activity], [NonActivity], [ActivityName] will be disabled.
+
+> Priority: [NonActivity] > [Activity] > [ActivitySource] > [ActivityName]

@@ -1,7 +1,7 @@
 namespace OpenTelemetry.DynamicProxy.Tests;
 
 [ActivitySource]
-public interface ITestInterface1
+public interface ITestInterface
 {
     void Method0();
 
@@ -18,7 +18,7 @@ public interface ITestInterface1
     IAsyncEnumerable<int> Method6(int delay);
 }
 
-public class TestInterface1 : ITestInterface1
+public class TestInterface1 : ITestInterface
 {
     public void Method0() { }
 

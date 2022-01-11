@@ -8,7 +8,7 @@ public class GetActivitySourceNameTest
 
     [Fact]
     public void Empty_ActivitySourceAttribute_Name() =>
-        Assert.Equal(typeof(ITestInterface1).FullName, ActivitySourceAttribute.GetActivitySourceName(typeof(ITestInterface1)));
+        Assert.Equal(typeof(ITestInterface).FullName, ActivitySourceAttribute.GetActivitySourceName(typeof(ITestInterface)));
 
     [Fact]
     public void ActivitySourceAttribute_Name() =>

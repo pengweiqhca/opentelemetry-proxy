@@ -2,17 +2,17 @@ using OpenTelemetry.Trace;
 
 namespace OpenTelemetry.DynamicProxy.Tests;
 
-public class OpenTelemetryInterceptorTest : IDisposable
+public class ActivityInterceptorTest : IDisposable
 {
-    private readonly ITestInterface1 _target = new ProxyGenerator()
-        .CreateInterfaceProxyWithTarget<ITestInterface1>(new TestInterface1(), new OpenTelemetryInterceptor(new ActivityInvokerFactory()));
+    private readonly ITestInterface _target = new ProxyGenerator()
+        .CreateInterfaceProxyWithTarget<ITestInterface>(new TestInterface1(), new ActivityInterceptor(new ActivityInvokerFactory()));
     private readonly ActivityListener _listener = new();
 
-    public OpenTelemetryInterceptorTest() => ActivitySource.AddActivityListener(_listener);
+    public ActivityInterceptorTest() => ActivitySource.AddActivityListener(_listener);
 
     [Theory]
     [MemberData(nameof(InterceptData))]
-    public async Task Intercept(Func<ITestInterface1, ValueTask> func, string name, StatusCode statusCode)
+    public async Task Intercept(Func<ITestInterface, ValueTask> func, string name, StatusCode statusCode)
     {
         using var activity = new Activity("Test").Start();
 
@@ -40,38 +40,38 @@ public class OpenTelemetryInterceptorTest : IDisposable
     {
         yield return new object[]
         {
-            new Func<ITestInterface1, ValueTask>(target =>
+            new Func<ITestInterface, ValueTask>(target =>
             {
                 target.Method0();
 
                 return default;
             }),
-            $"{typeof(ITestInterface1).FullName}.{nameof(ITestInterface1.Method0)}",
+            $"{typeof(ITestInterface).FullName}.{nameof(ITestInterface.Method0)}",
             StatusCode.Ok,
         };
 
         yield return new object[]
         {
-            new Func<ITestInterface1, ValueTask>(target =>
+            new Func<ITestInterface, ValueTask>(target =>
             {
                 target.Method1();
 
                 return default;
             }),
-            $"{typeof(ITestInterface1).FullName}.{nameof(ITestInterface1.Method1)}",
+            $"{typeof(ITestInterface).FullName}.{nameof(ITestInterface.Method1)}",
             StatusCode.Ok,
         };
 
         yield return new object[]
         {
-            new Func<ITestInterface1, ValueTask>(target => new (target.Method2())),
-            $"{typeof(ITestInterface1).FullName}.{nameof(ITestInterface1.Method2)}",
+            new Func<ITestInterface, ValueTask>(target => new (target.Method2())),
+            $"{typeof(ITestInterface).FullName}.{nameof(ITestInterface.Method2)}",
             StatusCode.Ok,
         };
 
         yield return new object[]
         {
-            new Func<ITestInterface1, ValueTask>(async target =>
+            new Func<ITestInterface, ValueTask>(async target =>
             {
                 try
                 {
@@ -79,13 +79,13 @@ public class OpenTelemetryInterceptorTest : IDisposable
                 }
                 catch (NotSupportedException) { }
             }),
-            $"{typeof(ITestInterface1).FullName}.{nameof(ITestInterface1.Method3)}",
+            $"{typeof(ITestInterface).FullName}.{nameof(ITestInterface.Method3)}",
             StatusCode.Error,
         };
 
         yield return new object[]
         {
-            new Func<ITestInterface1, ValueTask>(async  target =>
+            new Func<ITestInterface, ValueTask>(async  target =>
             {
                 try
                 {
@@ -93,21 +93,21 @@ public class OpenTelemetryInterceptorTest : IDisposable
                 }
                 catch (NotSupportedException) { }
             }),
-            $"{typeof(ITestInterface1).FullName}.{nameof(ITestInterface1.Method4)}",
+            $"{typeof(ITestInterface).FullName}.{nameof(ITestInterface.Method4)}",
             StatusCode.Error,
         };
 
         yield return new object[]
         {
-            new Func<ITestInterface1, ValueTask>(target => new (target.Method5().AsTask())),
-            $"{typeof(ITestInterface1).FullName}.{nameof(ITestInterface1.Method5)}",
+            new Func<ITestInterface, ValueTask>(target => new (target.Method5().AsTask())),
+            $"{typeof(ITestInterface).FullName}.{nameof(ITestInterface.Method5)}",
             StatusCode.Ok,
         };
 
         yield return new object[]
         {
-            new Func<ITestInterface1, ValueTask>(target => new (target.Method6(100).ToListAsync().AsTask())),
-            $"{typeof(ITestInterface1).FullName}.{nameof(ITestInterface1.Method6)}",
+            new Func<ITestInterface, ValueTask>(target => new (target.Method6(100).ToListAsync().AsTask())),
+            $"{typeof(ITestInterface).FullName}.{nameof(ITestInterface.Method6)}",
             StatusCode.Ok,
         };
     }

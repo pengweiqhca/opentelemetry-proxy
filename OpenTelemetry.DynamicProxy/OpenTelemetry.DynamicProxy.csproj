@@ -11,7 +11,7 @@
     <PackageProjectUrl>https://github.com/pengweiqhca/opentelemetry-proxy/tree/main/OpenTelemetry.DynamicProxy</PackageProjectUrl>
     <PackageTags>apm track profiling tracer otlp OpenTelemetry proxy Intercept</PackageTags>
     <TargetFrameworks>net461;netstandard2.0;netstandard2.1</TargetFrameworks>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,7 +22,7 @@
 
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="6.0.0" Condition="'$(TargetFramework)' != 'netstandard2.1'" />
     <PackageReference Include="Microsoft.SourceLink.GitLab" Version="1.*" PrivateAssets="All" />
-    <PackageReference Include="OpenTelemetry.Api" Version="1.1.0" />
+    <PackageReference Include="OpenTelemetry" Version="1.1.0" />
   </ItemGroup>
 
 </Project>
