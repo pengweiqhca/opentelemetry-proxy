@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <Content Include="..\OpenTelemetry.Proxy.Demo\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Include="..\OpenTelemetry.Proxy.Demo\DemoClass.cs" />
+    <Compile Include="..\OpenTelemetry.Proxy.Demo\Program.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol.Logs" Version="*-*" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="*-*" />
+    
+    <ProjectReference Include="..\..\src\OpenTelemetry.DynamicProxy\OpenTelemetry.DynamicProxy.csproj" />
+  </ItemGroup>
+  
+</Project>
