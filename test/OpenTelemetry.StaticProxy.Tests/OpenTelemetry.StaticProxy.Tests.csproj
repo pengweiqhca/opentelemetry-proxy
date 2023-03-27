@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net472;net7.0</TargetFrameworks>
+    <DisableFody>true</DisableFody>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FodyHelpers" Version="6.6.4" />
+    <PackageReference Include="FSharp.Core" Version="7.*" />
+    <PackageReference Include="Moq" Version="4.*" />
+    <PackageReference Include="OpenTelemetry" Version="1.4.0" />
+
+    <ProjectReference Include="..\..\src\OpenTelemetry.Proxy\OpenTelemetry.Proxy.csproj" />
+    <ProjectReference Include="..\..\src\OpenTelemetry.StaticProxy.Fody\OpenTelemetry.StaticProxy.Fody.csproj" />
+    <ProjectReference Include="..\AssemblyToProcess\AssemblyToProcess.csproj" />
+    <ProjectReference Include="..\OpenTelemetry.Proxy.Tests.Common\OpenTelemetry.Proxy.Tests.Common.csproj" />
+  </ItemGroup>
+
+</Project>

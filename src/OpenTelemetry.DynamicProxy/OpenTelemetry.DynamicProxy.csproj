@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Automatically generate activity by define [Activity].</Description>
+    <TargetFrameworks>net472;net6.0</TargetFrameworks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Castle.DynamicProxy" />
+    <Using Include="System.Reflection" />
+
+    <Compile Include="../Shared/ActivitySettings.cs" />
+
+    <InternalsVisibleTo Include="OpenTelemetry.DynamicProxy.Tests" Key="$(PublicKey)" />
+
+    <PackageReference Include="Castle.Core" Version="4.*" />
+
+    <ProjectReference Include="..\OpenTelemetry.Proxy\OpenTelemetry.Proxy.csproj" />
+  </ItemGroup>
+
+</Project>

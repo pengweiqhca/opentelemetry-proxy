@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net472;net6.0</TargetFrameworks>
+
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OpenTelemetry.Proxy.Tests.Common\OpenTelemetry.Proxy.Tests.Common.csproj" />
+    <Using Include="Xunit" />
+    
+    <PackageReference Include="FSharp.Core" Version="7.*" />
+    <PackageReference Include="Moq" Version="4.*" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="*-*" />
+    <PackageReference Include="System.Linq.Async" Version="6.*" />
+
+    <ProjectReference Include="..\..\src\OpenTelemetry.DynamicProxy\OpenTelemetry.DynamicProxy.csproj" />
+  </ItemGroup>
+
+</Project>

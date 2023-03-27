@@ -1,24 +1,34 @@
-<Project>
+﻿<Project>
 
   <PropertyGroup>
-    <AssemblyOriginatorKeyFile>..\Key.snk</AssemblyOriginatorKeyFile>
+    <SolutionDir Condition="'$(SolutionDir)' == ''">$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildThisFileDirectory)', '.gitignore'))</SolutionDir>
+    <AssemblyOriginatorKeyFile>$(SolutionDir)\Key.snk</AssemblyOriginatorKeyFile>
+    <DebugSymbols>True</DebugSymbols>
+    <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">True</GeneratePackageOnBuild>
+    <IncludeSymbols>True</IncludeSymbols>
     <ImplicitUsings>enable</ImplicitUsings>
-    <LangVersion>10.0</LangVersion>
+    <LangVersion>11.0</LangVersion>
     <Nullable>enable</Nullable>
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
-    <NoWarn>$(NoWarn);CS0436</NoWarn>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <PackageId>PW.$(MSBuildProjectName)</PackageId>
+    <PackageTags>apm track profiling tracer otlp OpenTelemetry proxy Intercept</PackageTags>
+    <RepositoryUrl>https://github.com/pengweiqhca/opentelemetry-proxy</RepositoryUrl>
+    <PackageProjectUrl>$(RepositoryUrl)/src/src/$(MSBuildProjectName)</PackageProjectUrl>
     <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
     <SignAssembly>True</SignAssembly>
+    <PublicKey>002400000480000094000000060200000024000052534131000400000100010031b198cb1742fb12c699a60d820e6582ca8a8dbbd9383812f82bed299e06eab18931798fb14cc6ab80cda818032d15704f0e1c4aa5641b428f8a0decbfa1a30ab8d92efc7ec9cbd801f60c4b88b91c6acb704c20c6a061a7dae86601981164fb27be0c0beb3e6d5dbec1b83962a6d0b845ca09a52723237bd7083359b17830c0</PublicKey>
+
+    <FodyVersion>6.6.4</FodyVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <Using Include="Castle.DynamicProxy" />
     <Using Include="System.Collections.Concurrent" />
     <Using Include="System.Diagnostics" />
-    <Using Include="System.Reflection" />
 
     <PackageReference Include="ConfigureAwaitChecker.Analyzer" Version="5.*" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.SourceLink.GitLab" Version="1.*" PrivateAssets="All" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">

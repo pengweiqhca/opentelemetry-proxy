@@ -1,0 +1,15 @@
+﻿<Project>
+
+  <Import Project="..\Directory.Build.props" />
+
+  <PropertyGroup>
+    <AssemblyVersion>2.0</AssemblyVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Version>$(AssemblyVersion).0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="PolySharp" Version="1.*" PrivateAssets="All" />
+  </ItemGroup>
+
+</Project>

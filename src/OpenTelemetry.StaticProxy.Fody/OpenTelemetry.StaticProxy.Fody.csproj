@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../Shared/ActivitySettings.cs" />
+    <Compile Include="../Shared/ProxyMethod.cs" />
+
+    <InternalsVisibleTo Include="OpenTelemetry.StaticProxy.Fody.Tests" Key="$(PublicKey)" />
+
+    <PackageReference Include="FodyHelpers" Version="$(FodyVersion)" />
+  </ItemGroup>
+
+</Project>

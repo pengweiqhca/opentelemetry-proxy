@@ -1,0 +1,19 @@
+﻿<Project>
+
+  <Import Project="..\Directory.Build.props" />
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+
+    <PackageReference Include="coverlet.collector" Version="3.*" PrivateAssets="None" />
+    <PackageReference Include="JetBrains.DotMemoryUnit" Version="3.*" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.*" PrivateAssets="None" />
+    <PackageReference Include="xunit" Version="2.*" PrivateAssets="None" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.*" PrivateAssets="None" />
+  </ItemGroup>
+
+</Project>
