@@ -8,22 +8,13 @@ namespace Microsoft.Extensions.Internal;
 internal readonly struct CoercedAwaitableInfo
 {
     public AwaitableInfo AwaitableInfo { get; }
+
     public IEnumerable<Instruction>? CoercerExpression { get; }
 
-    [MemberNotNullWhen(true, nameof(CoercerExpression))]
-    public bool RequiresCoercion => CoercerExpression != null;
-
-    public CoercedAwaitableInfo(AwaitableInfo awaitableInfo)
-    {
-        AwaitableInfo = awaitableInfo;
-        CoercerExpression = null;
-    }
+    public CoercedAwaitableInfo(AwaitableInfo awaitableInfo) => AwaitableInfo = awaitableInfo;
 
     public CoercedAwaitableInfo(IEnumerable<Instruction> coercerExpression, AwaitableInfo coercedAwaitableInfo)
-    {
-        CoercerExpression = coercerExpression;
-        AwaitableInfo = coercedAwaitableInfo;
-    }
+        : this(coercedAwaitableInfo) => CoercerExpression = coercerExpression;
 
     public static bool IsTypeAwaitable(TypeReference type, out CoercedAwaitableInfo info)
     {

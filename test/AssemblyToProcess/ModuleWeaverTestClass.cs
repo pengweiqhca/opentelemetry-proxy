@@ -21,6 +21,14 @@ public static class ModuleWeaverTestClass
     }
 
     [NonActivity(true)]
+    public static async ValueTask<bool> SuppressInstrumentationScope2Async()
+    {
+        await Task.Delay(100).ConfigureAwait(false);
+
+        return Sdk.SuppressInstrumentation;
+    }
+
+    [NonActivity(true)]
     public static TestAwaitable<bool> SuppressInstrumentationScopeAwaitable() => new(SuppressInstrumentationScope);
 
     [ActivityName]
@@ -84,7 +92,7 @@ public static class ModuleWeaverTestClass
     public static FSharpAsync<Activity?> GetCurrentActivityAsync() => FSharpAsync.AwaitTask(CurrentActivityAsync());
 
     [Activity]
-    public static TestAwaitable<Activity?> GetCurrentActivityAwaitable() => new(() => Activity.Current);
+    public static TestAwaitable<Activity?> GetCurrentActivityAwaitable() => new(static () => Activity.Current);
 
     public static void OutMethod(in int a, out int b, ref int c)
     {

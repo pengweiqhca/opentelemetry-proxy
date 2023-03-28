@@ -28,18 +28,18 @@ internal class StaticProxyEmitter
             foreach (var method in proxyType.Methods)
             {
                 //Empty method is unnecessary weave in;
-                if (method.Key.ReturnType.HaveSameIdentity(Context.TargetModule.TypeSystem.Void) &&
-                    method.Key.Body.Instructions.Count < 2) continue;
+                var isVoid = method.Key.ReturnType.HaveSameIdentity(Context.TargetModule.TypeSystem.Void);
+                if (isVoid && method.Key.Body.Instructions.Count < 2) continue;
 
                 if (method.Value.Settings == ActivitySettings.NonActivityAndSuppressInstrumentation)
-                    EmitSuppressInstrumentationScope(method.Key);
+                    EmitSuppressInstrumentationScope(method.Key, isVoid);
                 else if (method.Value.Settings == ActivitySettings.ActivityNameOnly)
-                    EmitActivityName(method.Key,
+                    EmitActivityName(method.Key, isVoid,
                         string.IsNullOrWhiteSpace(method.Value.Name)
                             ? $"{type.FullName}.{method.Key.Name}"
                             : method.Value.Name, method.Value.MaxUsableTimes);
                 else if (method.Value.Settings == ActivitySettings.Activity)
-                    EmitActivity(method.Key, activitySource ??= AddActivitySource(type, activitySourceName, version),
+                    EmitActivity(method.Key, isVoid, activitySource ??= AddActivitySource(type, activitySourceName, version),
                         string.IsNullOrWhiteSpace(method.Value.Name)
                             ? $"{activitySourceName}.{method.Key.Name}"
                             : method.Value.Name!, method.Value.Kind);
@@ -77,11 +77,11 @@ internal class StaticProxyEmitter
     }
 
     // https://stackoverflow.com/questions/11074518/add-a-try-catch-with-mono-cecil
-    public void EmitSuppressInstrumentationScope(MethodDefinition method)
+    public void EmitSuppressInstrumentationScope(MethodDefinition method, bool isVoid)
     {
         method.Body.InitLocals = true;
 
-        var (_, leave) = ProcessReturn(method,
+        var (_, leave) = ProcessReturn(method, isVoid,
             CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo)
                 ? index => Ldloc(index, awaitableInfo.AwaitableInfo.AwaitableType.IsValueType, method.Body.Variables)
                 : null);
@@ -96,8 +96,7 @@ internal class StaticProxyEmitter
         method.Body.Instructions.Insert(1, Instruction.Create(OpCodes.Call, Context.Begin));
         method.Body.Instructions.Insert(2, Stloc(disposeVariableIndex, method.Body.Variables));
 
-        var index = method.Body.Instructions.Count -
-            (method.ReturnType.HaveSameIdentity(method.Module.TypeSystem.Void) ? 1 : 2);
+        var index = method.Body.Instructions.Count - (isVoid ? 1 : 2);
 
         if (leave != null)
         {
@@ -108,7 +107,7 @@ internal class StaticProxyEmitter
                 HandlerEnd = leave
             };
 
-            ProcessHandler(method, 3, catchHandler);
+            ProcessHandler(method, isVoid, 3, catchHandler);
 
             /*IL_0010: pop
             IL_0011: ldloc.0
@@ -132,7 +131,7 @@ internal class StaticProxyEmitter
             method.Body.Instructions.Insert(index++, Ldloc(disposeVariableIndex, method.Body.Variables));
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Callvirt, Context.Dispose));
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Br_S,
-                method.Body.Instructions[method.ReturnType.HaveSameIdentity(method.Module.TypeSystem.Void) ? ^1 : ^2]));
+                method.Body.Instructions[isVoid ? ^1 : ^2]));
 
             /*IL_0032: ldloca.s 2
             IL_0034: ldloc.0
@@ -159,11 +158,10 @@ internal class StaticProxyEmitter
             var finallyHandler = new ExceptionHandler(ExceptionHandlerType.Finally)
             {
                 HandlerStart = Ldloc(disposeVariableIndex, method.Body.Variables),
-                HandlerEnd = method.Body.Instructions[
-                    method.ReturnType.HaveSameIdentity(method.Module.TypeSystem.Void) ? ^1 : ^2]
+                HandlerEnd = method.Body.Instructions[isVoid ? ^1 : ^2]
             };
 
-            ProcessHandler(method, 3, finallyHandler);
+            ProcessHandler(method, isVoid, 3, finallyHandler);
 
             /*IL_0042: ldloc.0
             IL_0043: brfalse.s IL_004b
@@ -182,13 +180,13 @@ internal class StaticProxyEmitter
         }
     }
 
-    public void EmitActivityName(MethodDefinition method, string? activityName, int maxUsableTimes)
+    public void EmitActivityName(MethodDefinition method, bool isVoid, string? activityName, int maxUsableTimes)
     {
         if (maxUsableTimes == 0) return;
 
         method.Body.InitLocals = true;
 
-        var (_, leave) = ProcessReturn(method,
+        var (_, leave) = ProcessReturn(method, isVoid,
             CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo)
                 ? index => Ldloc(index, awaitableInfo.AwaitableInfo.AwaitableType.IsValueType, method.Body.Variables)
                 : null);
@@ -197,8 +195,7 @@ internal class StaticProxyEmitter
         method.Body.Instructions.Insert(1, LdI4(maxUsableTimes));
         method.Body.Instructions.Insert(2, Instruction.Create(OpCodes.Call, Context.SetName));
 
-        var index = method.Body.Instructions.Count -
-            (method.ReturnType.HaveSameIdentity(method.Module.TypeSystem.Void) ? 1 : 2);
+        var index = method.Body.Instructions.Count - (isVoid ? 1 : 2);
 
         if (leave != null)
         {
@@ -209,7 +206,7 @@ internal class StaticProxyEmitter
                 HandlerEnd = leave
             };
 
-            ProcessHandler(method, 3, catchHandler);
+            ProcessHandler(method, isVoid, 3, catchHandler);
 
             /*IL_003b: pop
             IL_003c: call void [OpenTelemetry.Proxy]OpenTelemetry.Proxy.ActivityName::Clear()
@@ -229,7 +226,7 @@ internal class StaticProxyEmitter
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse_S, brfalse));
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Call, Context.Clear));
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Br_S,
-                method.Body.Instructions[method.ReturnType.HaveSameIdentity(method.Module.TypeSystem.Void) ? ^1 : ^2]));
+                method.Body.Instructions[isVoid ? ^1 : ^2]));
 
             /*IL_0032: ldloca.s 2
             IL_0066: ldnull
@@ -254,11 +251,10 @@ internal class StaticProxyEmitter
             var finallyHandler = new ExceptionHandler(ExceptionHandlerType.Finally)
             {
                 HandlerStart = Instruction.Create(OpCodes.Call, Context.Clear),
-                HandlerEnd = method.Body.Instructions[
-                    method.ReturnType.HaveSameIdentity(method.Module.TypeSystem.Void) ? ^1 : ^2]
+                HandlerEnd = method.Body.Instructions[isVoid ? ^1 : ^2]
             };
 
-            ProcessHandler(method, 3, finallyHandler);
+            ProcessHandler(method, isVoid, 3, finallyHandler);
 
             /*IL_006f: call void [OpenTelemetry.Proxy]OpenTelemetry.Proxy.ActivityName::Clear()
             IL_0074: endfinally*/
@@ -267,15 +263,15 @@ internal class StaticProxyEmitter
         }
     }
 
-    public void EmitActivity(MethodDefinition method, FieldReference activitySource, string? activityName,
-        int activityKind)
+    public void EmitActivity(MethodDefinition method, bool isVoid, FieldReference activitySource,
+        string? activityName, int activityKind)
     {
         method.Body.InitLocals = true;
 
         var activityIndex = method.Body.Variables.Count;
         method.Body.Variables.Add(new(Context.Activity));
 
-        var (returnVariableIndex, leave) = ProcessReturn(method,
+        var (returnVariableIndex, leave) = ProcessReturn(method, isVoid,
             CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo)
                 ? _ => Ldloc(activityIndex, method.Body.Variables)
                 : null);
@@ -296,8 +292,7 @@ internal class StaticProxyEmitter
         var exceptionIndex = method.Body.Variables.Count;
         method.Body.Variables.Add(new(Context.Exception));
 
-        var index = method.Body.Instructions.Count -
-            (method.ReturnType.HaveSameIdentity(method.Module.TypeSystem.Void) ? 1 : 2);
+        var index = method.Body.Instructions.Count - (isVoid ? 1 : 2);
 
         if (leave != null)
         {
@@ -308,7 +303,7 @@ internal class StaticProxyEmitter
                 HandlerEnd = leave
             };
 
-            ProcessHandler(method, 5, catchHandler);
+            ProcessHandler(method, isVoid, 5, catchHandler);
 
             EmitActivityCatch(method, ref index, catchHandler, activityIndex, exceptionIndex);
 
@@ -381,8 +376,7 @@ internal class StaticProxyEmitter
             var finallyHandler = new ExceptionHandler(ExceptionHandlerType.Finally)
             {
                 HandlerStart = Ldloc(activityIndex, method.Body.Variables),
-                HandlerEnd = method.Body.Instructions[
-                    method.ReturnType.HaveSameIdentity(method.Module.TypeSystem.Void) ? ^1 : ^2]
+                HandlerEnd = method.Body.Instructions[isVoid ? ^1 : ^2]
             };
 
             finallyHandler.TryEnd = finallyHandler.HandlerStart;
@@ -394,7 +388,7 @@ internal class StaticProxyEmitter
                 HandlerEnd = finallyHandler.HandlerStart
             };
 
-            ProcessHandler(method, 5, catchHandler);
+            ProcessHandler(method, isVoid, 5, catchHandler);
 
             finallyHandler.TryStart = catchHandler.TryStart;
 
@@ -453,7 +447,7 @@ internal class StaticProxyEmitter
     }
 
     /// <returns>返回值变量索引，-1则表示是void</returns>
-    private static (int, Instruction?) ProcessReturn(MethodDefinition method, Func<int, Instruction>? createLeave)
+    private static (int, Instruction?) ProcessReturn(MethodDefinition method, bool isVoid, Func<int, Instruction>? createLeave)
     {
         var variableIndex = -1;
         Instruction? leave = null;
@@ -461,8 +455,7 @@ internal class StaticProxyEmitter
         {
             if (method.Body.Instructions[index].OpCode != OpCodes.Ret) continue;
 
-            if (method.ReturnType != method.Module.TypeSystem.Void &&
-                !IsLdloc(method.Body.Instructions[index - 1], out _))
+            if (!isVoid && !IsLdloc(method.Body.Instructions[index - 1], out _))
             {
                 if (leave == null)
                 {
@@ -479,10 +472,9 @@ internal class StaticProxyEmitter
             {
                 var checkLeaveS = method.Body.ExceptionHandlers.Count < 1 ||
                     method.Body.ExceptionHandlers[^1].HandlerEnd !=
-                    method.Body.Instructions[
-                        method.ReturnType.HaveSameIdentity(method.Module.TypeSystem.Void) ? ^1 : ^2];
+                    method.Body.Instructions[isVoid ? ^1 : ^2];
 
-                if (method.ReturnType.HaveSameIdentity(method.Module.TypeSystem.Void))
+                if (isVoid)
                 {
                     leave = createLeave == null ? method.Body.Instructions[index] : createLeave(variableIndex);
 
@@ -577,11 +569,11 @@ internal class StaticProxyEmitter
         }
     }
 
-    private static void ProcessHandler(MethodDefinition method, int index, ExceptionHandler exceptionHandler)
+    private static void ProcessHandler(MethodDefinition method, bool isVoid, int index, ExceptionHandler exceptionHandler)
     {
         if (method.Body.ExceptionHandlers.Count > 0 &&
             method.Body.ExceptionHandlers[^1].HandlerEnd ==
-            method.Body.Instructions[method.ReturnType.HaveSameIdentity(method.Module.TypeSystem.Void) ? ^1 : ^2])
+            method.Body.Instructions[isVoid ? ^1 : ^2])
             method.Body.ExceptionHandlers[^1].HandlerEnd = exceptionHandler.HandlerStart;
 
         exceptionHandler.TryStart = method.Body.Instructions[index];
@@ -602,7 +594,7 @@ internal class StaticProxyEmitter
         IL_0020: stloc.2*/
         method.Body.Instructions.Insert(index++, ldReturn);
 
-        if (awaitableInfo.RequiresCoercion)
+        if (awaitableInfo.CoercerExpression != null)
             foreach (var instruction in awaitableInfo.CoercerExpression)
                 method.Body.Instructions.Insert(index++, instruction);
 

@@ -49,7 +49,7 @@ public class StaticProxyEmitterTest
 
         emitter.EmitSuppressInstrumentationScope(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
                 .GetType(typeof(StaticProxyEmitterTestClass).FullName))
-            .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.SuppressInstrumentationScope)));
+            .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.SuppressInstrumentationScope)), false);
 
         var assembly = SaveAndLoad(emitter, _output);
 
@@ -79,7 +79,7 @@ public class StaticProxyEmitterTest
         emitter.EmitActivityName(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
                     .GetType(typeof(StaticProxyEmitterTestClass).FullName))
                 .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.ActivityName)),
-            activityName, availableTimes);
+            false, activityName, availableTimes);
 
         var assembly = SaveAndLoad(emitter, _output);
 
@@ -115,7 +115,7 @@ public class StaticProxyEmitterTest
         emitter.EmitActivity(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
                     .GetType(typeof(StaticProxyEmitterTestClass).FullName))
                 .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.GetCurrentActivity)),
-            emitter.AddActivitySource(
+            false, emitter.AddActivitySource(
                 emitter.Context.TargetModule.GetType(typeof(StaticProxyEmitterTestClass).FullName), name,
                 version),
             activityName, (int)ActivityKind.Client);
@@ -157,7 +157,7 @@ public class StaticProxyEmitterTest
         emitter.EmitActivity(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
                     .GetType(typeof(StaticProxyEmitterTestClass).FullName))
                 .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.TryCatch)),
-            emitter.AddActivitySource(
+            false, emitter.AddActivitySource(
                 emitter.Context.TargetModule.GetType(typeof(StaticProxyEmitterTestClass).FullName), name,
                 version),
             activityName, (int)ActivityKind.Client);
@@ -192,7 +192,7 @@ public class StaticProxyEmitterTest
 
         emitter.EmitSuppressInstrumentationScope(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
                 .GetType(typeof(StaticProxyEmitterTestClass).FullName))
-            .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.Void)));
+            .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.Void)), true);
 
         var assembly = SaveAndLoad(emitter, _output);
 
@@ -211,7 +211,7 @@ public class StaticProxyEmitterTest
 
         emitter.EmitSuppressInstrumentationScope(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
                 .GetType(typeof(StaticProxyEmitterTestClass).FullName))
-            .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.TryCatchVoid)));
+            .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.TryCatchVoid)), true);
 
         var assembly = SaveAndLoad(emitter, _output);
 
@@ -231,7 +231,7 @@ public class StaticProxyEmitterTest
 
         emitter.EmitSuppressInstrumentationScope(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
                 .GetType(typeof(StaticProxyEmitterTestClass).FullName))
-            .Single(m => m.Name == methodName));
+            .Single(m => m.Name == methodName), false);
 
         var assembly = SaveAndLoad(emitter, _output);
 
@@ -254,7 +254,7 @@ public class StaticProxyEmitterTest
         emitter.EmitActivityName(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
                     .GetType(typeof(StaticProxyEmitterTestClass).FullName))
                 .Single(m => m.Name == methodName),
-            activityName, availableTimes);
+            false, activityName, availableTimes);
 
         var assembly = SaveAndLoad(emitter, _output);
 
@@ -280,7 +280,7 @@ public class StaticProxyEmitterTest
         emitter.EmitActivity(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
                     .GetType(typeof(StaticProxyEmitterTestClass).FullName))
                 .Single(m => m.Name == methodName),
-            emitter.AddActivitySource(
+            false, emitter.AddActivitySource(
                 emitter.Context.TargetModule.GetType(typeof(StaticProxyEmitterTestClass).FullName), name,
                 version),
             activityName, (int)ActivityKind.Client);

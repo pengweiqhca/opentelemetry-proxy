@@ -158,7 +158,7 @@ public class ActivityInvoker : IActivityInvoker
         il.Emit(OpCodes.Ldarg_1);
         il.Emit(OpCodes.Callvirt, typeof(IInvocation).GetProperty(nameof(IInvocation.ReturnValue))!.GetMethod!);
         il.Emit(returnType.IsClass ? OpCodes.Castclass : OpCodes.Unbox_Any, returnType);
-        if (info.RequiresCoercion) info.CoercerExpression(il);
+        info.CoercerExpression?.Invoke(il);
 
         if (info.AwaitableInfo.AwaitableType.IsValueType)
         {
@@ -185,7 +185,7 @@ public class ActivityInvoker : IActivityInvoker
 
         // if (awaiter.IsCompleted)
         il.Emit(info.AwaitableInfo.AwaiterType.IsValueType ? OpCodes.Ldloca_S : OpCodes.Ldloc, awaiter);
-        il.Emit(info.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod!.IsFinal ? OpCodes.Call : OpCodes.Callvirt,
+        il.Emit(info.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod.IsFinal ? OpCodes.Call : OpCodes.Callvirt,
             info.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod);
 
         var falseLabel = il.DefineLabel();

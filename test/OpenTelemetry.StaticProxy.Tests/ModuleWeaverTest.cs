@@ -18,6 +18,10 @@ public class ModuleWeaverTest
         nameof(ModuleWeaverTestClass.SuppressInstrumentationScopeAsync), static instance => new((Task<bool>)instance));
 
     [Fact]
+    public Task SuppressInstrumentationScope2Async() => SuppressInstrumentationScopeTest(
+        nameof(ModuleWeaverTestClass.SuppressInstrumentationScope2Async), static instance => (ValueTask<bool>)instance);
+
+    [Fact]
     public Task SuppressInstrumentationScopeAwaitable() => SuppressInstrumentationScopeTest(
         nameof(ModuleWeaverTestClass.SuppressInstrumentationScopeAwaitable), Awaitable2ValueTask<bool>);
 
