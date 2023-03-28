@@ -37,6 +37,14 @@ internal static class Utilities
         }
     };
 
+    private static readonly AssemblyNameReference FSharpCore = new("FSharp.Core", new(4, 0, 0, 0))
+    {
+        PublicKeyToken = new byte[]
+        {
+            0xb0, 0x3f, 0x5f, 0x7f, 0x11, 0xd5, 0x0a, 0x3a
+        }
+    };
+
     public static IEnumerable<MethodDefinition> GetMethods(this TypeDefinition type, string name)
     {
         var methods = type.GetMethods();
@@ -55,7 +63,10 @@ internal static class Utilities
     public static TypeReference GetCoreType<T>(this ModuleDefinition module) => module.GetCoreType(typeof(T));
 
     public static TypeReference GetCoreType(this ModuleDefinition module, Type type) =>
-        new(type.Namespace, type.Name, module, module.TypeSystem.CoreLibrary);
+        new(type.Namespace, type.Name, module, module.TypeSystem.CoreLibrary)
+        {
+            IsValueType = type.IsValueType
+        };
 
     public static CustomAttribute? GetCustomAttribute(this TypeDefinition type, TypeReference attributeType) =>
         type.CustomAttributes.FirstOrDefault(attr => attr.AttributeType.HaveSameIdentity(attributeType)) ??
@@ -157,4 +168,6 @@ internal static class Utilities
                 StringComparison.OrdinalIgnoreCase)
             : scope1 == scope2;
     }
+
+    public static bool IsFSharpCore(this IMetadataScope scope) => HaveSameIdentity(scope, FSharpCore);
 }

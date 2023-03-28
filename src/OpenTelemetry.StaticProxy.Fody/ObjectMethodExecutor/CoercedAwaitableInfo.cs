@@ -1,5 +1,6 @@
 ﻿using Mono.Cecil;
 using Mono.Cecil.Cil;
+using OpenTelemetry.StaticProxy.Fody;
 using System.Diagnostics.CodeAnalysis;
 
 // ReSharper disable once CheckNamespace
@@ -18,7 +19,7 @@ internal readonly struct CoercedAwaitableInfo
 
     public static bool IsTypeAwaitable(TypeReference type, out CoercedAwaitableInfo info)
     {
-        if (type == type.Module.TypeSystem.Void)
+        if (type.HaveSameIdentity(type.Module.TypeSystem.Void))
         {
             info = default;
             return false;

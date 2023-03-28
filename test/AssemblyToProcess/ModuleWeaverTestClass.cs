@@ -1,4 +1,5 @@
 ﻿using Microsoft.FSharp.Control;
+using Microsoft.FSharp.Core;
 using OpenTelemetry;
 using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.Tests.Common;
@@ -89,7 +90,10 @@ public static class ModuleWeaverTestClass
     }
 
     [Activity]
-    public static FSharpAsync<Activity?> GetCurrentActivityAsync() => FSharpAsync.AwaitTask(CurrentActivityAsync());
+    public static FSharpAsync<Activity?> GetCurrentActivityAsync()
+    {
+        return FSharpAsync.AwaitTask(CurrentActivityAsync());
+    }
 
     [Activity]
     public static TestAwaitable<Activity?> GetCurrentActivityAwaitable() => new(static () => Activity.Current);

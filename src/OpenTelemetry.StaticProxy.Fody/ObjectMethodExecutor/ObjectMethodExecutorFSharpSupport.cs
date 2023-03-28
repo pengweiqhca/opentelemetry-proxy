@@ -20,8 +20,8 @@ namespace Microsoft.Extensions.Internal;
 internal static class ObjectMethodExecutorFSharpSupport
 {
     private static readonly object FsharpValuesCacheLock = new();
-    private static ModuleDefinition? _fsharpCoreAssembly;
-    private static MethodReference? _fsharpAsyncStartAsTaskGenericMethod;
+    private static IMetadataScope? _fsharpCoreAssembly;
+    private static MethodReference? _fsharpAsyncStartAsTask;
     private static MethodReference? _fsharpOptionOfTaskCreationOptionsNonePropertyGetMethod;
     private static MethodReference? _fsharpOptionOfCancellationTokenNonePropertyGetMethod;
 
@@ -46,75 +46,83 @@ internal static class ObjectMethodExecutorFSharpSupport
             }
         };
 
-        /*coerceToAwaitableExpression = (object fsharpAsync) => (object)FSharpAsync.StartAsTask<TResult>(
+        /*Task<TResult> task = FSharpAsync.StartAsTask<TResult>(
             (Microsoft.FSharp.Control.FSharpAsync<TResult>)fsharpAsync,
             FSharpOption<TaskCreationOptions>.None,
             FSharpOption<CancellationToken>.None);*/
-        var startAsTaskClosedMethod = new GenericInstanceMethod(_fsharpAsyncStartAsTaskGenericMethod);
-
-        startAsTaskClosedMethod.GenericArguments.Add(awaiterResultType);
-
         coerceToAwaitableExpression = new[]
         {
-            Instruction.Create(OpCodes.Call, possibleFSharpAsyncType.Module.ImportReference(_fsharpOptionOfTaskCreationOptionsNonePropertyGetMethod)),
-            Instruction.Create(OpCodes.Call, possibleFSharpAsyncType.Module.ImportReference(_fsharpOptionOfCancellationTokenNonePropertyGetMethod)),
-            Instruction.Create(OpCodes.Call, possibleFSharpAsyncType.Module.ImportReference(startAsTaskClosedMethod))
+            Instruction.Create(OpCodes.Call, _fsharpOptionOfTaskCreationOptionsNonePropertyGetMethod),
+            Instruction.Create(OpCodes.Call, _fsharpOptionOfCancellationTokenNonePropertyGetMethod),
+            Instruction.Create(OpCodes.Call, possibleFSharpAsyncType.Module.ImportReference(
+                new GenericInstanceMethod(_fsharpAsyncStartAsTask)
+                {
+                    GenericArguments =
+                    {
+                        awaiterResultType
+                    }
+                }))
         };
 
         return true;
     }
 
-    [MemberNotNullWhen(true, nameof(_fsharpAsyncStartAsTaskGenericMethod), nameof(_fsharpCoreAssembly),
-        nameof(_fsharpOptionOfTaskCreationOptionsNonePropertyGetMethod), nameof(_fsharpOptionOfCancellationTokenNonePropertyGetMethod))]
+    [MemberNotNullWhen(true, nameof(_fsharpAsyncStartAsTask), nameof(_fsharpCoreAssembly),
+        nameof(_fsharpOptionOfTaskCreationOptionsNonePropertyGetMethod),
+        nameof(_fsharpOptionOfCancellationTokenNonePropertyGetMethod))]
     private static bool IsFSharpAsyncOpenGenericType(TypeReference? possibleFSharpAsyncGenericType)
     {
         if (possibleFSharpAsyncGenericType == null || !string.Equals(possibleFSharpAsyncGenericType.FullName,
                 "Microsoft.FSharp.Control.FSharpAsync`1", StringComparison.Ordinal)) return false;
 
         lock (FsharpValuesCacheLock)
-            return _fsharpCoreAssembly != null
-                // Since we've already found the real FSharpAsync.Core assembly, we just have to check that the supplied FSharpAsync`1 type is the one from that assembly.
-                ? possibleFSharpAsyncGenericType.Module == _fsharpCoreAssembly
+            return _fsharpCoreAssembly == null
                 // We'll keep trying to find the FSharp types/values each time any type called FSharpAsync`1 is supplied.
-                : TryPopulateFSharpValueCaches(possibleFSharpAsyncGenericType);
+                ? TryPopulateFSharpValueCaches(possibleFSharpAsyncGenericType)
+                // Since we've already found the real FSharpAsync.Core assembly, we just have to check that the supplied FSharpAsync`1 type is the one from that assembly.
+                : possibleFSharpAsyncGenericType.Scope.HaveSameIdentity(_fsharpCoreAssembly);
     }
 
     private static bool TryPopulateFSharpValueCaches(TypeReference possibleFSharpAsyncGenericType)
     {
-        var assembly = possibleFSharpAsyncGenericType.Module;
-        var fsharpOptionType = assembly.GetType("Microsoft.FSharp.Core.FSharpOption`1");
-        var fsharpAsyncType = assembly.GetType("Microsoft.FSharp.Control.FSharpAsync");
+        if (!possibleFSharpAsyncGenericType.Scope.IsFSharpCore()) return false;
 
-        if (fsharpOptionType == null || fsharpAsyncType == null) return false;
+            _fsharpAsyncStartAsTask = new TypeReference(
+                    "Microsoft.FSharp.Control", "FSharpAsync",
+                    possibleFSharpAsyncGenericType.Module, possibleFSharpAsyncGenericType.Scope).Resolve().GetMethods()
+                .Single(static m => m.Name == "StartAsTask" && m.Parameters.Count == 3);
+
+        var fsharpOptionType = new TypeReference("Microsoft.FSharp.Core", "FSharpOption`1",
+            possibleFSharpAsyncGenericType.Module, possibleFSharpAsyncGenericType.Scope);
 
         // Get a reference to FSharpOption<TaskCreationOptions>.None
-        var fsharpOptionOfTaskCreationOptionsType = fsharpOptionType.MakeGenericInstanceType(possibleFSharpAsyncGenericType.Module.GetCoreType<TaskCreationOptions>());
-        _fsharpOptionOfTaskCreationOptionsNonePropertyGetMethod = new("get_None",
-            possibleFSharpAsyncGenericType.Module.GetCoreType<TaskCreationOptions>(),
-            fsharpOptionOfTaskCreationOptionsType);
+        _fsharpOptionOfTaskCreationOptionsNonePropertyGetMethod = GetNone(fsharpOptionType,
+            possibleFSharpAsyncGenericType.Module.GetCoreType<TaskCreationOptions>());
 
         // Get a reference to FSharpOption<CancellationToken>.None
-        var fsharpOptionOfCancellationTokenType = fsharpOptionType.MakeGenericInstanceType(possibleFSharpAsyncGenericType.Module.GetCoreType<CancellationToken>());
-        _fsharpOptionOfCancellationTokenNonePropertyGetMethod = new("get_None",
-            possibleFSharpAsyncGenericType.Module.GetCoreType<CancellationToken>(),
-            fsharpOptionOfCancellationTokenType);
+        _fsharpOptionOfCancellationTokenNonePropertyGetMethod = GetNone(fsharpOptionType,
+            possibleFSharpAsyncGenericType.Module.GetCoreType<CancellationToken>());
 
-        // Get a reference to FSharpAsync.StartAsTask<>
-        foreach (var candidateMethodInfo in fsharpAsyncType.GetMethods("StartAsTask"))
+        _fsharpCoreAssembly = possibleFSharpAsyncGenericType.Scope;
+
+        return true;
+    }
+
+    private static MethodReference GetNone(TypeReference fSharpOptionType, TypeReference returnType)
+    {
+        fSharpOptionType = new GenericInstanceType(fSharpOptionType)
         {
-            var parameters = candidateMethodInfo.Parameters;
-            if (parameters.Count == 3 &&
-                parameters[0].ParameterType.GetElementType().HaveSameIdentity(possibleFSharpAsyncGenericType) &&
-                parameters[1].ParameterType.HaveSameIdentity(fsharpOptionOfTaskCreationOptionsType) &&
-                parameters[2].ParameterType.HaveSameIdentity(fsharpOptionOfCancellationTokenType))
+            GenericArguments =
             {
-                // This really does look like the correct method (and hence assembly).
-                _fsharpAsyncStartAsTaskGenericMethod = candidateMethodInfo;
-                _fsharpCoreAssembly = assembly;
-                break;
+                returnType
             }
-        }
+        };
 
-        return _fsharpCoreAssembly != null;
+        /*var abc=  System.Reflection.Assembly.Load(fSharpOptionType.Scope.ToString())
+              .GetType("Microsoft.FSharp.Core.FSharpOption`1").MakeGenericType(typeof(TaskCreationOptions))
+              .GetProperty("None").GetMethod;*/
+
+        return fSharpOptionType.Module.ImportReference(
+            fSharpOptionType.Resolve().GetParameterlessMethod("get_None")!.MakeHostInstanceGeneric(fSharpOptionType));
     }
 }

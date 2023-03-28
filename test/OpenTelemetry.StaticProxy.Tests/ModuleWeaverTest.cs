@@ -132,7 +132,7 @@ public class ModuleWeaverTest
 
     private static Type? AssemblyEmit() => new ModuleWeaver().ExecuteTestRun(
         typeof(ModuleWeaverTestClass).Assembly.Location,
-        assemblyName: "InSameAssembly", runPeVerify: false).Assembly.GetType(typeof(ModuleWeaverTestClass).FullName!);
+        assemblyName: "AssemblyToProcess", runPeVerify: false).Assembly.GetType(typeof(ModuleWeaverTestClass).FullName!);
 
     private static async ValueTask<T> Awaitable2ValueTask<T>(object awaitable) => await (TestAwaitable<T>)awaitable;
 }

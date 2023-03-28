@@ -563,6 +563,14 @@ internal class StaticProxyEmitter
                 }
             }
 
+            if (instruction.OpCode == OpCodes.Br_S && instruction.Operand != leave)
+            {
+                instruction.OpCode = OpCodes.Leave_S;
+                instruction.Operand = leave;
+
+                return false;
+            }
+
             method.Body.Instructions.Insert(index, Instruction.Create(OpCodes.Leave_S, leave));
 
             return true;
