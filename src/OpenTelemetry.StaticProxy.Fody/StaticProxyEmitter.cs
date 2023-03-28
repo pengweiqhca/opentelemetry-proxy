@@ -118,7 +118,7 @@ internal class StaticProxyEmitter
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Callvirt, Context.Dispose));
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Rethrow));
 
-            var awaiterVariableIndex = GetAwaiter(method, ref index, awaitableInfo, catchHandler.HandlerEnd);
+            var awaiterVariableIndex = InvokeAwaiterIsCompleted(method, ref index, awaitableInfo, catchHandler.HandlerEnd);
             var brfalse = Ldloc(awaiterVariableIndex,
                 awaitableInfo.AwaitableInfo.AwaiterType.IsValueType, method.Body.Variables);
 
@@ -215,7 +215,7 @@ internal class StaticProxyEmitter
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Call, Context.Clear));
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Rethrow));
 
-            var awaiterVariableIndex = GetAwaiter(method, ref index, awaitableInfo, catchHandler.HandlerEnd);
+            var awaiterVariableIndex = InvokeAwaiterIsCompleted(method, ref index, awaitableInfo, catchHandler.HandlerEnd);
             var brfalse = Ldloc(awaiterVariableIndex,
                 awaitableInfo.AwaitableInfo.AwaiterType.IsValueType, method.Body.Variables);
 
@@ -320,7 +320,7 @@ internal class StaticProxyEmitter
 
             index += 2;
 
-            var awaiterVariableIndex = GetAwaiter(method, ref index, awaitableInfo, ldReturn);
+            var awaiterVariableIndex = InvokeAwaiterIsCompleted(method, ref index, awaitableInfo, ldReturn);
             var brfalse = Ldloc(awaiterVariableIndex, awaitableInfo.AwaitableInfo.AwaiterType.IsValueType,
                 method.Body.Variables);
 
@@ -590,7 +590,7 @@ internal class StaticProxyEmitter
         method.Body.ExceptionHandlers.Add(exceptionHandler);
     }
 
-    private static int GetAwaiter(MethodDefinition method, ref int index, CoercedAwaitableInfo awaitableInfo,
+    private static int InvokeAwaiterIsCompleted(MethodDefinition method, ref int index, CoercedAwaitableInfo awaitableInfo,
         Instruction ldReturn)
     {
         var awaiterVariableIndex = method.Body.Variables.Count;
