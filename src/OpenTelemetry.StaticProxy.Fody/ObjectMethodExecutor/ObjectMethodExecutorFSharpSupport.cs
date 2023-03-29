@@ -40,10 +40,7 @@ internal static class ObjectMethodExecutorFSharpSupport
         var awaiterResultType = genericInstanceType.GenericArguments.Single();
         awaitableType = new GenericInstanceType(possibleFSharpAsyncType.Module.GetCoreType(typeof(Task<>)))
         {
-            GenericArguments =
-            {
-                awaiterResultType
-            }
+            GenericArguments = { awaiterResultType }
         };
 
         /*Task<TResult> task = FSharpAsync.StartAsTask<TResult>(
@@ -52,16 +49,12 @@ internal static class ObjectMethodExecutorFSharpSupport
             FSharpOption<CancellationToken>.None);*/
         coerceToAwaitableExpression = new[]
         {
-            Instruction.Create(OpCodes.Call, _fsharpOptionOfTaskCreationOptionsNonePropertyGetMethod),
-            Instruction.Create(OpCodes.Call, _fsharpOptionOfCancellationTokenNonePropertyGetMethod),
+            Instruction.Create(OpCodes.Call, possibleFSharpAsyncType.Module
+                .ImportReference(_fsharpOptionOfTaskCreationOptionsNonePropertyGetMethod)),
+            Instruction.Create(OpCodes.Call, possibleFSharpAsyncType.Module
+                .ImportReference(_fsharpOptionOfCancellationTokenNonePropertyGetMethod)),
             Instruction.Create(OpCodes.Call, possibleFSharpAsyncType.Module.ImportReference(
-                new GenericInstanceMethod(_fsharpAsyncStartAsTask)
-                {
-                    GenericArguments =
-                    {
-                        awaiterResultType
-                    }
-                }))
+                new GenericInstanceMethod(_fsharpAsyncStartAsTask) { GenericArguments = { awaiterResultType } }))
         };
 
         return true;
@@ -87,10 +80,10 @@ internal static class ObjectMethodExecutorFSharpSupport
     {
         if (!possibleFSharpAsyncGenericType.Scope.IsFSharpCore()) return false;
 
-            _fsharpAsyncStartAsTask = new TypeReference(
-                    "Microsoft.FSharp.Control", "FSharpAsync",
-                    possibleFSharpAsyncGenericType.Module, possibleFSharpAsyncGenericType.Scope).Resolve().GetMethods()
-                .Single(static m => m.Name == "StartAsTask" && m.Parameters.Count == 3);
+        _fsharpAsyncStartAsTask = new TypeReference(
+                "Microsoft.FSharp.Control", "FSharpAsync",
+                possibleFSharpAsyncGenericType.Module, possibleFSharpAsyncGenericType.Scope).Resolve().GetMethods()
+            .Single(static m => m.Name == "StartAsTask" && m.Parameters.Count == 3);
 
         var fsharpOptionType = new TypeReference("Microsoft.FSharp.Core", "FSharpOption`1",
             possibleFSharpAsyncGenericType.Module, possibleFSharpAsyncGenericType.Scope);
@@ -108,21 +101,7 @@ internal static class ObjectMethodExecutorFSharpSupport
         return true;
     }
 
-    private static MethodReference GetNone(TypeReference fSharpOptionType, TypeReference returnType)
-    {
-        fSharpOptionType = new GenericInstanceType(fSharpOptionType)
-        {
-            GenericArguments =
-            {
-                returnType
-            }
-        };
-
-        /*var abc=  System.Reflection.Assembly.Load(fSharpOptionType.Scope.ToString())
-              .GetType("Microsoft.FSharp.Core.FSharpOption`1").MakeGenericType(typeof(TaskCreationOptions))
-              .GetProperty("None").GetMethod;*/
-
-        return fSharpOptionType.Module.ImportReference(
-            fSharpOptionType.Resolve().GetParameterlessMethod("get_None")!.MakeHostInstanceGeneric(fSharpOptionType));
-    }
+    private static MethodReference GetNone(TypeReference fSharpOptionType, TypeReference returnType) =>
+        fSharpOptionType.Resolve().GetParameterlessMethod("get_None")!
+            .MakeHostInstanceGeneric(new GenericInstanceType(fSharpOptionType) { GenericArguments = { returnType } });
 }

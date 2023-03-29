@@ -16,43 +16,68 @@ resharper_align_multiple_declaration = true
 resharper_blank_lines_after_control_transfer_statements = 1
 resharper_blank_lines_after_multiline_statements = 1
 resharper_blank_lines_after_start_comment = 0
+resharper_blank_lines_around_field = 1
+resharper_blank_lines_around_invocable = 1
 resharper_blank_lines_around_single_line_auto_property = 1
 resharper_blank_lines_around_single_line_invocable = 1
 resharper_blank_lines_around_single_line_local_method = 1
 resharper_blank_lines_around_single_line_property = 1
-resharper_csharp_blank_lines_around_field = 0
-resharper_csharp_case_block_braces = next_line_shifted_2
-resharper_csharp_empty_block_style = together_same_line
-resharper_csharp_stick_comment = false
-resharper_csharp_use_indent_from_previous_element = false
+resharper_case_block_braces = next_line_shifted_2
+resharper_empty_block_style = together_same_line
 resharper_enforce_line_ending_style = true
+resharper_html_linebreaks_inside_tags_for_elements_with_child_elements = false
+resharper_html_max_blank_lines_between_tags = 1
 resharper_keep_blank_lines_in_code = 1
 resharper_keep_blank_lines_in_declarations = 1
-resharper_keep_existing_declaration_block_arrangement = true
+resharper_keep_existing_attribute_arrangement = false
+resharper_keep_existing_declaration_block_arrangement = false
 resharper_keep_existing_declaration_parens_arrangement = false
-resharper_keep_existing_embedded_block_arrangement = true
+resharper_keep_existing_embedded_arrangement = true
+resharper_keep_existing_embedded_block_arrangement = false
 resharper_keep_existing_enum_arrangement = true
 resharper_keep_existing_property_patterns_arrangement = false
 resharper_keep_existing_switch_expression_arrangement = false
 resharper_local_function_body = expression_body
-resharper_max_initializer_elements_on_line = 1
+resharper_max_array_initializer_elements_on_line = 30
+resharper_max_attribute_length_for_same_line = 120
+resharper_max_formal_parameters_on_line = 10
+resharper_max_initializer_elements_on_line = 10
 resharper_nested_ternary_style = expanded
 resharper_new_line_before_while = true
+resharper_normalize_tag_names = true
 resharper_object_creation_when_type_not_evident = target_typed
 resharper_outdent_statement_labels = true
+resharper_place_accessor_attribute_on_same_line = if_owner_is_single_line
 resharper_place_attribute_on_same_line = false
 resharper_place_expr_accessor_on_single_line = true
 resharper_place_expr_method_on_single_line = true
 resharper_place_expr_property_on_single_line = true
 resharper_place_linq_into_on_new_line = false
+resharper_place_record_field_attribute_on_same_line = if_owner_is_single_line
 resharper_place_simple_blocks_on_single_line = true
+resharper_place_simple_case_statement_on_same_line = if_owner_is_single_line
+resharper_place_simple_switch_expression_on_single_line = true
+resharper_remove_blank_lines_near_braces_in_code = true
+resharper_remove_blank_lines_near_braces_in_declarations = true
+resharper_space_before_trailing_comment = true
+resharper_stick_comment = false
+resharper_use_indent_from_previous_element = false
 resharper_use_indent_from_vs = false
 resharper_wrap_array_initializer_style = chop_if_long
 resharper_wrap_before_binary_pattern_op = false
 resharper_wrap_before_extends_colon = true
+resharper_wrap_enum_declaration = chop_if_long
 resharper_wrap_for_stmt_header_style = wrap_if_long
 resharper_wrap_lines = true
+resharper_wrap_object_and_collection_initializer_style = chop_if_long
+resharper_wrap_switch_expression = chop_if_long
+resharper_xml_linebreaks_inside_tags_for_elements_longer_than = 120
+resharper_xml_max_blank_lines_between_tags = 1
 resharper_xml_wrap_around_elements = false
+resharper_xmldoc_keep_user_linebreaks = false
+resharper_xmldoc_linebreaks_inside_tags_for_elements_longer_than = 120
+resharper_xmldoc_linebreaks_inside_tags_for_elements_with_child_elements = false
+resharper_xmldoc_linebreaks_inside_tags_for_multiline_elements = false
 resharper_xmldoc_wrap_tags_and_pi = false
 
 # ReSharper inspection severities
@@ -73,25 +98,24 @@ resharper_web_config_module_not_resolved_highlighting = warning
 resharper_web_config_type_not_resolved_highlighting = warning
 resharper_web_config_wrong_module_highlighting = warning
 
-
 # Xml project files
 [*.*proj]
-indent_size = 2 # A property with the same name was updated with a value 4 in a section [*.{appxmanifest,asax,ascx,aspx,axaml,build,c,c++,cc,cginc,compute,cp,cpp,cs,cshtml,cu,cuh,cxx,dtd,fs,fsi,fsscript,fsx,fx,fxh,h,hh,hlsl,hlsli,hlslinc,hpp,hxx,inc,inl,ino,ipp,master,ml,mli,mpp,mq4,mq5,mqh,nuspec,paml,razor,resw,resx,shader,skin,tpp,usf,ush,vb,xaml,xamlx,xoml,xsd}]
+indent_size = 2
 
 # Xml build files
 [*.builds]
-indent_size = 2 # A property with the same name was updated with a value 4 in a section [*.{appxmanifest,asax,ascx,aspx,axaml,build,c,c++,cc,cginc,compute,cp,cpp,cs,cshtml,cu,cuh,cxx,dtd,fs,fsi,fsscript,fsx,fx,fxh,h,hh,hlsl,hlsli,hlslinc,hpp,hxx,inc,inl,ino,ipp,master,ml,mli,mpp,mq4,mq5,mqh,nuspec,paml,razor,resw,resx,shader,skin,tpp,usf,ush,vb,xaml,xamlx,xoml,xsd}]
+indent_size = 2
 
 # Xml files
 [*.{yml,yaml,xml,stylecop,resx,ruleset,.xsd}]
-indent_size = 2 # A property with the same name was updated with a value 4 in a section [*.{appxmanifest,asax,ascx,aspx,axaml,build,c,c++,cc,cginc,compute,cp,cpp,cs,cshtml,cu,cuh,cxx,dtd,fs,fsi,fsscript,fsx,fx,fxh,h,hh,hlsl,hlsli,hlslinc,hpp,hxx,inc,inl,ino,ipp,master,ml,mli,mpp,mq4,mq5,mqh,nuspec,paml,razor,resw,resx,shader,skin,tpp,usf,ush,vb,xaml,xamlx,xoml,xsd}]
+indent_size = 2
 
 # Xml config files
 [*.{props,targets,config,nuspec}]
-indent_size = 2 # A property with the same name was updated with a value 4 in a section [*.{appxmanifest,asax,ascx,aspx,axaml,build,c,c++,cc,cginc,compute,cp,cpp,cs,cshtml,cu,cuh,cxx,dtd,fs,fsi,fsscript,fsx,fx,fxh,h,hh,hlsl,hlsli,hlslinc,hpp,hxx,inc,inl,ino,ipp,master,ml,mli,mpp,mq4,mq5,mqh,nuspec,paml,razor,resw,resx,shader,skin,tpp,usf,ush,vb,xaml,xamlx,xoml,xsd}]
+indent_size = 2
 
 [*.{js,json}]
-indent_size = 2 # A property with the same name was updated with a value 4 in a section [*.{appxmanifest,asax,ascx,aspx,axaml,build,c,c++,cc,cginc,compute,cp,cpp,cs,cshtml,cu,cuh,cxx,dtd,fs,fsi,fsscript,fsx,fx,fxh,h,hh,hlsl,hlsli,hlslinc,hpp,hxx,inc,inl,ino,ipp,master,ml,mli,mpp,mq4,mq5,mqh,nuspec,paml,razor,resw,resx,shader,skin,tpp,usf,ush,vb,xaml,xamlx,xoml,xsd}]
+indent_size = 2
 
 # Shell scripts
 [*.sh]
@@ -101,33 +125,33 @@ end_of_line = lf # A property with the same name was updated with a value crlf i
 # c# 文件
 [*.cs]
 
-#### .NET 编码约定 ####
+#### .NET Coding Conventions ####
 
-# 组织 Using
+# Organize usings
 dotnet_separate_import_directive_groups = false
 dotnet_sort_system_directives_first = false
 file_header_template = unset
 
-# this. 和 Me. 首选项
+# this. and Me. preferences
 dotnet_style_qualification_for_event = false:suggestion
-dotnet_style_qualification_for_field = false:silent
+dotnet_style_qualification_for_field = false:suggestion
 dotnet_style_qualification_for_method = false:suggestion
 dotnet_style_qualification_for_property = false:suggestion
 
-# 语言关键字与 bcl 类型首选项
+# Language keywords vs BCL types preferences
 dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
 dotnet_style_predefined_type_for_member_access = true:suggestion
 
-# 括号首选项
-dotnet_style_parentheses_in_arithmetic_binary_operators = always_for_clarity:suggestion # A property with the same name was updated with a value never_if_unnecessary:none in a section [*]
-dotnet_style_parentheses_in_other_binary_operators = always_for_clarity:suggestion # A property with the same name was updated with a value always_for_clarity:none in a section [*]
+# Parentheses preferences
+dotnet_style_parentheses_in_arithmetic_binary_operators = never_if_unnecessary:suggestion
+dotnet_style_parentheses_in_other_binary_operators = never_if_unnecessary:suggestion
 dotnet_style_parentheses_in_other_operators = never_if_unnecessary:suggestion
-dotnet_style_parentheses_in_relational_binary_operators = always_for_clarity:suggestion # A property with the same name was updated with a value never_if_unnecessary:none in a section [*]
+dotnet_style_parentheses_in_relational_binary_operators = never_if_unnecessary:suggestion
 
-# 修饰符首选项
+# Modifier preferences
 dotnet_style_require_accessibility_modifiers = for_non_interface_members:silent
 
-# 表达式级首选项
+# Expression-level preferences
 dotnet_style_coalesce_expression = true
 dotnet_style_collection_initializer = true
 dotnet_style_explicit_tuple_names = true
@@ -139,35 +163,36 @@ dotnet_style_prefer_auto_properties = true:warning
 dotnet_style_prefer_compound_assignment = true
 dotnet_style_prefer_conditional_expression_over_assignment = true:warning
 dotnet_style_prefer_conditional_expression_over_return = true:suggestion
+dotnet_style_prefer_foreach_explicit_cast_in_source = when_strongly_typed
 dotnet_style_prefer_inferred_anonymous_type_member_names = true
 dotnet_style_prefer_inferred_tuple_names = true
 dotnet_style_prefer_is_null_check_over_reference_equality_method = true
 dotnet_style_prefer_simplified_boolean_expressions = true
 dotnet_style_prefer_simplified_interpolation = true
 
-# 字段首选项
+# Field preferences
 dotnet_style_readonly_field = true:suggestion
 
-# 参数首选项
+# Parameter preferences
 dotnet_code_quality_unused_parameters = all:suggestion
 
-# 禁止显示首选项
-dotnet_remove_unnecessary_suppression_exclusions = 0 # 删除不必要的抑制
+# Suppression preferences
+dotnet_remove_unnecessary_suppression_exclusions = 0
 
-# 新行首选项
+# New line preferences
 dotnet_style_allow_multiple_blank_lines_experimental = false:warning
 dotnet_style_allow_statement_immediately_after_block_experimental = false:warning
 
 dotnet_code_quality.ca1822.api_surface = private, internal
 
-#### c# 编码约定 ####
+#### C# Coding Conventions ####
 
-# var 首选项
+# var preferences
 csharp_style_var_elsewhere = true:suggestion
 csharp_style_var_for_built_in_types = true:suggestion
 csharp_style_var_when_type_is_apparent = true:suggestion
 
-# Expression-bodied 成员
+# Expression-bodied members
 csharp_style_expression_bodied_accessors = true:suggestion
 csharp_style_expression_bodied_constructors = true:suggestion
 csharp_style_expression_bodied_indexers = true:suggestion
@@ -177,7 +202,7 @@ csharp_style_expression_bodied_methods = true:suggestion
 csharp_style_expression_bodied_operators = true:suggestion
 csharp_style_expression_bodied_properties = true:suggestion
 
-# 模式匹配首选项
+# Pattern matching preferences
 csharp_style_pattern_matching_over_as_with_null_check = true:warning
 csharp_style_pattern_matching_over_is_with_cast_check = true:warning
 csharp_style_prefer_extended_property_pattern = true:warning
@@ -185,19 +210,22 @@ csharp_style_prefer_not_pattern = true:warning
 csharp_style_prefer_pattern_matching = true:warning
 csharp_style_prefer_switch_expression = true:warning
 
-# Null 检查首选项
+# Null-checking preferences
 csharp_style_conditional_delegate_call = true:warning
 
-# 修饰符首选项
+# Modifier preferences
 csharp_prefer_static_local_function = true:warning
-csharp_preferred_modifier_order = public, private, protected, internal, static, extern, new, virtual, abstract, sealed, override, readonly, unsafe, volatile, async:suggestion # A property with the same name was updated with a value public, private, protected, internal, new, static, abstract, virtual, sealed, readonly, override, extern, unsafe, volatile, async:suggestion in a section [*]
+csharp_preferred_modifier_order = public, private, protected, internal, file, static, extern, new, virtual, abstract, sealed, override, readonly, unsafe, required, volatile, async:suggestion
+csharp_style_prefer_readonly_struct = true
 
-# 代码块首选项
+# Code-block preferences
 csharp_prefer_braces = false:suggestion
 csharp_prefer_simple_using_statement = true:suggestion
 csharp_style_namespace_declarations = file_scoped:suggestion
+csharp_style_prefer_method_group_conversion = true:suggestion
+csharp_style_prefer_top_level_statements = true:suggestion
 
-# 表达式级首选项
+# Expression-level preferences
 csharp_prefer_simple_default_expression = true
 csharp_style_deconstructed_variable_declaration = true
 csharp_style_implicit_object_creation_when_type_is_apparent = true
@@ -207,37 +235,40 @@ csharp_style_prefer_local_over_anonymous_function = true
 csharp_style_prefer_null_check_over_type_check = true
 csharp_style_prefer_range_operator = true
 csharp_style_prefer_tuple_swap = true
+csharp_style_prefer_utf8_string_literals = true
 csharp_style_throw_expression = true
 csharp_style_unused_value_assignment_preference = discard_variable
 csharp_style_unused_value_expression_statement_preference = discard_variable
 
-# "using" 指令首选项
+# 'using' directive preferences
 csharp_using_directive_placement = outside_namespace:silent
 
-# 新行首选项
+# New line preferences
 csharp_style_allow_blank_line_after_colon_in_constructor_initializer_experimental = false:suggestion
 csharp_style_allow_blank_lines_between_consecutive_braces_experimental = false:suggestion
 csharp_style_allow_embedded_statements_on_same_line_experimental = true:suggestion
 
 
-#### C# 格式规则 ####
+#### C# Formatting Rules ####
 
-# 新行首选项
+# New line preferences
 csharp_new_line_before_catch = true
 csharp_new_line_before_else = true
 csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_anonymous_types = true
+csharp_new_line_before_members_in_object_initializers = false
 csharp_new_line_before_open_brace = all
 csharp_new_line_between_query_expression_clauses = true
 
-# 缩进首选项
+# Indentation preferences
 csharp_indent_block_contents = true
 csharp_indent_braces = false
 csharp_indent_case_contents = true
 csharp_indent_case_contents_when_block = true
-csharp_indent_labels = flush_left
+csharp_indent_labels = one_less_than_current
 csharp_indent_switch_labels = true
 
-# 空格键首选项
+# Space preferences
 csharp_space_after_cast = false
 csharp_space_after_colon_in_inheritance_clause = true
 csharp_space_after_comma = true
@@ -261,14 +292,14 @@ csharp_space_between_method_declaration_parameter_list_parentheses = false
 csharp_space_between_parentheses = false
 csharp_space_between_square_brackets = false
 
-# 包装首选项
+# Wrapping preferences
 csharp_preserve_single_line_blocks = true
 csharp_preserve_single_line_statements = true
 
 
-#### 命名样式 ####
+#### Naming styles ####
 
-# 命名规则
+# Naming rules
 
 dotnet_naming_rule.type_namespace_should_be_pascal_case.severity = warning
 dotnet_naming_rule.type_namespace_should_be_pascal_case.symbols = type_namespace
@@ -318,7 +349,7 @@ dotnet_naming_rule.local_method_should_be_pascal_case.severity = warning
 dotnet_naming_rule.local_method_should_be_pascal_case.symbols = local_method
 dotnet_naming_rule.local_method_should_be_pascal_case.style = pascal_case
 
-# 符号规范
+# Symbol specifications
 
 dotnet_naming_symbols.interface.applicable_kinds = interface
 dotnet_naming_symbols.interface.applicable_accessibilities = public, internal, private, protected, protected_internal
@@ -356,7 +387,7 @@ dotnet_naming_symbols.variable_paramter.applicable_kinds = parameter, local
 
 dotnet_naming_symbols.local_method.applicable_kinds = local_function
 
-# 命名样式
+# Naming styles
 
 dotnet_naming_style.pascal_case.capitalization = pascal_case
 
@@ -368,9 +399,12 @@ dotnet_naming_style._camel_case.capitalization = camel_case
 
 dotnet_naming_style.camel_case.capitalization = camel_case
 
+dotnet_naming_style.t_pascal_case.required_prefix = T
 dotnet_naming_style.t_pascal_case.capitalization = pascal_case
 
 
+#dotnet_diagnostic.CA1062.severity = warning # none 验证公共方法的参数
+dotnet_diagnostic.CA1305.severity = none # warning 指定 IFormatProvider
 dotnet_diagnostic.CA1716.severity = none # warning 标识符不应与关键字冲突
 dotnet_diagnostic.CA1720.severity = none # warning 标识符不应包含类型名称
 dotnet_diagnostic.CA1848.severity = none # warning 使用 LoggerMessage 委托
