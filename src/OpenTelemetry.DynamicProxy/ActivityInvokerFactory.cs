@@ -56,5 +56,7 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
         foreach (var activitySource in _activitySources.Values) activitySource.Dispose();
 
         _activitySources.Clear();
+
+        GC.SuppressFinalize(this);
     }
 }

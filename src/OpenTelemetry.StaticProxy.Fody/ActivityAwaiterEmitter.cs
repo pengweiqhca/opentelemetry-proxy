@@ -282,9 +282,9 @@ internal class ActivityAwaiterEmitter
         private static string GetName(TypeReference type)
         {
             var sb = new StringBuilder();
-            sb.Append(type.FullName).Append(",").Append(type.Scope.Name);
+            sb.Append(type.FullName).Append(',').Append(type.Scope.Name);
             if (type.Scope is ModuleReference m)
-                sb.Append(",").Append(m.MetadataToken.ToUInt32());
+                sb.Append(',').Append(m.MetadataToken.ToUInt32());
             else
             {
                 if (type.Scope is not AssemblyNameReference a)
@@ -293,7 +293,7 @@ internal class ActivityAwaiterEmitter
                     else return sb.ToString();
                 }
 
-                sb.Append(",");
+                sb.Append(',');
 
                 if (a.IsCoreLib()) sb.Append(CoreLibKey);
                 else
