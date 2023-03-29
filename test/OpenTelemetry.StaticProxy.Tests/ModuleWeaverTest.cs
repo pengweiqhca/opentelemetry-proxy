@@ -65,6 +65,10 @@ public class ModuleWeaverTest
 
     [Fact]
     public Task GetCurrentActivityAsync() => ActivityTest(nameof(ModuleWeaverTestClass.GetCurrentActivityAsync),
+        static instance => new((Task<Activity?>)instance));
+
+    [Fact]
+    public Task GetCurrentActivityFSharpAsync() => ActivityTest(nameof(ModuleWeaverTestClass.GetCurrentActivityFSharpAsync),
         static instance => new(FSharpAsync.StartAsTask((FSharpAsync<Activity?>)instance,
             FSharpOption<TaskCreationOptions>.None, FSharpOption<CancellationToken>.None)));
 
