@@ -23,10 +23,9 @@ public class ActivityInvoker : IActivityInvoker
 
     public void Invoke(IInvocation invocation)
     {
-        Activity? activity;
-        if ((activity = _activitySource.StartActivity(string.IsNullOrWhiteSpace(_activityName)
+        if (_activitySource.StartActivity(string.IsNullOrWhiteSpace(_activityName)
                 ? $"{_activitySource.Name}.{invocation.Method.Name}"
-                : _activityName!, _kind)) == null)
+                : _activityName!, _kind) is not { } activity)
         {
             invocation.Proceed();
 

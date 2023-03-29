@@ -80,7 +80,7 @@ internal class ActivityAwaiterEmitter
 
         type.Methods.Add(onCompleted);
 
-        var onCompleted1 = new MethodDefinition("OnCompleted",
+        var onCompletedStatic = new MethodDefinition("OnCompleted",
             MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.Static,
             _context.TargetModule.TypeSystem.Void)
         {
@@ -95,7 +95,7 @@ internal class ActivityAwaiterEmitter
             }
         };
 
-        type.Methods.Add(onCompleted1);
+        type.Methods.Add(onCompletedStatic);
 
         TypeReference type2 = type.HasGenericParameters
             ? type.MakeGenericInstanceType(type.GenericParameters.ToArray<TypeReference>())
@@ -179,7 +179,7 @@ internal class ActivityAwaiterEmitter
 
         #endregion
 
-        #region OnCompleted
+        #region static OnCompleted
 
         /*.try
         {
@@ -211,14 +211,14 @@ internal class ActivityAwaiterEmitter
         } // end handler
 
         IL_0027: ret*/
-        onCompleted1.Body.Variables.Add(new(_context.Exception));
+        onCompletedStatic.Body.Variables.Add(new(_context.Exception));
 
         var leave = Instruction.Create(OpCodes.Ret);
 
         var finallyHandler = new ExceptionHandler(ExceptionHandlerType.Finally)
         {
             TryStart = Instruction.Create(awaiterType.IsValueType ? OpCodes.Ldarga_S : OpCodes.Ldarg_S,
-                onCompleted1.Parameters[1]),
+                onCompletedStatic.Parameters[1]),
             HandlerStart = Instruction.Create(OpCodes.Ldarg_0),
             HandlerEnd = leave
         };
@@ -235,38 +235,38 @@ internal class ActivityAwaiterEmitter
 
         catchHandler.TryEnd = catchHandler.HandlerStart;
 
-        onCompleted1.Body.ExceptionHandlers.Add(catchHandler);
-        onCompleted1.Body.ExceptionHandlers.Add(finallyHandler);
+        onCompletedStatic.Body.ExceptionHandlers.Add(catchHandler);
+        onCompletedStatic.Body.ExceptionHandlers.Add(finallyHandler);
 
-        onCompleted1.Body.Instructions.Add(finallyHandler.TryStart);
+        onCompletedStatic.Body.Instructions.Add(finallyHandler.TryStart);
 
-        onCompleted1.Body.Instructions.Add(Instruction.Create(awaiterType.IsValueType ? OpCodes.Call : OpCodes.Callvirt,
+        onCompletedStatic.Body.Instructions.Add(Instruction.Create(awaiterType.IsValueType ? OpCodes.Call : OpCodes.Callvirt,
             getResult.MakeHostInstanceGeneric(awaiterType)));
 
         if (!getResult.ReturnType.HaveSameIdentity(_context.TargetModule.TypeSystem.Void))
-            onCompleted1.Body.Instructions.Add(Instruction.Create(OpCodes.Pop));
+            onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Pop));
 
-        onCompleted1.Body.Instructions.Add(Instruction.Create(OpCodes.Leave_S, leave));
+        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Leave_S, leave));
 
-        onCompleted1.Body.Instructions.Add(catchHandler.HandlerStart);
-        onCompleted1.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
-        onCompleted1.Body.Instructions.Add(Instruction.Create(OpCodes.Ldc_I4_2));
-        onCompleted1.Body.Instructions.Add(Instruction.Create(OpCodes.Ldloc_0));
-        onCompleted1.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, _context.GetMessage));
-        onCompleted1.Body.Instructions.Add(Instruction.Create(OpCodes.Call, _context.ActivitySetStatus));
-        onCompleted1.Body.Instructions.Add(Instruction.Create(OpCodes.Ldloc_0));
-        onCompleted1.Body.Instructions.Add(Instruction.Create(OpCodes.Call, _context.RecordException));
-        onCompleted1.Body.Instructions.Add(Instruction.Create(OpCodes.Leave_S, leave));
+        onCompletedStatic.Body.Instructions.Add(catchHandler.HandlerStart);
+        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
+        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Ldc_I4_2));
+        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Ldloc_0));
+        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, _context.GetMessage));
+        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Call, _context.ActivitySetStatus));
+        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Ldloc_0));
+        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Call, _context.RecordException));
+        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Leave_S, leave));
 
-        onCompleted1.Body.Instructions.Add(finallyHandler.HandlerStart);
-        onCompleted1.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, _context.ActivityDispose));
-        onCompleted1.Body.Instructions.Add(Instruction.Create(OpCodes.Endfinally));
+        onCompletedStatic.Body.Instructions.Add(finallyHandler.HandlerStart);
+        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, _context.ActivityDispose));
+        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Endfinally));
 
-        onCompleted1.Body.Instructions.Add(leave);
+        onCompletedStatic.Body.Instructions.Add(leave);
 
         #endregion
 
-        return (type, ctor, onCompleted, onCompleted1);
+        return (type, ctor, onCompleted, onCompletedStatic);
     }
 
     private sealed class TypeReferenceComparer : IEqualityComparer<TypeReference>
