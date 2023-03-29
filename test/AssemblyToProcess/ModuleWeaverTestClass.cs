@@ -93,7 +93,11 @@ public static class ModuleWeaverTestClass
     public static async Task<Activity?> GetCurrentActivityAsync() => await CurrentActivityAsync().ConfigureAwait(false);
 
     [Activity]
-    public static FSharpAsync<Activity?> GetCurrentActivityFSharpAsync() => FSharpAsync.AwaitTask(CurrentActivityAsync());
+    public static FSharpAsync<Activity?> GetCurrentActivityFSharpAsync() =>
+        FSharpAsync.AwaitTask(CurrentActivityAsync());
+
+    [Activity]
+    public static Task Exception() => Task.FromException(new());
 
     [Activity]
     public static TestAwaitable<Activity?> GetCurrentActivityAwaitable() => new(static () => Activity.Current);

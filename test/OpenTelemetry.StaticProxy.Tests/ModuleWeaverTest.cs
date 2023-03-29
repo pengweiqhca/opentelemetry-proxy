@@ -68,13 +68,47 @@ public class ModuleWeaverTest
         static instance => new((Task<Activity?>)instance));
 
     [Fact]
-    public Task GetCurrentActivityFSharpAsync() => ActivityTest(nameof(ModuleWeaverTestClass.GetCurrentActivityFSharpAsync),
+    public Task GetCurrentActivityFSharpAsync() => ActivityTest(
+        nameof(ModuleWeaverTestClass.GetCurrentActivityFSharpAsync),
         static instance => new(FSharpAsync.StartAsTask((FSharpAsync<Activity?>)instance,
             FSharpOption<TaskCreationOptions>.None, FSharpOption<CancellationToken>.None)));
 
     [Fact]
     public Task GetCurrentActivityAwaitable() => ActivityTest(nameof(ModuleWeaverTestClass.GetCurrentActivityAwaitable),
         Awaitable2ValueTask<Activity?>);
+
+    [Fact]
+    public async Task Exception()
+    {
+        var method = AssemblyEmit()?.GetMethod(nameof(ModuleWeaverTestClass.Exception));
+
+        var list = new List<Activity>();
+
+        using var activityListener = new ActivityListener
+        {
+            ShouldListenTo = static activitySource => activitySource.Name == nameof(ModuleWeaverTestClass) &&
+                activitySource.Version == typeof(ModuleWeaverTestClass).Assembly.GetName().Version?.ToString(),
+            Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStarted = list.Add
+        };
+
+        ActivitySource.AddActivityListener(activityListener);
+
+        Assert.NotNull(method);
+
+        try
+        {
+            await ((Task)method.Invoke(null, Array.Empty<object?>())!).ConfigureAwait(false);
+        }
+        catch
+        {
+            // ignored
+        }
+
+        var activity = Assert.Single(list);
+
+        Assert.Equal(ActivityStatusCode.Error, activity.Status);
+    }
 
     [Fact]
     public void OutTest()
@@ -135,8 +169,9 @@ public class ModuleWeaverTest
     }
 
     private static Type? AssemblyEmit() => new ModuleWeaver().ExecuteTestRun(
-        typeof(ModuleWeaverTestClass).Assembly.Location,
-        assemblyName: "AssemblyToProcess", runPeVerify: false).Assembly.GetType(typeof(ModuleWeaverTestClass).FullName!);
+            typeof(ModuleWeaverTestClass).Assembly.Location,
+            assemblyName: "AssemblyToProcess", runPeVerify: false).Assembly
+        .GetType(typeof(ModuleWeaverTestClass).FullName!);
 
     private static async ValueTask<T> Awaitable2ValueTask<T>(object awaitable) => await (TestAwaitable<T>)awaitable;
 }
