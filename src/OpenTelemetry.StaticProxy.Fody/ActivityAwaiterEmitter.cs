@@ -49,6 +49,8 @@ internal class ActivityAwaiterEmitter
             BaseType = _context.TargetModule.TypeSystem.Object
         };
 
+        type.CustomAttributes.Add(new(_context.CompilerGeneratedAttributeCtor));
+
         _context.TargetModule.Types.Add(type);
 
         foreach (var genericParameter in awaiterType.GenericParameters) type.GenericParameters.Add(genericParameter);

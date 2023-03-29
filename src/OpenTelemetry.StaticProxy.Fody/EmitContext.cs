@@ -56,7 +56,9 @@ internal class EmitContext
 
     public ActivityAwaiterEmitter ActivityAwaiterEmitter { get; }
 
-    public TypeReference AsyncStateMachineAttribute { get; set; }
+    public TypeReference AsyncStateMachineAttribute { get; }
+
+    public MethodReference CompilerGeneratedAttributeCtor { get; }
 
     public EmitContext(ModuleDefinition targetModule,
         ModuleDefinition diagnosticSourceModule,
@@ -136,10 +138,10 @@ internal class EmitContext
             HasThis = true
         });
 
-        AsyncStateMachineAttribute = targetModule.ImportReference(
-            new TypeReference(typeof(AsyncStateMachineAttribute).Namespace, nameof(AsyncStateMachineAttribute),
-                targetModule,
-                targetModule.TypeSystem.CoreLibrary, false));
+        AsyncStateMachineAttribute = targetModule.GetCoreType<AsyncStateMachineAttribute>();
+
+        CompilerGeneratedAttributeCtor = new(".ctor", targetModule.TypeSystem.Void,
+            targetModule.GetCoreType<CompilerGeneratedAttribute>()) { HasThis = true };
 
         ActivityAwaiterEmitter = new(this);
     }
