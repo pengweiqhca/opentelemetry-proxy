@@ -7,9 +7,6 @@ namespace Microsoft.Extensions.Internal;
 
 internal readonly struct AwaitableInfo
 {
-    //private static readonly MethodInfo OnCompleted = typeof(INotifyCompletion).GetMethod(nameof(INotifyCompletion.OnCompleted), Everything, null, new[] { typeof(Action) }, null)!;
-    //private static readonly MethodInfo UnsafeOnCompleted = typeof(ICriticalNotifyCompletion).GetMethod(nameof(ICriticalNotifyCompletion.UnsafeOnCompleted), Everything, null, new[] { typeof(Action) }, null)!;
-
     public TypeReference AwaitableType { get; }
 
     public TypeReference AwaiterType { get; }
