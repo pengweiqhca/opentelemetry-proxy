@@ -17,21 +17,28 @@ public static class ActivityName
         return null;
     }
 
-    public static void SetName(string? name, int readTimes)
+    public static IDisposable SetName(string? name, int readTimes)
     {
         var holder = Name.Value;
 
         if (holder != null) holder.AvailableTimes = 0;
 
         Name.Value = name != null && readTimes > 0 ? new() { Name = name, AvailableTimes = readTimes } : null;
+
+        return Disposable.Instance;
     }
 
-    public static void Clear() => SetName(null, 0);
-
-    private class NameHolder
+    private sealed class NameHolder
     {
         // ReSharper disable once MemberHidesStaticFromOuterClass
         public string? Name;
         public int AvailableTimes;
+    }
+
+    private sealed class Disposable : IDisposable
+    {
+        public static IDisposable Instance { get; } = new Disposable();
+
+        public void Dispose() => SetName(null, 0);
     }
 }

@@ -19,47 +19,27 @@ public class ActivityNameInvoker : IActivityInvoker
 
     public void Invoke(IInvocation invocation)
     {
-        if (_suppressInstrumentation)
+        var disposable = _suppressInstrumentation
+            ? SuppressInstrumentationScope.Begin()
+            : ActivityName.SetName(string.IsNullOrWhiteSpace(_activityName)
+                ? $"{invocation.TargetType.FullName}.{invocation.Method.Name}"
+                : _activityName, _maxUsableTimes);
+
+        try
         {
-            var disposable = SuppressInstrumentationScope.Begin();
-
-            try
-            {
-                invocation.Proceed();
-            }
-            catch
-            {
-                disposable.Dispose();
-
-                throw;
-            }
-
-            InvokeAfter(invocation, disposable);
+            invocation.Proceed();
         }
-        else
+        catch
         {
-            ActivityName.SetName(string.IsNullOrWhiteSpace(_activityName) ? $"{invocation.TargetType.FullName}.{invocation.Method.Name}" : _activityName, _maxUsableTimes);
+            disposable.Dispose();
 
-            try
-            {
-                invocation.Proceed();
-            }
-            catch
-            {
-                ActivityName.Clear();
-
-                throw;
-            }
-
-            InvokeAfter(invocation, null);
+            throw;
         }
+
+        InvokeAfter(invocation, disposable);
     }
 
-    protected virtual void InvokeAfter(IInvocation invocation, IDisposable? disposable)
-    {
-        if (disposable == null) ActivityName.Clear();
-        else disposable.Dispose();
-    }
+    protected virtual void InvokeAfter(IInvocation invocation, IDisposable disposable) => disposable.Dispose();
 
     internal static void BuildAwaitableActivityNameInvoker(TypeBuilder tb, Type returnType, CoercedAwaitableInfo info)
     {
@@ -84,10 +64,13 @@ public class ActivityNameInvoker : IActivityInvoker
         il.Emit(OpCodes.Ldarg_3);
         il.Emit(OpCodes.Call, typeof(ActivityNameInvoker).GetConstructors()[0]);
         il.Emit(OpCodes.Ret);
+
         #endregion
 
         #region OnCompleted
-        var baseInvokeAfter = typeof(ActivityNameInvoker).GetMethod(nameof(InvokeAfter), BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+        var baseInvokeAfter =
+            typeof(ActivityNameInvoker).GetMethod(nameof(InvokeAfter), BindingFlags.NonPublic | BindingFlags.Instance)!;
 
         var onCompleted = tb.DefineMethod("OnCompleted", MethodAttributes.Private | MethodAttributes.HideBySig);
         il = onCompleted.GetILGenerator();
@@ -100,10 +83,15 @@ public class ActivityNameInvoker : IActivityInvoker
         il.Emit(OpCodes.Ldfld, disposableField);
         il.Emit(OpCodes.Call, baseInvokeAfter);
         il.Emit(OpCodes.Ret);
+
         #endregion
 
         #region InvokeAfter
-        var invokeAfter = tb.DefineMethod(nameof(InvokeAfter), MethodAttributes.Family | MethodAttributes.HideBySig | MethodAttributes.Virtual, typeof(void), new[] { typeof(IInvocation), typeof(IDisposable) });
+
+        var invokeAfter = tb.DefineMethod(nameof(InvokeAfter),
+            MethodAttributes.Family | MethodAttributes.HideBySig | MethodAttributes.Virtual, typeof(void),
+            new[] { typeof(IInvocation), typeof(IDisposable) });
+
         tb.DefineMethodOverride(invokeAfter, baseInvokeAfter);
 
         il = invokeAfter.GetILGenerator();
@@ -126,11 +114,14 @@ public class ActivityNameInvoker : IActivityInvoker
         info.CoercerExpression?.Invoke(il);
         il.Emit(info.AwaitableInfo.GetAwaiterMethod.IsVirtual ? OpCodes.Callvirt : OpCodes.Call,
             info.AwaitableInfo.GetAwaiterMethod);
+
         il.Emit(OpCodes.Stloc_0);
 
         // if (awaiter.IsCompleted)
         il.Emit(info.AwaitableInfo.AwaiterType.IsValueType ? OpCodes.Ldloca_S : OpCodes.Ldloc, awaiter);
-        il.Emit(info.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod.IsVirtual ? OpCodes.Callvirt : OpCodes.Call, info.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod);
+        il.Emit(info.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod.IsVirtual ? OpCodes.Callvirt : OpCodes.Call,
+            info.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod);
+
         var falseLabel = il.DefineLabel();
         il.Emit(OpCodes.Brfalse_S, falseLabel);
 
@@ -151,6 +142,7 @@ public class ActivityNameInvoker : IActivityInvoker
 
         il.Emit(awaiterOnCompleted.IsVirtual ? OpCodes.Callvirt : OpCodes.Call, awaiterOnCompleted);
         il.Emit(OpCodes.Ret);
+
         #endregion
     }
 }

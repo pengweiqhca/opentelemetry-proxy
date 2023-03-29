@@ -77,8 +77,11 @@ internal class StaticProxyEmitter
         return activitySource;
     }
 
+    public void EmitSuppressInstrumentationScope(MethodDefinition method, bool isVoid) =>
+        EmitDisposable(method, isVoid, LdI4(1), Instruction.Create(OpCodes.Call, Context.Begin));
+
     // https://stackoverflow.com/questions/11074518/add-a-try-catch-with-mono-cecil
-    public void EmitSuppressInstrumentationScope(MethodDefinition method, bool isVoid)
+    private void EmitDisposable(MethodDefinition method, bool isVoid, params Instruction[] createDisposable)
     {
         method.Body.InitLocals = true;
 
@@ -94,12 +97,9 @@ internal class StaticProxyEmitter
         var disposeVariableIndex = method.Body.Variables.Count;
         method.Body.Variables.Add(new(Context.Disposable));
 
-        /*ldc.i4.1
-        call class System.IDisposable [OpenTelemetry]OpenTelemetry.SuppressInstrumentationScope::Begin(bool)
-        stloc.0*/
-        method.Body.Instructions.Insert(0, LdI4(1));
-        method.Body.Instructions.Insert(1, Instruction.Create(OpCodes.Call, Context.Begin));
-        method.Body.Instructions.Insert(2, Stloc(disposeVariableIndex, method.Body.Variables));
+        method.Body.Instructions.Insert(0, Stloc(disposeVariableIndex, method.Body.Variables));
+        for (var i = createDisposable.Length - 1; i >= 0; i--)
+            method.Body.Instructions.Insert(0, createDisposable[i]);
 
         var index = method.Body.Instructions.Count - (isVoid ? 1 : 2);
 
@@ -114,7 +114,7 @@ internal class StaticProxyEmitter
                     HandlerEnd = leave
                 };
 
-                ProcessHandler(method, isVoid, 3, catchHandler);
+                ProcessHandler(method, isVoid, createDisposable.Length + 1, catchHandler);
 
                 /*IL_0010: pop
                 IL_0011: ldloc.0
@@ -170,7 +170,7 @@ internal class StaticProxyEmitter
                 HandlerEnd = method.Body.Instructions[isVoid ? ^1 : ^2]
             };
 
-            ProcessHandler(method, isVoid, 3, finallyHandler);
+            ProcessHandler(method, isVoid, createDisposable.Length + 1, finallyHandler);
 
             /*IL_0042: ldloc.0
             IL_0043: brfalse.s IL_004b
@@ -191,92 +191,9 @@ internal class StaticProxyEmitter
 
     public void EmitActivityName(MethodDefinition method, bool isVoid, string? activityName, int maxUsableTimes)
     {
-        if (maxUsableTimes == 0) return;
-
-        method.Body.InitLocals = true;
-
-        var isTypeAwaitable = CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo);
-        var hasAsyncStateMachineAttribute =
-            isTypeAwaitable && method.GetCustomAttribute(Context.AsyncStateMachineAttribute) != null;
-
-        var (_, leave) = ProcessReturn(method, isVoid, hasAsyncStateMachineAttribute, isTypeAwaitable
-            ? index => Ldloc(index, awaitableInfo.AwaitableInfo.AwaitableType.IsValueType, method.Body.Variables)
-            : null);
-
-        method.Body.Instructions.Insert(0, Instruction.Create(OpCodes.Ldstr, activityName));
-        method.Body.Instructions.Insert(1, LdI4(maxUsableTimes));
-        method.Body.Instructions.Insert(2, Instruction.Create(OpCodes.Call, Context.SetName));
-
-        var index = method.Body.Instructions.Count - (isVoid ? 1 : 2);
-
-        if (leave != null)
-        {
-            if (!hasAsyncStateMachineAttribute)
-            {
-                var catchHandler = new ExceptionHandler(ExceptionHandlerType.Catch)
-                {
-                    CatchType = Context.TargetModule.TypeSystem.Object,
-                    HandlerStart = Instruction.Create(OpCodes.Pop),
-                    HandlerEnd = leave
-                };
-
-                ProcessHandler(method, isVoid, 3, catchHandler);
-
-                /*IL_003b: pop
-                IL_003c: call void [OpenTelemetry.Proxy]OpenTelemetry.Proxy.ActivityName::Clear()
-                IL_0041: rethrow*/
-                method.Body.Instructions.Insert(index++, catchHandler.HandlerStart);
-                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Call, Context.Clear));
-                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Rethrow));
-            }
-
-            var awaiterVariableIndex = InvokeAwaiterIsCompleted(method, ref index, awaitableInfo, leave);
-
-            var brfalse = Ldloc(awaiterVariableIndex,
-                awaitableInfo.AwaitableInfo.AwaiterType.IsValueType, method.Body.Variables);
-
-            /*IL_0052: brfalse.s IL_005b
-
-            IL_0054: call void [OpenTelemetry.Proxy]OpenTelemetry.Proxy.ActivityName::Clear()
-            IL_0059: br.s IL_007d*/
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse_S, brfalse));
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Call, Context.Clear));
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Br_S,
-                method.Body.Instructions[isVoid ? ^1 : ^2]));
-
-            /*IL_0032: ldloca.s 2
-            IL_0066: ldnull
-            IL_0067: ldftn void [OpenTelemetry.Proxy]OpenTelemetry.Proxy.ActivityName::Clear()
-            IL_006d: newobj instance void [mscorlib]System.Action::.ctor(object, native int)
-            IL_0078: call instance void valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<int32>::UnsafeOnCompleted(class [mscorlib]System.Action)*/
-            method.Body.Instructions.Insert(index++, brfalse);
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Ldnull));
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Ldftn, Context.Clear)); //TODO optimize
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Newobj, Context.ActionCtor));
-
-            var onCompleted = awaitableInfo.AwaitableInfo.AwaiterUnsafeOnCompletedMethod ??
-                awaitableInfo.AwaitableInfo.AwaiterOnCompletedMethod;
-
-            method.Body.Instructions.Insert(index,
-                Instruction.Create(onCompleted.IsFinal ? OpCodes.Call : OpCodes.Callvirt,
-                    Context.TargetModule.ImportReference(onCompleted)
-                        .MakeHostInstanceGeneric(method.Body.Variables[awaiterVariableIndex].VariableType)));
-        }
-        else
-        {
-            var finallyHandler = new ExceptionHandler(ExceptionHandlerType.Finally)
-            {
-                HandlerStart = Instruction.Create(OpCodes.Call, Context.Clear),
-                HandlerEnd = method.Body.Instructions[isVoid ? ^1 : ^2]
-            };
-
-            ProcessHandler(method, isVoid, 3, finallyHandler);
-
-            /*IL_006f: call void [OpenTelemetry.Proxy]OpenTelemetry.Proxy.ActivityName::Clear()
-            IL_0074: endfinally*/
-            method.Body.Instructions.Insert(index++, finallyHandler.HandlerStart);
-            method.Body.Instructions.Insert(index, Instruction.Create(OpCodes.Endfinally));
-        }
+        if (maxUsableTimes != 0)
+            EmitDisposable(method, isVoid, Instruction.Create(OpCodes.Ldstr, activityName), LdI4(maxUsableTimes),
+                Instruction.Create(OpCodes.Call, Context.SetName));
     }
 
     public void EmitActivity(MethodDefinition method, bool isVoid, FieldReference activitySource,
@@ -518,7 +435,8 @@ internal class StaticProxyEmitter
                 }
                 else
                 {
-                    if (checkLeaveS && CheckLeaveS(method, hasAsyncStateMachineAttribute, index, leave = createLeave(variableIndex))) index++;
+                    if (checkLeaveS && CheckLeaveS(method, hasAsyncStateMachineAttribute, index,
+                            leave = createLeave(variableIndex))) index++;
 
                     method.Body.Instructions.Insert(index++, Ldloc(variableIndex, method.Body.Variables));
                 }

@@ -30,8 +30,6 @@ internal class EmitContext
 
     public MethodReference SetName { get; }
 
-    public MethodReference Clear { get; }
-
     public TypeReference ActivityAttribute { get; }
 
     public TypeReference ActivityNameAttribute { get; }
@@ -103,8 +101,6 @@ internal class EmitContext
         var activityName = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ActivityName");
 
         SetName = targetModule.ImportReference(activityName.GetMethods().Single(static m => m.Name == "SetName"));
-
-        Clear = targetModule.ImportReference(activityName.GetMethods().Single(static m => m.Name == "Clear"));
 
         ActivityAttribute = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ActivityAttribute");
         ActivityNameAttribute = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ActivityNameAttribute");
