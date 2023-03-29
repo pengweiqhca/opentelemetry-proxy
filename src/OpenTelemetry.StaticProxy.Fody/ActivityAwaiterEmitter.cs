@@ -1,6 +1,7 @@
 ﻿using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
+using System.Text;
 using TypeCache =
     System.ValueTuple<Mono.Cecil.TypeReference, Mono.Cecil.MethodReference, Mono.Cecil.MethodReference,
         Mono.Cecil.MethodReference>;
@@ -9,6 +10,8 @@ namespace OpenTelemetry.StaticProxy.Fody;
 
 internal class ActivityAwaiterEmitter
 {
+    private static readonly string CoreLibKey = Guid.NewGuid().ToString();
+
     private readonly Dictionary<TypeReference, TypeCache> _awaiterTypes = new(new TypeReferenceComparer());
     private readonly EmitContext _context;
 
@@ -274,7 +277,36 @@ internal class ActivityAwaiterEmitter
         public bool Equals(TypeReference? x, TypeReference? y) =>
             x is null ? y is null : y is not null && GetName(x) == GetName(y);
 
-        private static string GetName(TypeReference type) => type.FullName + "," + type.Scope.Name;
+        private static string GetName(TypeReference type)
+        {
+            var sb = new StringBuilder();
+            sb.Append(type.FullName).Append(",").Append(type.Scope.Name);
+            if (type.Scope is ModuleReference m)
+                sb.Append(",").Append(m.MetadataToken.ToUInt32());
+            else
+            {
+                if (type.Scope is not AssemblyNameReference a)
+                {
+                    if (type.Scope is ModuleDefinition d) a = d.Assembly.Name;
+                    else return sb.ToString();
+                }
+
+                sb.Append(",");
+
+                if (a.IsCoreLib()) sb.Append(CoreLibKey);
+                else
+                {
+                    sb.Append("PublicKeyToken=");
+
+                    if (a.PublicKeyToken is { Length: > 0 })
+                        foreach (var b in a.PublicKeyToken)
+                            sb.Append(b.ToString("x2"));
+                    else sb.Append("null");
+                }
+            }
+
+            return sb.ToString();
+        }
 
         public int GetHashCode(TypeReference obj) => GetName(obj).GetHashCode();
     }

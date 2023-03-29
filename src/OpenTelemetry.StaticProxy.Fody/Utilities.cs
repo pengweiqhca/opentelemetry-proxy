@@ -135,23 +135,8 @@ internal static class Utilities
         return type2.DeclaringType != null && HaveSameIdentity(type1.DeclaringType, type2.DeclaringType);
     }
 
-    private static bool HaveSameIdentityOrCoreLib(this IMetadataScope scope1, IMetadataScope scope2)
-    {
-        if (scope1 == scope2) return true;
-
-        if (scope1 is ModuleDefinition md1) scope1 = md1.Assembly.Name;
-        if (scope2 is ModuleDefinition md2) scope2 = md2.Assembly.Name;
-
-        if (scope1.MetadataScopeType != scope2.MetadataScopeType) return false;
-
-        return scope1 is AssemblyNameReference anr1 && scope2 is AssemblyNameReference anr2
-            ? string.Equals(anr1.Name, anr2.Name, StringComparison.Ordinal) &&
-            string.Equals(BitConverter.ToString(anr1.PublicKeyToken), BitConverter.ToString(anr2.PublicKeyToken),
-                StringComparison.OrdinalIgnoreCase) ||
-            CoreLibRef.Any(x => x.HaveSameIdentity(scope1)) &&
-            CoreLibRef.Any(x => x.HaveSameIdentity(scope2))
-            : scope1 == scope2;
-    }
+    private static bool HaveSameIdentityOrCoreLib(this IMetadataScope scope1, IMetadataScope scope2) =>
+        HaveSameIdentity(scope1, scope2) || IsCoreLib(scope1) && IsCoreLib(scope2);
 
     public static bool HaveSameIdentity(this IMetadataScope scope1, IMetadataScope scope2)
     {
@@ -170,4 +155,6 @@ internal static class Utilities
     }
 
     public static bool IsFSharpCore(this IMetadataScope scope) => HaveSameIdentity(scope, FSharpCore);
+
+    public static bool IsCoreLib(this IMetadataScope scope) => CoreLibRef.Any(x => x.HaveSameIdentity(scope));
 }
