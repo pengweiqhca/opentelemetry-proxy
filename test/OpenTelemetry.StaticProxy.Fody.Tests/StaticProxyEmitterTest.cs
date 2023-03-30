@@ -47,8 +47,8 @@ public class StaticProxyEmitterTest
 
         var emitter = CreateEmitter();
 
-        emitter.EmitSuppressInstrumentationScope(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
-                .GetType(typeof(StaticProxyEmitterTestClass).FullName))
+        emitter.EmitSuppressInstrumentationScope(emitter.Context.TargetModule
+            .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
             .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.SuppressInstrumentationScope)), false);
 
         var assembly = SaveAndLoad(emitter, _output);
@@ -66,9 +66,10 @@ public class StaticProxyEmitterTest
     [Fact]
     public void EmitActivityNameTest()
     {
-        var (activityName, availableTimes) = StaticProxyEmitterTestClass.GetActivityName();
+        var (activityName, tags, availableTimes) = StaticProxyEmitterTestClass.GetActivityName();
 
         Assert.Null(activityName);
+        Assert.Null(tags);
         Assert.Equal(0, availableTimes);
 
         var emitter = CreateEmitter();
@@ -76,8 +77,8 @@ public class StaticProxyEmitterTest
         activityName = Guid.NewGuid().ToString("N");
         availableTimes = DateTime.Now.Millisecond + 1;
 
-        emitter.EmitActivityName(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
-                    .GetType(typeof(StaticProxyEmitterTestClass).FullName))
+        emitter.EmitActivityName(emitter.Context.TargetModule
+                .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
                 .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.ActivityName)),
             false, activityName, availableTimes);
 
@@ -88,14 +89,18 @@ public class StaticProxyEmitterTest
 
         Assert.NotNull(method);
 
-        var tuple = Assert.IsType<Tuple<string?, int>>(method.Invoke(null, Array.Empty<object?>()));
+        var tuple = Assert.IsType<Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int>>(
+            method.Invoke(null, new object?[] { 123 }));
 
         Assert.Equal(activityName, tuple.Item1);
-        Assert.Equal(availableTimes, tuple.Item2);
+        Assert.NotNull(tuple.Item2);
+        Assert.Equal(123, tuple.Item2.Single(x => x.Key == "delay").Value);
+        Assert.Equal(availableTimes, tuple.Item3);
 
-        (activityName, availableTimes) = StaticProxyEmitterTestClass.GetActivityName();
+        (activityName, tags, availableTimes) = StaticProxyEmitterTestClass.GetActivityName();
 
         Assert.Null(activityName);
+        Assert.Null(tags);
         Assert.Equal(0, availableTimes);
     }
 
@@ -112,8 +117,8 @@ public class StaticProxyEmitterTest
         var activityName = Guid.NewGuid().ToString("N");
         var version = DateTime.Now.ToString("HH.mm.ss.fff");
 
-        emitter.EmitActivity(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
-                    .GetType(typeof(StaticProxyEmitterTestClass).FullName))
+        emitter.EmitActivity(emitter.Context.TargetModule
+                .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
                 .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.GetCurrentActivity)),
             false, emitter.AddActivitySource(
                 emitter.Context.TargetModule.GetType(typeof(StaticProxyEmitterTestClass).FullName), name,
@@ -154,8 +159,8 @@ public class StaticProxyEmitterTest
         var activityName = Guid.NewGuid().ToString("N");
         var version = DateTime.Now.ToString("HH.mm.ss.fff");
 
-        emitter.EmitActivity(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
-                    .GetType(typeof(StaticProxyEmitterTestClass).FullName))
+        emitter.EmitActivity(emitter.Context.TargetModule
+                .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
                 .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.TryCatch)),
             false, emitter.AddActivitySource(
                 emitter.Context.TargetModule.GetType(typeof(StaticProxyEmitterTestClass).FullName), name,
@@ -190,8 +195,8 @@ public class StaticProxyEmitterTest
     {
         var emitter = CreateEmitter();
 
-        emitter.EmitSuppressInstrumentationScope(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
-                .GetType(typeof(StaticProxyEmitterTestClass).FullName))
+        emitter.EmitSuppressInstrumentationScope(emitter.Context.TargetModule
+            .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
             .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.Void)), true);
 
         var assembly = SaveAndLoad(emitter, _output);
@@ -209,8 +214,8 @@ public class StaticProxyEmitterTest
     {
         var emitter = CreateEmitter();
 
-        emitter.EmitSuppressInstrumentationScope(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
-                .GetType(typeof(StaticProxyEmitterTestClass).FullName))
+        emitter.EmitSuppressInstrumentationScope(emitter.Context.TargetModule
+            .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
             .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.TryCatchVoid)), true);
 
         var assembly = SaveAndLoad(emitter, _output);
@@ -229,8 +234,8 @@ public class StaticProxyEmitterTest
     {
         var emitter = CreateEmitter();
 
-        emitter.EmitSuppressInstrumentationScope(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
-                .GetType(typeof(StaticProxyEmitterTestClass).FullName))
+        emitter.EmitSuppressInstrumentationScope(emitter.Context.TargetModule
+            .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
             .Single(m => m.Name == methodName), false);
 
         var assembly = SaveAndLoad(emitter, _output);
@@ -251,8 +256,8 @@ public class StaticProxyEmitterTest
         var activityName = Guid.NewGuid().ToString("N");
         var availableTimes = DateTime.Now.Millisecond + 1;
 
-        emitter.EmitActivityName(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
-                    .GetType(typeof(StaticProxyEmitterTestClass).FullName))
+        emitter.EmitActivityName(emitter.Context.TargetModule
+                .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
                 .Single(m => m.Name == methodName),
             false, activityName, availableTimes);
 
@@ -277,8 +282,8 @@ public class StaticProxyEmitterTest
         var activityName = Guid.NewGuid().ToString("N");
         var version = DateTime.Now.ToString("HH.mm.ss.fff");
 
-        emitter.EmitActivity(TypeDefinitionRocks.GetMethods(emitter.Context.TargetModule
-                    .GetType(typeof(StaticProxyEmitterTestClass).FullName))
+        emitter.EmitActivity(emitter.Context.TargetModule
+                .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
                 .Single(m => m.Name == methodName),
             false, emitter.AddActivitySource(
                 emitter.Context.TargetModule.GetType(typeof(StaticProxyEmitterTestClass).FullName), name,
@@ -391,7 +396,8 @@ public static class StaticProxyEmitterTestClass
 
     public static bool SuppressInstrumentationScope() => Sdk.SuppressInstrumentation;
 
-    public static Tuple<string?, int> GetActivityName()
+    public static Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int> GetActivityName(
+        [ActivityTag] int delay = 300)
     {
         var field = typeof(ActivityAttribute).Assembly.GetType("OpenTelemetry.Proxy.ActivityName")
             ?.GetField("Name", BindingFlags.Static | BindingFlags.NonPublic);
@@ -405,12 +411,15 @@ public static class StaticProxyEmitterTestClass
         var nameHolder = name.GetType().GetProperty("Value")?.GetValue(name);
 
         return nameHolder == null
-            ? new(null, 0)
-            : new((string?)nameHolder.GetType().GetField("Name")?.GetValue(nameHolder),
+            ? new(null, default, 0)
+            : new(nameHolder.GetType().GetField("Name")?.GetValue(nameHolder) as string,
+                nameHolder.GetType().GetField("Tags")?.GetValue(nameHolder) as
+                    IReadOnlyCollection<KeyValuePair<string, object?>>,
                 Assert.IsType<int>(nameHolder.GetType().GetField("AvailableTimes")?.GetValue(nameHolder)));
     }
 
-    public static Tuple<string?, int> ActivityName() => GetActivityName();
+    public static Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int> ActivityName(
+        [ActivityTag] int delay = 300) => GetActivityName(delay);
 
     public static Activity? GetCurrentActivity() => Activity.Current;
 

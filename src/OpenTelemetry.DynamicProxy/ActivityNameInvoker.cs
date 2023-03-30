@@ -6,24 +6,26 @@ namespace OpenTelemetry.DynamicProxy;
 
 public class ActivityNameInvoker : IActivityInvoker
 {
+    private readonly bool _suppressInstrumentation;
     private readonly string? _activityName;
     private readonly int _maxUsableTimes;
-    private readonly bool _suppressInstrumentation;
+    private readonly Func<IInvocation, IReadOnlyCollection<KeyValuePair<string, object?>>?>? _getTags;
 
-    public ActivityNameInvoker(string? activityName, int maxUsableTimes, bool suppressInstrumentation)
+    public ActivityNameInvoker(bool suppressInstrumentation) => _suppressInstrumentation = suppressInstrumentation;
+
+    public ActivityNameInvoker(string activityName, int maxUsableTimes,
+        Func<IInvocation, IReadOnlyCollection<KeyValuePair<string, object?>>?> getTags)
     {
         _activityName = activityName;
         _maxUsableTimes = maxUsableTimes;
-        _suppressInstrumentation = suppressInstrumentation;
+        _getTags = getTags;
     }
 
     public void Invoke(IInvocation invocation)
     {
         var disposable = _suppressInstrumentation
             ? SuppressInstrumentationScope.Begin()
-            : ActivityName.SetName(string.IsNullOrWhiteSpace(_activityName)
-                ? $"{invocation.TargetType.FullName}.{invocation.Method.Name}"
-                : _activityName, _maxUsableTimes);
+            : ActivityName.SetName(_getTags?.Invoke(invocation), _activityName, _maxUsableTimes);
 
         try
         {
@@ -49,20 +51,37 @@ public class ActivityNameInvoker : IActivityInvoker
         #region ctor
 
         var ctor = tb.DefineConstructor(MethodAttributes.HideBySig | MethodAttributes.Public,
-            CallingConventions.Standard, new[] { typeof(string), typeof(int), typeof(bool) });
+            CallingConventions.Standard, new[] { typeof(bool) });
 
-        ctor.DefineParameter(0, ParameterAttributes.None, "activityName");
-        ctor.DefineParameter(1, ParameterAttributes.None, "maxUsableTimes");
-        ctor.DefineParameter(2, ParameterAttributes.None, "suppressInstrumentation");
+        ctor.DefineParameter(0, ParameterAttributes.None, "suppressInstrumentation");
 
         var il = ctor.GetILGenerator();
 
-        // base(activityName, maxUsableTimes, suppressInstrumentation)
+        // base(suppressInstrumentation)
+        il.Emit(OpCodes.Ldarg_0);
+        il.Emit(OpCodes.Ldarg_1);
+        il.Emit(OpCodes.Call, typeof(ActivityNameInvoker).GetConstructors().Single(c => c.GetParameters().Length == 1));
+        il.Emit(OpCodes.Ret);
+
+        ctor = tb.DefineConstructor(MethodAttributes.HideBySig | MethodAttributes.Public,
+            CallingConventions.Standard, new[]
+            {
+                typeof(string), typeof(int),
+                typeof(Func<IInvocation, IReadOnlyCollection<KeyValuePair<string, object?>>?>)
+            });
+
+        ctor.DefineParameter(0, ParameterAttributes.None, "activityName");
+        ctor.DefineParameter(1, ParameterAttributes.None, "maxUsableTimes");
+        ctor.DefineParameter(2, ParameterAttributes.None, "getTags");
+
+        il = ctor.GetILGenerator();
+
+        // base(activityName, maxUsableTimes, getTags)
         il.Emit(OpCodes.Ldarg_0);
         il.Emit(OpCodes.Ldarg_1);
         il.Emit(OpCodes.Ldarg_2);
         il.Emit(OpCodes.Ldarg_3);
-        il.Emit(OpCodes.Call, typeof(ActivityNameInvoker).GetConstructors()[0]);
+        il.Emit(OpCodes.Call, typeof(ActivityNameInvoker).GetConstructors().Single(c => c.GetParameters().Length == 3));
         il.Emit(OpCodes.Ret);
 
         #endregion

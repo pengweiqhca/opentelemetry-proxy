@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Internal;
+using OpenTelemetry.Proxy;
 using OpenTelemetry.Trace;
 using System.Reflection.Emit;
 
@@ -7,30 +8,29 @@ namespace OpenTelemetry.DynamicProxy;
 public class ActivityInvoker : IActivityInvoker
 {
     private readonly ActivitySource _activitySource;
-
+    private readonly string _activityName;
     private readonly ActivityKind _kind;
+    private readonly Func<IInvocation, IReadOnlyCollection<KeyValuePair<string, object?>>?>? _getTags;
 
-    private readonly string? _activityName;
-
-    public ActivityInvoker(ActivitySource activitySource, string? activityName, ActivityKind kind)
+    public ActivityInvoker(ActivitySource activitySource, string activityName, ActivityKind kind,
+        Func<IInvocation, IReadOnlyCollection<KeyValuePair<string, object?>>?>? getTags)
     {
         _activitySource = activitySource;
-
-        _kind = kind;
-
         _activityName = activityName;
+        _kind = kind;
+        _getTags = getTags;
     }
 
     public void Invoke(IInvocation invocation)
     {
-        if (_activitySource.StartActivity(string.IsNullOrWhiteSpace(_activityName)
-                ? $"{_activitySource.Name}.{invocation.Method.Name}"
-                : _activityName!, _kind) is not { } activity)
+        if (_activitySource.StartActivity(_activityName, _kind) is not { } activity)
         {
             invocation.Proceed();
 
             return;
         }
+
+        ActivityNameProcessor.SetTags(_getTags?.Invoke(invocation), activity);
 
         try
         {
@@ -70,20 +70,23 @@ public class ActivityInvoker : IActivityInvoker
             CallingConventions.Standard,
             new[]
             {
-                typeof(ActivitySource), typeof(string), typeof(ActivityKind)
+                typeof(ActivitySource), typeof(string), typeof(ActivityKind),
+                typeof(Func<IInvocation, IReadOnlyCollection<KeyValuePair<string, object?>>?>)
             });
 
         ctor.DefineParameter(0, ParameterAttributes.None, "activitySource");
         ctor.DefineParameter(1, ParameterAttributes.None, "activityName");
         ctor.DefineParameter(2, ParameterAttributes.None, "kind");
+        ctor.DefineParameter(2, ParameterAttributes.None, "getTags");
 
         var il = ctor.GetILGenerator();
 
-        // base(activitySource, activityName, kind)
+        // base(activitySource, activityName, kind, getTags)
         il.Emit(OpCodes.Ldarg_0);
         il.Emit(OpCodes.Ldarg_1);
         il.Emit(OpCodes.Ldarg_2);
         il.Emit(OpCodes.Ldarg_3);
+        il.Emit(OpCodes.Ldarg_S, 4);
         il.Emit(OpCodes.Call, typeof(ActivityInvoker).GetConstructors()[0]);
         il.Emit(OpCodes.Ret);
 

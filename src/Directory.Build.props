@@ -7,7 +7,7 @@
     <EnableNETAnalyzers>True</EnableNETAnalyzers>
     <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
 
-    <AssemblyVersion>2.1</AssemblyVersion>
+    <AssemblyVersion>2.2</AssemblyVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Version>$(AssemblyVersion).0</Version>
   </PropertyGroup>

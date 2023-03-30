@@ -30,11 +30,15 @@ internal class EmitContext
 
     public MethodReference SetName { get; }
 
+    public MethodReference SetTags { get; }
+
     public TypeReference ActivityAttribute { get; }
 
     public TypeReference ActivityNameAttribute { get; }
 
     public TypeReference ActivitySourceAttribute { get; }
+
+    public TypeReference ActivityTagAttribute { get; }
 
     public TypeReference NonActivityAttribute { get; }
 
@@ -57,6 +61,10 @@ internal class EmitContext
     public TypeReference AsyncStateMachineAttribute { get; }
 
     public MethodReference CompilerGeneratedAttributeCtor { get; }
+
+    public TypeReference KeyValuePair { get; }
+
+    public MethodReference KeyValuePairCtor { get; }
 
     public EmitContext(ModuleDefinition targetModule,
         ModuleDefinition diagnosticSourceModule,
@@ -92,19 +100,24 @@ internal class EmitContext
 
         Begin = targetModule.ImportReference(openTelemetryModule.GetType("OpenTelemetry.SuppressInstrumentationScope")
             .GetMethods()
-            .Single(static m => m.Name == "Begin"));
+            .Single(static m => m.Name == nameof(Begin)));
 
         RecordException = targetModule.ImportReference(openTelemetryApiModule
             .GetType("OpenTelemetry.Trace.ActivityExtensions").Methods
-            .Single(static m => m.Name == "RecordException" && m.Parameters.Count == 2));
+            .Single(static m => m.Name == nameof(RecordException) && m.Parameters.Count == 2));
 
-        var activityName = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ActivityName");
+        SetName = targetModule.ImportReference(openTelemetryProxyModule
+            .GetType("OpenTelemetry.Proxy.ActivityName")
+            .GetMethods().Single(static m => m.Name == nameof(SetName)));
 
-        SetName = targetModule.ImportReference(activityName.GetMethods().Single(static m => m.Name == "SetName"));
+        SetTags = targetModule.ImportReference(openTelemetryProxyModule
+            .GetType("OpenTelemetry.Proxy.ActivityNameProcessor").GetMethods()
+            .Single(static m => m.Name == nameof(SetTags)));
 
         ActivityAttribute = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ActivityAttribute");
         ActivityNameAttribute = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ActivityNameAttribute");
         ActivitySourceAttribute = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ActivitySourceAttribute");
+        ActivityTagAttribute = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ActivityTagAttribute");
         NonActivityAttribute = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.NonActivityAttribute");
 
         Action = new(typeof(Exception).Namespace, nameof(Action), targetModule, targetModule.TypeSystem.CoreLibrary);
@@ -114,7 +127,7 @@ internal class EmitContext
             targetModule.TypeSystem.CoreLibrary);
 
         Dispose = targetModule.ImportReference(
-            new MethodReference("Dispose", targetModule.TypeSystem.Void, Disposable)
+            new MethodReference(nameof(Dispose), targetModule.TypeSystem.Void, Disposable)
             {
                 HasThis = true
             });
@@ -138,6 +151,11 @@ internal class EmitContext
 
         CompilerGeneratedAttributeCtor = new(".ctor", targetModule.TypeSystem.Void,
             targetModule.GetCoreType<CompilerGeneratedAttribute>()) { HasThis = true };
+
+        KeyValuePair = new GenericInstanceType(targetModule.GetCoreType(typeof(KeyValuePair<,>)))
+            { GenericArguments = { targetModule.TypeSystem.String, targetModule.TypeSystem.Object } };
+
+        KeyValuePairCtor = targetModule.ImportReference(KeyValuePair.Resolve().GetConstructors().Single().MakeHostInstanceGeneric(KeyValuePair));
 
         ActivityAwaiterEmitter = new(this);
     }

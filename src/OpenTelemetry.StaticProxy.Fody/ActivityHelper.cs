@@ -17,16 +17,17 @@ internal static class ActivityInvokerHelper
 
         if (type.GetCustomAttribute(context.ActivitySourceAttribute) is { } activitySource)
         {
-            activitySourceName = GetValue<string>(activitySource, "", type.Module.TypeSystem.String);
+            activitySourceName = activitySource.GetValue<string>("", type.Module.TypeSystem.String);
 
-            kind = GetValue<int>(activitySource, "Kind", type.Module.TypeSystem.Int32);
-            includeNonAsyncStateMachineMethod = GetValue<bool>(activitySource, "IncludeNonAsyncStateMachineMethod", type.Module.TypeSystem.Boolean);
+            kind = activitySource.GetValue<int>("Kind", type.Module.TypeSystem.Int32);
+            includeNonAsyncStateMachineMethod = activitySource.GetValue<bool>("IncludeNonAsyncStateMachineMethod",
+                type.Module.TypeSystem.Boolean);
         }
         else if (type.GetCustomAttribute(context.ActivityNameAttribute) is { } activityName)
         {
-            name = GetValue<string>(activityName, "", type.Module.TypeSystem.String);
+            name = activityName.GetValue<string>("", type.Module.TypeSystem.String);
 
-            maxUsableTimes = GetValue(activityName, "MaxUsableTimes", type.Module.TypeSystem.Int32, 1);
+            maxUsableTimes = activityName.GetValue("MaxUsableTimes", type.Module.TypeSystem.Int32, 1);
         }
 
         var proxyType = new ProxyType<MethodDefinition>
@@ -34,9 +35,18 @@ internal static class ActivityInvokerHelper
             ActivitySourceName = activitySourceName
         };
 
+        var propertyMethods = new HashSet<MethodDefinition>();
+
+        foreach (var property in type.Properties)
+        {
+            if (property.GetMethod != null) propertyMethods.Add(property.GetMethod);
+            if (property.SetMethod != null) propertyMethods.Add(property.SetMethod);
+        }
+
         foreach (var method in type.GetMethods())
-            proxyType.AddMethod(method,
-                GetActivityName(method, context, kind, includeNonAsyncStateMachineMethod, name, maxUsableTimes));
+            if (!propertyMethods.Contains(method))
+                proxyType.AddMethod(method,
+                    GetActivityName(method, context, kind, includeNonAsyncStateMachineMethod, name, maxUsableTimes));
 
         return proxyType;
     }
@@ -45,14 +55,14 @@ internal static class ActivityInvokerHelper
         bool includeNonAsyncStateMachineMethod, string? activityName, int? maxUsableTimes)
     {
         if (method.GetCustomAttribute(context.NonActivityAttribute) is { } naa)
-            return new(GetValue<bool>(naa, "", method.Module.TypeSystem.Boolean)
+            return new(naa.GetValue<bool>("", method.Module.TypeSystem.Boolean)
                 ? ActivitySettings.NonActivityAndSuppressInstrumentation
                 : ActivitySettings.NonActivity);
 
         if (method.GetCustomAttribute(context.ActivityAttribute) is { } attr)
             return new(ActivitySettings.Activity,
-                Name: GetValue<string>(attr, "", method.Module.TypeSystem.String),
-                Kind: GetValue<int>(attr, "Kind", method.Module.TypeSystem.Int32));
+                Name: attr.GetValue<string>("", method.Module.TypeSystem.String),
+                Kind: attr.GetValue<int>("Kind", method.Module.TypeSystem.Int32));
 
         if (method.GetCustomAttribute(context.ActivityNameAttribute) is not { } ana)
         {
@@ -70,23 +80,11 @@ internal static class ActivityInvokerHelper
         }
         else
         {
-            activityName = GetValue<string>(ana, "", method.Module.TypeSystem.String);
+            activityName = ana.GetValue<string>("", method.Module.TypeSystem.String);
 
-            maxUsableTimes = GetValue(ana, "MaxUsableTimes", method.Module.TypeSystem.Int32, 1);
+            maxUsableTimes = ana.GetValue("MaxUsableTimes", method.Module.TypeSystem.Int32, 1);
         }
 
         return new(ActivitySettings.ActivityNameOnly, activityName, MaxUsableTimes: (int)maxUsableTimes);
-    }
-
-    // https://www.meziantou.net/working-with-types-in-a-roslyn-analyzer.htm
-    private static T? GetValue<T>(ICustomAttribute attr, string property, TypeReference type, T? defaultValue = default)
-    {
-        foreach (var arg in attr.ConstructorArguments.Where(a => a.Type == type)) return (T)arg.Value;
-
-        foreach (var p in attr.Properties.Where(p => p.Name == property)) return (T)p.Argument.Value;
-
-        foreach (var f in attr.Fields.Where(f => f.Name == property)) return (T)f.Argument.Value;
-
-        return defaultValue;
     }
 }

@@ -1,6 +1,4 @@
-﻿using OpenTelemetry.Proxy;
-
-namespace OpenTelemetry.DynamicProxy;
+﻿namespace OpenTelemetry.DynamicProxy;
 
 public interface IActivityInvokerFactory
 {

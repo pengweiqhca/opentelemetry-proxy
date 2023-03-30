@@ -36,46 +36,53 @@ public class ModuleWeaverTest
 
     [Fact]
     public Task GetActivityName() => ActivityNameTest(nameof(ModuleWeaverTestClass.GetActivityName),
-        static instance => new((Tuple<string?, int>)instance));
+        static instance => new((Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int>)instance),
+        new() { { "delay", 200 } });
 
     [Fact]
     public Task GetActivityNameAsync() => ActivityNameTest(nameof(ModuleWeaverTestClass.GetActivityNameAsync),
-        static instance => (ValueTask<Tuple<string?, int>>)instance);
+        static instance => (ValueTask<Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int>>)instance,
+        new() { { "delay", 200 } });
 
     [Fact]
     public Task GetActivityNameAwaitable() => ActivityNameTest(nameof(ModuleWeaverTestClass.GetActivityNameAwaitable),
-        Awaitable2ValueTask<Tuple<string?, int>>);
+        Awaitable2ValueTask<Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int>>,
+        new() { { "Now", new DateTime(2024, 1, 1) } });
 
-    private static async Task ActivityNameTest(string methodName, Func<object, ValueTask<Tuple<string?, int>>> func)
+    private static async Task ActivityNameTest(string methodName,
+        Func<object, ValueTask<Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int>>> func,
+        Dictionary<string, object?> tags)
     {
         var method = AssemblyEmit()?.GetMethod(methodName);
 
         Assert.NotNull(method);
 
-        var (activityName, availableTimes) =
-            await func(method.Invoke(null, Array.Empty<object?>())!).ConfigureAwait(false);
+        var (activityName, tags2, availableTimes) =
+            await func(method.Invoke(null, new object[] { 200 })!).ConfigureAwait(false);
 
         Assert.Equal($"{typeof(ModuleWeaverTestClass).FullName}.{methodName}", activityName);
+        Assert.Equal(tags, tags2);
         Assert.Equal(1, availableTimes);
     }
 
     [Fact]
     public Task GetCurrentActivity() => ActivityTest(nameof(ModuleWeaverTestClass.GetCurrentActivity),
-        static instance => new((Activity?)instance));
+        static instance => new((Activity?)instance), new() { { "delay", 100 } });
 
     [Fact]
     public Task GetCurrentActivityAsync() => ActivityTest(nameof(ModuleWeaverTestClass.GetCurrentActivityAsync),
-        static instance => new((Task<Activity?>)instance));
+        static instance => new((Task<Activity?>)instance), new() { { "delay", 100 } });
 
     [Fact]
     public Task GetCurrentActivityFSharpAsync() => ActivityTest(
         nameof(ModuleWeaverTestClass.GetCurrentActivityFSharpAsync),
         static instance => new(FSharpAsync.StartAsTask((FSharpAsync<Activity?>)instance,
-            FSharpOption<TaskCreationOptions>.None, FSharpOption<CancellationToken>.None)));
+            FSharpOption<TaskCreationOptions>.None, FSharpOption<CancellationToken>.None)),
+        new() { { "Now", new DateTime(2024, 1, 1) } });
 
     [Fact]
     public Task GetCurrentActivityAwaitable() => ActivityTest(nameof(ModuleWeaverTestClass.GetCurrentActivityAwaitable),
-        Awaitable2ValueTask<Activity?>);
+        Awaitable2ValueTask<Activity?>, new() { { "delay", 100 }, { "Now", new DateTime(2024, 1, 1) } });
 
     [Fact]
     public async Task Exception()
@@ -145,7 +152,8 @@ public class ModuleWeaverTest
 
     private delegate void TestDelegate(in int a, out int b, ref int c);
 
-    private static async Task ActivityTest(string methodName, Func<object, ValueTask<Activity?>> func)
+    private static async Task ActivityTest(string methodName, Func<object, ValueTask<Activity?>> func,
+        Dictionary<string, object> tags)
     {
         var method = AssemblyEmit()?.GetMethod(methodName);
 
@@ -156,16 +164,19 @@ public class ModuleWeaverTest
             ShouldListenTo = static activitySource => activitySource.Name == nameof(ModuleWeaverTestClass) &&
                 activitySource.Version == typeof(ModuleWeaverTestClass).Assembly.GetName().Version?.ToString(),
             Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
-            ActivityStarted = list.Add
+            ActivityStarted = a => list.Add(a)
         };
 
         ActivitySource.AddActivityListener(activityListener);
 
         Assert.NotNull(method);
 
-        var activity = await func(method.Invoke(null, Array.Empty<object?>())!).ConfigureAwait(false);
+        var activity = await func(method.Invoke(null, new object?[] { 100 })!).ConfigureAwait(false);
 
         Assert.Equal(Assert.Single(list), activity);
+
+        foreach (var kv in tags)
+            Assert.Equal(kv.Value, activity!.GetTagItem(kv.Key));
     }
 
     private static Type? AssemblyEmit() => new ModuleWeaver().ExecuteTestRun(

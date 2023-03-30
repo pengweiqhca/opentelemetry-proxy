@@ -12,4 +12,7 @@ public class ActivityAttribute : Attribute
     public string? ActivityName { get; }
 
     public ActivityKind Kind { get; set; }
+
+    /// <summary>Set activity tag, value from parameter name, property name and field name.</summary>
+    public string[]? Tags { get; set; }
 }

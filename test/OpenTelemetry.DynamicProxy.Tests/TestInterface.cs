@@ -6,23 +6,33 @@ namespace OpenTelemetry.DynamicProxy.Tests;
 [ActivitySource(IncludeNonAsyncStateMachineMethod = true)]
 public interface ITestInterface
 {
+    public DateTime Now { get; }
+
     void Method0();
 
     int Method1();
 
     Task Method2();
 
-    Task<int> Method3(int delay);
+    Task<int> Method3([ActivityTag] int delay);
 
-    ValueTask Method4(int delay);
+    ValueTask Method4([ActivityTag] int delay);
 
-    ValueTask<int> Method5(int delay);
+    [Activity(Tags = new[] { "Field" })]
+    ValueTask<int> Method5([ActivityTag] int delay);
 
-    TestExceptionAwaitable<int> Method6(int delay);
+    [Activity(Tags = new[] { nameof(Now) })]
+    TestExceptionAwaitable<int> Method6([ActivityTag] int delay);
 }
 
 public class TestInterface1 : ITestInterface
 {
+ #pragma warning disable CS0414
+    private static readonly string Field = "Abc";
+ #pragma warning restore CS0414
+
+    public DateTime Now => new(2024, 1, 1);
+
     public void Method0() { }
 
     public int Method1() => 1;

@@ -33,9 +33,9 @@ public static class ModuleWeaverTestClass
     public static TestAwaitable<bool> SuppressInstrumentationScopeAwaitable() => new(SuppressInstrumentationScope);
 
     [ActivityName]
-    public static Tuple<string?, int> GetActivityName() => InternalGetActivityName();
+    public static Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int> GetActivityName([ActivityTag] int delay) => InternalGetActivityName();
 
-    private static Tuple<string?, int> InternalGetActivityName()
+    private static Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int> InternalGetActivityName()
     {
         var field = typeof(ActivityAttribute).Assembly.GetType("OpenTelemetry.Proxy.ActivityName")
             ?.GetField("Name", BindingFlags.Static | BindingFlags.NonPublic);
@@ -49,38 +49,27 @@ public static class ModuleWeaverTestClass
         var nameHolder = name.GetType().GetProperty("Value")?.GetValue(name);
 
         return nameHolder == null
-            ? new(null, 0)
-            : new((string?)nameHolder.GetType().GetField("Name")?.GetValue(nameHolder),
+            ? new(null, default, 0)
+            : new(nameHolder.GetType().GetField("Name")?.GetValue(nameHolder) as string,
+                nameHolder.GetType().GetField("Tags")?.GetValue(nameHolder) as IReadOnlyCollection<KeyValuePair<string, object?>>,
                 Assert.IsType<int>(nameHolder.GetType().GetField("AvailableTimes")?.GetValue(nameHolder)));
     }
 
-    [ActivityName]
-    public static async ValueTask<Tuple<string?, int>> GetActivityNameAsync()
+    [ActivityName(Tags = new[] { nameof(delay) })]
+    public static async ValueTask<Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int>>
+        GetActivityNameAsync(int delay)
     {
-        var field = typeof(ActivityAttribute).Assembly.GetType("OpenTelemetry.Proxy.ActivityName")
-            ?.GetField("Name", BindingFlags.Static | BindingFlags.NonPublic);
-
-        Assert.NotNull(field);
-
-        var name = field.GetValue(null);
-
-        Assert.NotNull(name);
-
-        var nameHolder = name.GetType().GetProperty("Value")?.GetValue(name);
-
         await Task.Delay(100).ConfigureAwait(false);
 
-        return nameHolder == null
-            ? new(null, 0)
-            : new((string?)nameHolder.GetType().GetField("Name")?.GetValue(nameHolder),
-                Assert.IsType<int>(nameHolder.GetType().GetField("AvailableTimes")?.GetValue(nameHolder)));
+        return InternalGetActivityName();
     }
 
-    [ActivityName]
-    public static TestAwaitable<Tuple<string?, int>> GetActivityNameAwaitable() => new(InternalGetActivityName);
+    [ActivityName(Tags = new[] { nameof(Now) })]
+    public static TestAwaitable<Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int>> GetActivityNameAwaitable(int delay) =>
+        new(InternalGetActivityName);
 
-    [Activity]
-    public static Activity? GetCurrentActivity() => Activity.Current;
+    [Activity(Tags = new[] { nameof(delay) })]
+    public static Activity? GetCurrentActivity(int delay) => Activity.Current;
 
     private static async Task<Activity?> CurrentActivityAsync()
     {
@@ -90,17 +79,21 @@ public static class ModuleWeaverTestClass
     }
 
     [Activity]
-    public static async Task<Activity?> GetCurrentActivityAsync() => await CurrentActivityAsync().ConfigureAwait(false);
+    public static async Task<Activity?> GetCurrentActivityAsync([ActivityTag] int delay) =>
+        await CurrentActivityAsync().ConfigureAwait(false);
 
-    [Activity]
-    public static FSharpAsync<Activity?> GetCurrentActivityFSharpAsync() =>
+    public static DateTime Now { get; } = new(2024, 1, 1);
+
+    [Activity(Tags = new[] { nameof(Now) })]
+    public static FSharpAsync<Activity?> GetCurrentActivityFSharpAsync(int delay) =>
         FSharpAsync.AwaitTask(CurrentActivityAsync());
+
+    [Activity(Tags = new[] { nameof(Now) })]
+    public static TestAwaitable<Activity?> GetCurrentActivityAwaitable([ActivityTag] int delay) =>
+        new(static () => Activity.Current);
 
     [Activity]
     public static Task Exception() => Task.FromException(new());
-
-    [Activity]
-    public static TestAwaitable<Activity?> GetCurrentActivityAwaitable() => new(static () => Activity.Current);
 
     public static void OutMethod(in int a, out int b, ref int c)
     {

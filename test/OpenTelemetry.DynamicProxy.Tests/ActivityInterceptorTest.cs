@@ -18,7 +18,7 @@ public class ActivityInterceptorTest : IDisposable
 
             return default;
         },
-        $"{typeof(ITestInterface).FullName}.{nameof(ITestInterface.Method0)}",
+        $"{typeof(TestInterface1).FullName}.{nameof(ITestInterface.Method0)}",
         ActivityStatusCode.Unset);
 
     [Fact]
@@ -28,12 +28,12 @@ public class ActivityInterceptorTest : IDisposable
 
             return default;
         },
-        $"{typeof(ITestInterface).FullName}.{nameof(ITestInterface.Method1)}",
+        $"{typeof(TestInterface1).FullName}.{nameof(ITestInterface.Method1)}",
         ActivityStatusCode.Unset);
 
     [Fact]
     public Task TaskMethodTest() => Intercept(target => new(target.Method2()),
-        $"{typeof(ITestInterface).FullName}.{nameof(ITestInterface.Method2)}",
+        $"{typeof(TestInterface1).FullName}.{nameof(ITestInterface.Method2)}",
         ActivityStatusCode.Unset);
 
     [Fact]
@@ -45,8 +45,8 @@ public class ActivityInterceptorTest : IDisposable
             }
             catch (NotSupportedException) { }
         },
-        $"{typeof(ITestInterface).FullName}.{nameof(ITestInterface.Method3)}",
-        ActivityStatusCode.Error);
+        $"{typeof(TestInterface1).FullName}.{nameof(ITestInterface.Method3)}",
+        ActivityStatusCode.Error, new() { { "delay", 100 } });
 
     [Fact]
     public Task ValueTaskTest() => Intercept(async target =>
@@ -57,14 +57,14 @@ public class ActivityInterceptorTest : IDisposable
             }
             catch (NotSupportedException) { }
         },
-        $"{typeof(ITestInterface).FullName}.{nameof(ITestInterface.Method4)}",
-        ActivityStatusCode.Error);
+        $"{typeof(TestInterface1).FullName}.{nameof(ITestInterface.Method4)}",
+        ActivityStatusCode.Error, new() { { "delay", 100 } });
 
     [Fact]
     public Task ValueTaskTTest() => Intercept(
         target => new(target.Method5(100).AsTask()),
-        $"{typeof(ITestInterface).FullName}.{nameof(ITestInterface.Method5)}",
-        ActivityStatusCode.Unset);
+        $"{typeof(TestInterface1).FullName}.{nameof(ITestInterface.Method5)}",
+        ActivityStatusCode.Unset, new() { { "delay", 100 }, { "Field", "Abc" } });
 
     [Fact]
     public Task CustomAwaitableTest() => Intercept(async target =>
@@ -75,10 +75,10 @@ public class ActivityInterceptorTest : IDisposable
             }
             catch (NotSupportedException) { }
         },
-        $"{typeof(ITestInterface).FullName}.{nameof(ITestInterface.Method6)}",
-        ActivityStatusCode.Error);
+        $"{typeof(TestInterface1).FullName}.{nameof(ITestInterface.Method6)}",
+        ActivityStatusCode.Error, new() { { "delay", 100 }, { "Now", new DateTime(2024, 1, 1) } });
 
-    private async Task Intercept(Func<ITestInterface, ValueTask> func, string name, ActivityStatusCode statusCode)
+    private async Task Intercept(Func<ITestInterface, ValueTask> func, string name, ActivityStatusCode statusCode, Dictionary<string, object>? tags = null)
     {
         using var activity = new Activity("Test").Start();
 
@@ -104,6 +104,10 @@ public class ActivityInterceptorTest : IDisposable
         Assert.Equal(activity.TraceId, child.TraceId);
         Assert.Equal(name, child.OperationName);
         Assert.Equal(statusCode, child.Status);
+
+        if (tags != null)
+            foreach (var kv in tags)
+                Assert.Equal(kv.Value, child.GetTagItem(kv.Key));
     }
 
     public void Dispose() => _listener.Dispose();

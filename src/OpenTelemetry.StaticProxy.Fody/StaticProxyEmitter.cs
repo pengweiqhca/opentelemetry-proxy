@@ -3,6 +3,7 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using OpenTelemetry.Proxy;
+using System.Diagnostics.CodeAnalysis;
 
 namespace OpenTelemetry.StaticProxy.Fody;
 
@@ -78,10 +79,17 @@ internal class StaticProxyEmitter
     }
 
     public void EmitSuppressInstrumentationScope(MethodDefinition method, bool isVoid) =>
-        EmitDisposable(method, isVoid, LdI4(1), Instruction.Create(OpCodes.Call, Context.Begin));
+        EmitDisposable(method, isVoid, () =>
+        {
+            method.Body.Instructions.Insert(0, LdI4(1));
+
+            method.Body.Instructions.Insert(1, Instruction.Create(OpCodes.Call, Context.Begin));
+
+            return 2;
+        });
 
     // https://stackoverflow.com/questions/11074518/add-a-try-catch-with-mono-cecil
-    private void EmitDisposable(MethodDefinition method, bool isVoid, params Instruction[] createDisposable)
+    private void EmitDisposable(MethodDefinition method, bool isVoid, Func<int> createDisposable)
     {
         method.Body.InitLocals = true;
 
@@ -91,15 +99,14 @@ internal class StaticProxyEmitter
 
         var (_, leave) = ProcessReturn(method, isVoid, hasAsyncStateMachineAttribute,
             isTypeAwaitable
-                ? index => Ldloc(index, awaitableInfo.AwaitableInfo.AwaitableType.IsValueType, method.Body.Variables)
+                ? index => Ldloca(index, awaitableInfo.AwaitableInfo.AwaitableType.IsValueType, method.Body.Variables)
                 : null);
 
         var disposeVariableIndex = method.Body.Variables.Count;
         method.Body.Variables.Add(new(Context.Disposable));
 
-        method.Body.Instructions.Insert(0, Stloc(disposeVariableIndex, method.Body.Variables));
-        for (var i = createDisposable.Length - 1; i >= 0; i--)
-            method.Body.Instructions.Insert(0, createDisposable[i]);
+        var length = createDisposable();
+        method.Body.Instructions.Insert(length++, Stloc(disposeVariableIndex, method.Body.Variables));
 
         var index = method.Body.Instructions.Count - (isVoid ? 1 : 2);
 
@@ -114,7 +121,7 @@ internal class StaticProxyEmitter
                     HandlerEnd = leave
                 };
 
-                ProcessHandler(method, isVoid, createDisposable.Length + 1, catchHandler);
+                ProcessHandler(method, isVoid, length, catchHandler);
 
                 /*IL_0010: pop
                 IL_0011: ldloc.0
@@ -128,7 +135,7 @@ internal class StaticProxyEmitter
 
             var awaiterVariableIndex = InvokeAwaiterIsCompleted(method, ref index, awaitableInfo, leave);
 
-            var brfalse = Ldloc(awaiterVariableIndex,
+            var brfalse = Ldloca(awaiterVariableIndex,
                 awaitableInfo.AwaitableInfo.AwaiterType.IsValueType, method.Body.Variables);
 
             /*IL_0028: brfalse.s IL_0032
@@ -170,7 +177,7 @@ internal class StaticProxyEmitter
                 HandlerEnd = method.Body.Instructions[isVoid ? ^1 : ^2]
             };
 
-            ProcessHandler(method, isVoid, createDisposable.Length + 1, finallyHandler);
+            ProcessHandler(method, isVoid, length, finallyHandler);
 
             /*IL_0042: ldloc.0
             IL_0043: brfalse.s IL_004b
@@ -189,15 +196,26 @@ internal class StaticProxyEmitter
         }
     }
 
-    public void EmitActivityName(MethodDefinition method, bool isVoid, string? activityName, int maxUsableTimes)
+    public void EmitActivityName(MethodDefinition method, bool isVoid, string? activityName,
+        int maxUsableTimes)
     {
         if (maxUsableTimes != 0)
-            EmitDisposable(method, isVoid, Instruction.Create(OpCodes.Ldstr, activityName), LdI4(maxUsableTimes),
-                Instruction.Create(OpCodes.Call, Context.SetName));
+            EmitDisposable(method, isVoid, () =>
+            {
+                var index = 0;
+                if (!BuildActivityNameTags(method, ref index))
+                    method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Ldnull));
+
+                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Ldstr, activityName));
+                method.Body.Instructions.Insert(index++, LdI4(maxUsableTimes));
+                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Call, Context.SetName));
+
+                return index;
+            });
     }
 
-    public void EmitActivity(MethodDefinition method, bool isVoid, FieldReference activitySource,
-        string? activityName, int activityKind)
+    public void EmitActivity(MethodDefinition method, bool isVoid,
+        FieldReference activitySource, string? activityName, int activityKind)
     {
         method.Body.InitLocals = true;
 
@@ -218,11 +236,20 @@ internal class StaticProxyEmitter
         IL_000b: callvirt instance class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity [System.Diagnostics.DiagnosticSource]System.Diagnostics.ActivitySource::StartActivity(string, valuetype [System.Diagnostics.DiagnosticSource]System.Diagnostics.ActivityKind)
         IL_0010: stloc.0*/
 
-        method.Body.Instructions.Insert(0, Instruction.Create(OpCodes.Ldsfld, activitySource));
-        method.Body.Instructions.Insert(1, Instruction.Create(OpCodes.Ldstr, activityName));
-        method.Body.Instructions.Insert(2, LdI4(activityKind));
-        method.Body.Instructions.Insert(3, Instruction.Create(OpCodes.Callvirt, Context.ActivitySourceStartActivity));
-        method.Body.Instructions.Insert(4, Stloc(activityIndex, method.Body.Variables));
+        var length = 0;
+        method.Body.Instructions.Insert(length++, Instruction.Create(OpCodes.Ldsfld, activitySource));
+        method.Body.Instructions.Insert(length++, Instruction.Create(OpCodes.Ldstr, activityName));
+        method.Body.Instructions.Insert(length++, LdI4(activityKind));
+        method.Body.Instructions.Insert(length++,
+            Instruction.Create(OpCodes.Callvirt, Context.ActivitySourceStartActivity));
+
+        method.Body.Instructions.Insert(length++, Stloc(activityIndex, method.Body.Variables));
+
+        if (BuildActivityTags(method, ref length))
+        {
+            method.Body.Instructions.Insert(length++, Ldloc(activityIndex, method.Body.Variables));
+            method.Body.Instructions.Insert(length++, Instruction.Create(OpCodes.Call, Context.SetTags));
+        }
 
         var exceptionIndex = method.Body.Variables.Count;
         method.Body.Variables.Add(new(Context.Exception));
@@ -240,7 +267,7 @@ internal class StaticProxyEmitter
                     HandlerEnd = leave
                 };
 
-                ProcessHandler(method, isVoid, 5, catchHandler);
+                ProcessHandler(method, isVoid, length, catchHandler);
 
                 EmitActivityCatch(method, ref index, catchHandler, activityIndex, exceptionIndex);
             }
@@ -250,7 +277,7 @@ internal class StaticProxyEmitter
 
             IL_0036: ldloc.1
             IL_0037: ret*/
-            var ldReturn = Ldloc(returnVariableIndex, awaitableInfo.AwaitableInfo.AwaitableType.IsValueType,
+            var ldReturn = Ldloca(returnVariableIndex, awaitableInfo.AwaitableInfo.AwaitableType.IsValueType,
                 method.Body.Variables);
 
             method.Body.Instructions.Insert(index++, leave);
@@ -259,7 +286,7 @@ internal class StaticProxyEmitter
             index += 2;
 
             var awaiterVariableIndex = InvokeAwaiterIsCompleted(method, ref index, awaitableInfo, ldReturn);
-            var brfalse = Ldloc(awaiterVariableIndex, awaitableInfo.AwaitableInfo.AwaiterType.IsValueType,
+            var brfalse = Ldloca(awaiterVariableIndex, awaitableInfo.AwaitableInfo.AwaiterType.IsValueType,
                 method.Body.Variables);
 
             var br = Ldloc(returnVariableIndex, method.Body.Variables);
@@ -326,7 +353,7 @@ internal class StaticProxyEmitter
                 HandlerEnd = finallyHandler.HandlerStart
             };
 
-            ProcessHandler(method, isVoid, 5, catchHandler);
+            ProcessHandler(method, isVoid, length, catchHandler);
 
             finallyHandler.TryStart = catchHandler.TryStart;
 
@@ -537,8 +564,7 @@ internal class StaticProxyEmitter
     }
 
     private static int InvokeAwaiterIsCompleted(MethodDefinition method, ref int index,
-        CoercedAwaitableInfo awaitableInfo,
-        Instruction ldReturn)
+        CoercedAwaitableInfo awaitableInfo, Instruction ldReturn)
     {
         var awaiterVariableIndex = method.Body.Variables.Count;
 
@@ -563,7 +589,7 @@ internal class StaticProxyEmitter
         /*IL_0021: ldloca.s 2
         IL_0023: call instance bool valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<int32>::get_IsCompleted()*/
         method.Body.Instructions.Insert(index++,
-            Ldloc(awaiterVariableIndex, awaitableInfo.AwaitableInfo.AwaiterType.IsValueType, method.Body.Variables));
+            Ldloca(awaiterVariableIndex, awaitableInfo.AwaitableInfo.AwaiterType.IsValueType, method.Body.Variables));
 
         method.Body.Instructions.Insert(index++, Instruction.Create(
             awaitableInfo.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod.IsFinal ? OpCodes.Call : OpCodes.Callvirt,
@@ -572,6 +598,144 @@ internal class StaticProxyEmitter
 
         return awaiterVariableIndex;
     }
+
+    private bool BuildActivityNameTags(MethodDefinition method, ref int index) => BuildTags(method,
+        (method.GetCustomAttribute(Context.ActivityNameAttribute) ??
+            method.DeclaringType.GetCustomAttribute(Context.ActivityNameAttribute))
+        ?.GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList(), ref index);
+
+    private bool BuildActivityTags(MethodDefinition method, ref int index) => BuildTags(method,
+        method.GetCustomAttribute(Context.ActivityAttribute)?
+            .GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList(), ref index);
+
+    private bool BuildTags(MethodDefinition method, ICollection<string>? tags, ref int index)
+    {
+        var list = new List<IReadOnlyList<Instruction>>();
+
+        foreach (var field in method.DeclaringType.Fields)
+            if ((!method.IsStatic || field.IsStatic) && TryGetName(tags,
+                    field.GetCustomAttribute(Context.ActivityTagAttribute),
+                    field.Name, out var name))
+            {
+                /*IL_0558: ldstr        "123"
+                  IL_055d: ldarg_0
+                  IL_055d: ldfld        "aaa"*/
+                var instructions = new List<Instruction>
+                {
+                    Instruction.Create(OpCodes.Ldstr, name)
+                };
+
+                list.Add(instructions);
+
+                if (!field.IsStatic) instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
+
+                instructions.Add(Instruction.Create(OpCodes.Ldfld, field));
+
+                if (field.FieldType.IsValueType)
+                    instructions.Add(Instruction.Create(OpCodes.Box, field.FieldType));
+            }
+
+        foreach (var property in method.DeclaringType.Properties)
+            if (property.GetMethod != null && (!method.IsStatic || property.GetMethod.IsStatic) &&
+                TryGetName(tags, property.GetCustomAttribute(Context.ActivityTagAttribute),
+                    property.Name, out var name))
+            {
+                /*IL_0558: ldstr        "123"
+                  IL_055d: ldarg_0
+                  IL_055d: callvirt        "aaa"*/
+                var instructions = new List<Instruction>
+                {
+                    Instruction.Create(OpCodes.Ldstr, name)
+                };
+
+                list.Add(instructions);
+
+                if (!property.GetMethod.IsStatic) instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
+
+                instructions.Add(Instruction.Create(
+                    property.GetMethod.IsFinal || property.GetMethod.IsStatic ? OpCodes.Call : OpCodes.Callvirt,
+                    method.Module.ImportReference(property.GetMethod)));
+
+                if (property.PropertyType.IsValueType)
+                    instructions.Add(Instruction.Create(OpCodes.Box, property.PropertyType));
+            }
+
+        for (var i = 0; i < method.Parameters.Count; i++)
+            if (TryGetName(tags, method.Parameters[i].GetCustomAttribute(Context.ActivityTagAttribute),
+                    method.Parameters[i].Name, out var name))
+            {
+                /*IL_0558: ldstr        "123"
+                  IL_055d: ldarg_0
+                  IL_055d: ldarg_1*/
+                var instructions = new List<Instruction>
+                {
+                    Instruction.Create(OpCodes.Ldstr, name),
+                    Ldarg(i, method.IsStatic, method.Parameters)
+                };
+
+                list.Add(instructions);
+
+                if (method.Parameters[i].ParameterType.IsValueType)
+                    instructions.Add(
+                        Instruction.Create(OpCodes.Box, method.Parameters[i].ParameterType));
+            }
+
+        if (list.Count < 1) return false;
+
+        /*IL_0550: ldc.i4.2
+          IL_0551: newarr       valuetype [netstandard]System.Collections.Generic.KeyValuePair`2<string, object>
+          IL_056c: dup
+          IL_056d: ldc.i4.1
+          IL_056e: ldstr        "123"
+          IL_0573: ldstr        "aaa"
+          IL_0578: newobj       instance void valuetype [netstandard]System.Collections.Generic.KeyValuePair`2<string, object>::.ctor()
+          IL_057d: stelem       valuetype [netstandard]System.Collections.Generic.KeyValuePair`2<string, object>*/
+        method.Body.Instructions.Insert(index++, LdI4(list.Count));
+        method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Newarr, Context.KeyValuePair));
+
+        for (var i = 0; i < list.Count; i++)
+        {
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Dup));
+            method.Body.Instructions.Insert(index++, LdI4(i));
+
+            foreach (var instruction in list[i]) method.Body.Instructions.Insert(index++, instruction);
+
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Newobj, Context.KeyValuePairCtor));
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Stelem_Any, Context.KeyValuePair));
+        }
+
+        return true;
+    }
+
+    private bool TryGetName(ICollection<string>? tags, CustomAttribute? attr, string memberName,
+        [NotNullWhen(true)] out string? name)
+    {
+        name = null;
+
+        if (attr == null)
+        {
+            if (tags == null || !tags.Contains(memberName)) return false;
+
+            name = memberName;
+        }
+        else name = attr.GetValue<string>("", Context.TargetModule.TypeSystem.String) ?? memberName;
+
+        tags?.Remove(memberName);
+
+        return true;
+    }
+
+    private static Instruction Ldarg(int index, bool isStaticMethod, IList<ParameterDefinition> parameters) =>
+        (isStaticMethod ? index : index + 1) switch
+        {
+            < 0 or > ushort.MaxValue => throw new ArgumentOutOfRangeException(nameof(index)),
+            0 => Instruction.Create(OpCodes.Ldarg_0),
+            1 => Instruction.Create(OpCodes.Ldarg_1),
+            2 => Instruction.Create(OpCodes.Ldarg_2),
+            3 => Instruction.Create(OpCodes.Ldarg_3),
+            <= byte.MaxValue => Instruction.Create(OpCodes.Ldloc_S, parameters[index]),
+            _ => Instruction.Create(OpCodes.Ldloc, parameters[index])
+        };
 
     private static Instruction Ldloc(int index, IList<VariableDefinition> variables) => index switch
     {
@@ -584,7 +748,7 @@ internal class StaticProxyEmitter
         _ => Instruction.Create(OpCodes.Ldloc, variables[index])
     };
 
-    private static Instruction Ldloc(int index, bool isValueType, IList<VariableDefinition> variables) => isValueType
+    private static Instruction Ldloca(int index, bool isValueType, IList<VariableDefinition> variables) => isValueType
         ? index switch
         {
             < 0 or > ushort.MaxValue => throw new ArgumentOutOfRangeException(nameof(index)),

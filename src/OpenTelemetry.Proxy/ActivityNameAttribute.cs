@@ -13,4 +13,7 @@ public class ActivityNameAttribute : Attribute
 
     /// <summary>&lt;0: unlimited, 0: not effect, default value is 1.</summary>
     public int MaxUsableTimes { get; set; } = 1;
+
+    /// <summary>Set activity tag, value from parameter name, property name and field name.</summary>
+    public string[]? Tags { get; set; }
 }
