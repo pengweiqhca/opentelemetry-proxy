@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Internal;
-using OpenTelemetry.Proxy;
 using OpenTelemetry.Trace;
 using System.Reflection.Emit;
 
@@ -10,15 +9,15 @@ public class ActivityInvoker : IActivityInvoker
     private readonly ActivitySource _activitySource;
     private readonly string _activityName;
     private readonly ActivityKind _kind;
-    private readonly Func<IInvocation, IReadOnlyCollection<KeyValuePair<string, object?>>?>? _getTags;
+    private readonly Action<IInvocation, Activity>? _setTags;
 
     public ActivityInvoker(ActivitySource activitySource, string activityName, ActivityKind kind,
-        Func<IInvocation, IReadOnlyCollection<KeyValuePair<string, object?>>?>? getTags)
+        Action<IInvocation, Activity>? setTags)
     {
         _activitySource = activitySource;
         _activityName = activityName;
         _kind = kind;
-        _getTags = getTags;
+        _setTags = setTags;
     }
 
     public void Invoke(IInvocation invocation)
@@ -30,7 +29,7 @@ public class ActivityInvoker : IActivityInvoker
             return;
         }
 
-        ActivityNameProcessor.SetTags(_getTags?.Invoke(invocation), activity);
+        _setTags?.Invoke(invocation, activity);
 
         try
         {
@@ -64,14 +63,11 @@ public class ActivityInvoker : IActivityInvoker
 
         #region ctor
 
-        var ctor = tb.DefineConstructor(
-            MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName |
-            MethodAttributes.RTSpecialName,
-            CallingConventions.Standard,
-            new[]
+        var ctor = tb.DefineConstructor(MethodAttributes.Public |
+            MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
+            CallingConventions.Standard, new[]
             {
-                typeof(ActivitySource), typeof(string), typeof(ActivityKind),
-                typeof(Func<IInvocation, IReadOnlyCollection<KeyValuePair<string, object?>>?>)
+                typeof(ActivitySource), typeof(string), typeof(ActivityKind), typeof(Action<IInvocation, Activity>)
             });
 
         ctor.DefineParameter(0, ParameterAttributes.None, "activitySource");

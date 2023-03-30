@@ -1,6 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-
-namespace OpenTelemetry.Proxy;
+﻿namespace OpenTelemetry.Proxy;
 
 public class ActivityNameProcessor : BaseProcessor<Activity>
 {
@@ -12,14 +10,8 @@ public class ActivityNameProcessor : BaseProcessor<Activity>
 
         if (name != null) data.DisplayName = name;
 
-        SetTags(tags, data);
-    }
+        if (tags == null) return;
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void SetTags(IReadOnlyCollection<KeyValuePair<string, object?>>? tags, Activity activity)
-    {
-        if (tags == null || tags.Count < 1) return;
-
-        foreach (var kv in tags) activity.SetTag(kv.Key, kv.Value);
+        foreach (var kv in tags) data.SetTag(kv.Key, kv.Value);
     }
 }

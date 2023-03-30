@@ -18,6 +18,8 @@ internal class EmitContext
 
     public MethodReference ActivitySetCurrent { get; }
 
+    public MethodReference ActivitySetTag { get; }
+
     public TypeReference ActivitySource { get; }
 
     public MethodReference ActivitySourceCtor { get; }
@@ -29,8 +31,6 @@ internal class EmitContext
     public MethodReference RecordException { get; }
 
     public MethodReference SetName { get; }
-
-    public MethodReference SetTags { get; }
 
     public TypeReference ActivityAttribute { get; }
 
@@ -78,17 +78,15 @@ internal class EmitContext
         var activitySource = diagnosticSourceModule.GetType("System.Diagnostics.ActivitySource");
 
         Activity = targetModule.ImportReference(activity);
-        ActivitySetStatus =
-            targetModule.ImportReference(activity.Methods.Single(static m => m.Name == "SetStatus" && m.IsPublic));
+        ActivitySetStatus = targetModule.ImportReference(activity.Methods.Single(static m => m.Name == "SetStatus"));
 
-        ActivityDispose =
-            targetModule.ImportReference(activity.Methods.Single(static m => m.Name == "Dispose" && m.IsPublic));
+        ActivityDispose = targetModule.ImportReference(activity.GetParameterlessMethod("Dispose"));
 
-        ActivityGetParent =
-            targetModule.ImportReference(activity.Methods.Single(static m => m.Name == "get_Parent" && m.IsPublic));
+        ActivityGetParent = targetModule.ImportReference(activity.Methods.Single(static m => m.Name == "get_Parent"));
 
-        ActivitySetCurrent =
-            targetModule.ImportReference(activity.Methods.Single(static m => m.Name == "set_Current" && m.IsPublic));
+        ActivitySetCurrent = targetModule.ImportReference(activity.Methods.Single(static m => m.Name == "set_Current"));
+
+        ActivitySetTag = targetModule.ImportReference(activity.Methods.Single(static m => m.Name == "SetTag"));
 
         ActivitySource = targetModule.ImportReference(activitySource);
         ActivitySourceCtor =
@@ -108,11 +106,7 @@ internal class EmitContext
 
         SetName = targetModule.ImportReference(openTelemetryProxyModule
             .GetType("OpenTelemetry.Proxy.ActivityName")
-            .GetMethods().Single(static m => m.Name == nameof(SetName)));
-
-        SetTags = targetModule.ImportReference(openTelemetryProxyModule
-            .GetType("OpenTelemetry.Proxy.ActivityNameProcessor").GetMethods()
-            .Single(static m => m.Name == nameof(SetTags)));
+            .GetMethods().Single(static m => m.Name == nameof(SetName) && m.Parameters.Count == 3));
 
         ActivityAttribute = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ActivityAttribute");
         ActivityNameAttribute = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ActivityNameAttribute");

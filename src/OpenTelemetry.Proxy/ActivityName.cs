@@ -4,7 +4,7 @@ public static class ActivityName
 {
     private static readonly AsyncLocal<NameHolder?> Name = new();
 
-    internal static (string? Name, IReadOnlyCollection<KeyValuePair<string, object?>>? Tags) GetName()
+    internal static (string? Name, IEnumerable<KeyValuePair<string, object?>>? Tags) GetName()
     {
         if (Name.Value is not { } holder || holder.AvailableTimes == 0) return default;
 

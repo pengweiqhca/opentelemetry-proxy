@@ -203,7 +203,7 @@ internal class StaticProxyEmitter
             EmitDisposable(method, isVoid, () =>
             {
                 var index = 0;
-                if (!BuildActivityNameTags(method, ref index))
+                if (!GetActivityTags(method, ref index))
                     method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Ldnull));
 
                 method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Ldstr, activityName));
@@ -245,11 +245,7 @@ internal class StaticProxyEmitter
 
         method.Body.Instructions.Insert(length++, Stloc(activityIndex, method.Body.Variables));
 
-        if (BuildActivityTags(method, ref length))
-        {
-            method.Body.Instructions.Insert(length++, Ldloc(activityIndex, method.Body.Variables));
-            method.Body.Instructions.Insert(length++, Instruction.Create(OpCodes.Call, Context.SetTags));
-        }
+        SetActivityTags(method, activityIndex, ref length);
 
         var exceptionIndex = method.Body.Variables.Count;
         method.Body.Variables.Add(new(Context.Exception));
@@ -599,86 +595,11 @@ internal class StaticProxyEmitter
         return awaiterVariableIndex;
     }
 
-    private bool BuildActivityNameTags(MethodDefinition method, ref int index) => BuildTags(method,
-        (method.GetCustomAttribute(Context.ActivityNameAttribute) ??
-            method.DeclaringType.GetCustomAttribute(Context.ActivityNameAttribute))
-        ?.GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList(), ref index);
-
-    private bool BuildActivityTags(MethodDefinition method, ref int index) => BuildTags(method,
-        method.GetCustomAttribute(Context.ActivityAttribute)?
-            .GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList(), ref index);
-
-    private bool BuildTags(MethodDefinition method, ICollection<string>? tags, ref int index)
+    private bool GetActivityTags(MethodDefinition method, ref int index)
     {
-        var list = new List<IReadOnlyList<Instruction>>();
-
-        foreach (var field in method.DeclaringType.Fields)
-            if ((!method.IsStatic || field.IsStatic) && TryGetName(tags,
-                    field.GetCustomAttribute(Context.ActivityTagAttribute),
-                    field.Name, out var name))
-            {
-                /*IL_0558: ldstr        "123"
-                  IL_055d: ldarg_0
-                  IL_055d: ldfld        "aaa"*/
-                var instructions = new List<Instruction>
-                {
-                    Instruction.Create(OpCodes.Ldstr, name)
-                };
-
-                list.Add(instructions);
-
-                if (!field.IsStatic) instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
-
-                instructions.Add(Instruction.Create(OpCodes.Ldfld, field));
-
-                if (field.FieldType.IsValueType)
-                    instructions.Add(Instruction.Create(OpCodes.Box, field.FieldType));
-            }
-
-        foreach (var property in method.DeclaringType.Properties)
-            if (property.GetMethod != null && (!method.IsStatic || property.GetMethod.IsStatic) &&
-                TryGetName(tags, property.GetCustomAttribute(Context.ActivityTagAttribute),
-                    property.Name, out var name))
-            {
-                /*IL_0558: ldstr        "123"
-                  IL_055d: ldarg_0
-                  IL_055d: callvirt        "aaa"*/
-                var instructions = new List<Instruction>
-                {
-                    Instruction.Create(OpCodes.Ldstr, name)
-                };
-
-                list.Add(instructions);
-
-                if (!property.GetMethod.IsStatic) instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
-
-                instructions.Add(Instruction.Create(
-                    property.GetMethod.IsFinal || property.GetMethod.IsStatic ? OpCodes.Call : OpCodes.Callvirt,
-                    method.Module.ImportReference(property.GetMethod)));
-
-                if (property.PropertyType.IsValueType)
-                    instructions.Add(Instruction.Create(OpCodes.Box, property.PropertyType));
-            }
-
-        for (var i = 0; i < method.Parameters.Count; i++)
-            if (TryGetName(tags, method.Parameters[i].GetCustomAttribute(Context.ActivityTagAttribute),
-                    method.Parameters[i].Name, out var name))
-            {
-                /*IL_0558: ldstr        "123"
-                  IL_055d: ldarg_0
-                  IL_055d: ldarg_1*/
-                var instructions = new List<Instruction>
-                {
-                    Instruction.Create(OpCodes.Ldstr, name),
-                    Ldarg(i, method.IsStatic, method.Parameters)
-                };
-
-                list.Add(instructions);
-
-                if (method.Parameters[i].ParameterType.IsValueType)
-                    instructions.Add(
-                        Instruction.Create(OpCodes.Box, method.Parameters[i].ParameterType));
-            }
+        var list = GetActivityTags(method, (method.GetCustomAttribute(Context.ActivityNameAttribute) ??
+                method.DeclaringType.GetCustomAttribute(Context.ActivityNameAttribute))?
+            .GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList()).ToList();
 
         if (list.Count < 1) return false;
 
@@ -705,6 +626,103 @@ internal class StaticProxyEmitter
         }
 
         return true;
+    }
+
+    private void SetActivityTags(MethodDefinition method, int activityIndex, ref int index)
+    {
+        var list = GetActivityTags(method, method.GetCustomAttribute(Context.ActivityAttribute)?
+            .GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList()).ToList();
+
+        if (list.Count < 1) return;
+
+        method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
+        method.Body.Instructions.Insert(index,
+            Instruction.Create(OpCodes.Brfalse_S, method.Body.Instructions[index++]));
+        method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
+
+        /*IL_0550: Ldloc.0
+          IL_0573: ldstr        "aaa"
+          IL_0574: ldarg.0
+          IL_0578: callvirt       instance void SetTag*/
+        foreach (var tag in list)
+        {
+            foreach (var instruction in tag) method.Body.Instructions.Insert(index++, instruction);
+
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Callvirt, Context.ActivitySetTag));
+        }
+
+        method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Pop));
+    }
+
+    private IEnumerable<IReadOnlyList<Instruction>> GetActivityTags(MethodDefinition method, ICollection<string>? tags)
+    {
+        foreach (var field in method.DeclaringType.Fields)
+            if ((!method.IsStatic || field.IsStatic) && TryGetName(tags,
+                    field.GetCustomAttribute(Context.ActivityTagAttribute),
+                    field.Name, out var name))
+            {
+                /*IL_0558: ldstr        "123"
+                  IL_055d: ldarg_0
+                  IL_055d: ldfld        "aaa"*/
+                var instructions = new List<Instruction>
+                {
+                    Instruction.Create(OpCodes.Ldstr, name)
+                };
+
+                if (!field.IsStatic) instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
+
+                instructions.Add(Instruction.Create(OpCodes.Ldfld, field));
+
+                if (field.FieldType.IsValueType)
+                    instructions.Add(Instruction.Create(OpCodes.Box, field.FieldType));
+
+                yield return instructions;
+            }
+
+        foreach (var property in method.DeclaringType.Properties)
+            if (property.GetMethod != null && (!method.IsStatic || property.GetMethod.IsStatic) &&
+                TryGetName(tags, property.GetCustomAttribute(Context.ActivityTagAttribute),
+                    property.Name, out var name))
+            {
+                /*IL_0558: ldstr        "123"
+                  IL_055d: ldarg_0
+                  IL_055d: callvirt        "aaa"*/
+                var instructions = new List<Instruction>
+                {
+                    Instruction.Create(OpCodes.Ldstr, name)
+                };
+
+                if (!property.GetMethod.IsStatic) instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
+
+                instructions.Add(Instruction.Create(
+                    property.GetMethod.IsFinal || property.GetMethod.IsStatic ? OpCodes.Call : OpCodes.Callvirt,
+                    method.Module.ImportReference(property.GetMethod)));
+
+                if (property.PropertyType.IsValueType)
+                    instructions.Add(Instruction.Create(OpCodes.Box, property.PropertyType));
+
+                yield return instructions;
+            }
+
+        for (var i = 0; i < method.Parameters.Count; i++)
+            if (TryGetName(tags, method.Parameters[i].GetCustomAttribute(Context.ActivityTagAttribute),
+                    method.Parameters[i].Name, out var name))
+            {
+                /*IL_0558: ldstr        "123"
+                  IL_055d: ldarg_0
+                  IL_055d: ldarg_1*/
+                var instructions = new List<Instruction>
+                {
+                    Instruction.Create(OpCodes.Ldstr, name),
+                    Ldarg(i, method.IsStatic, method.Parameters)
+                };
+
+                if (method.Parameters[i].ParameterType.IsValueType)
+                    instructions.Add(
+                        Instruction.Create(OpCodes.Box, method.Parameters[i].ParameterType));
+
+                yield return instructions;
+            }
     }
 
     private bool TryGetName(ICollection<string>? tags, CustomAttribute? attr, string memberName,
