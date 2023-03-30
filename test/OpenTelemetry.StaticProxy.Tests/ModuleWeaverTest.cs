@@ -41,7 +41,8 @@ public class ModuleWeaverTest
 
     [Fact]
     public Task GetActivityNameAsync() => ActivityNameTest(nameof(ModuleWeaverTestClass.GetActivityNameAsync),
-        static instance => (ValueTask<Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int>>)instance,
+        static instance =>
+            (ValueTask<Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int>>)instance,
         new() { { "delay", 200 } });
 
     [Fact]
@@ -142,7 +143,7 @@ public class ModuleWeaverTest
         var c = new Random().Next(10, 100);
         var refC = c;
 
-        testDelegate(a, out var b, ref refC);
+        testDelegate(a, out var b, ref refC, 1, 2, 3);
 
         Assert.Equal(a * a, b);
         Assert.Equal(a * c, refC);
@@ -150,7 +151,7 @@ public class ModuleWeaverTest
         Assert.Single(list);
     }
 
-    private delegate void TestDelegate(in int a, out int b, ref int c);
+    private delegate void TestDelegate(in int a, out int b, ref int c, int d, int e, int f);
 
     private static async Task ActivityTest(string methodName, Func<object, ValueTask<Activity?>> func,
         Dictionary<string, object> tags)

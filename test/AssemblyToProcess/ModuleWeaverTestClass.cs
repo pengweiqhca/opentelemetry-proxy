@@ -95,7 +95,7 @@ public static class ModuleWeaverTestClass
     [Activity]
     public static Task Exception() => Task.FromException(new());
 
-    public static void OutMethod(in int a, out int b, ref int c)
+    public static void OutMethod(in int a, out int b, ref int c, int d, int e, [ActivityTag]int f)
     {
         b = a * a;
         c = a * c;

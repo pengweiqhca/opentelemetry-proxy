@@ -751,8 +751,8 @@ internal class StaticProxyEmitter
             1 => Instruction.Create(OpCodes.Ldarg_1),
             2 => Instruction.Create(OpCodes.Ldarg_2),
             3 => Instruction.Create(OpCodes.Ldarg_3),
-            <= byte.MaxValue => Instruction.Create(OpCodes.Ldloc_S, parameters[index]),
-            _ => Instruction.Create(OpCodes.Ldloc, parameters[index])
+            <= byte.MaxValue => Instruction.Create(OpCodes.Ldarg_S, parameters[index]),
+            _ => Instruction.Create(OpCodes.Ldarg, parameters[index])
         };
 
     private static Instruction Ldloc(int index, IList<VariableDefinition> variables) => index switch
