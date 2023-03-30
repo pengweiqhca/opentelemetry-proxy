@@ -1,4 +1,5 @@
 ﻿using Castle.DynamicProxy;
+using OpenTelemetry.Proxy.Tests.Common;
 
 namespace OpenTelemetry.DynamicProxy.Tests;
 
@@ -22,14 +23,19 @@ public class ActivityInterceptorTest : IDisposable
         ActivityStatusCode.Unset);
 
     [Fact]
-    public Task SyncMethodTest() => Intercept(target =>
-        {
-            target.Method1();
+    public Task SyncMethodTest()
+    {
+        CompletionTrackingAwaiterBase.Initialize();
 
-            return default;
-        },
-        $"{typeof(TestInterface1).FullName}.{nameof(ITestInterface.Method1)}",
-        ActivityStatusCode.Unset);
+        return Intercept(target =>
+            {
+                target.Method1();
+
+                return default;
+            },
+            $"{typeof(TestInterface1).FullName}.{nameof(ITestInterface.Method1)}",
+            ActivityStatusCode.Unset);
+    }
 
     [Fact]
     public Task TaskMethodTest() => Intercept(target => new(target.Method2()),

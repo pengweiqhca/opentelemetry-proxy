@@ -39,4 +39,13 @@ public class CompletionTrackingAwaiterBase
         IsCompleted = true;
         continuation();
     }
+
+ #pragma warning disable CA2255
+    [ModuleInitializer]
+ #pragma warning restore CA2255
+    public static void Initialize()
+    {
+        Activity.DefaultIdFormat = ActivityIdFormat.W3C;
+        Activity.ForceDefaultIdFormat = true;
+    }
 }

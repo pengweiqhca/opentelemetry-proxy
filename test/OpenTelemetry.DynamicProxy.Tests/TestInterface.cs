@@ -61,15 +61,6 @@ public class TestInterface1 : ITestInterface
     }
 
     public TestExceptionAwaitable<int> Method6(int delay) => new(delay);
-
- #pragma warning disable CA2255
-    [ModuleInitializer]
- #pragma warning restore CA2255
-    public static void Initialize()
-    {
-        Activity.DefaultIdFormat = ActivityIdFormat.W3C;
-        Activity.ForceDefaultIdFormat = true;
-    }
 }
 
 public class TestExceptionAwaitable<T>
