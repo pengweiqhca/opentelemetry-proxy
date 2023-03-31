@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Proxy;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -20,7 +21,7 @@ builder.Services
         .AddOtlpExporter())
     .WithTracing(static builder => ConfigureOtlp.ConfigureResource(builder)
         .AddAspNetCoreInstrumentation()
-        .AddSource("DemoClass")
+        .AddSource(ActivitySourceAttribute.GetActivitySourceName(typeof(DemoClass)))
         .AddOtlpExporter());
 
 builder.Services.AddSingleton<IConfigureOptions<OtlpExporterOptions>>(provider =>

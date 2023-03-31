@@ -30,10 +30,7 @@ internal static class ActivityInvokerHelper
             maxUsableTimes = activityName.GetValue("MaxUsableTimes", type.Module.TypeSystem.Int32, 1);
         }
 
-        var proxyType = new ProxyType<MethodDefinition>
-        {
-            ActivitySourceName = activitySourceName
-        };
+        var proxyType = new ProxyType<MethodDefinition> { ActivitySourceName = activitySourceName };
 
         var propertyMethods = new HashSet<MethodDefinition>();
 
@@ -45,8 +42,8 @@ internal static class ActivityInvokerHelper
 
         foreach (var method in type.GetMethods())
             if (!propertyMethods.Contains(method))
-                proxyType.AddMethod(method,
-                    GetActivityName(method, context, kind, includeNonAsyncStateMachineMethod, name, maxUsableTimes));
+                proxyType.AddMethod(method, GetActivityName(method, context, kind,
+                    includeNonAsyncStateMachineMethod, name, maxUsableTimes));
 
         return proxyType;
     }
