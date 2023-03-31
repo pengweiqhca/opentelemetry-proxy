@@ -45,7 +45,7 @@ internal static class ActivityInvokerHelper
                 kind = asa.Kind;
 
                 return asa.IncludeNonAsyncStateMachineMethod ||
-                    method.IsDefined(typeof(AsyncStateMachineAttribute), false) &&
+                    (type.IsInterface || method.IsDefined(typeof(AsyncStateMachineAttribute), false)) &&
                     CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out _)
                         ? ActivitySettings.Activity
                         : ActivitySettings.NonActivity;
