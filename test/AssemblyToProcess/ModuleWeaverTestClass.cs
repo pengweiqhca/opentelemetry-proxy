@@ -1,9 +1,11 @@
 ﻿using Microsoft.FSharp.Control;
-using Microsoft.FSharp.Core;
 using OpenTelemetry;
 using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.Tests.Common;
 using System.Reflection;
+using ActivityName =
+    System.Tuple<string?, System.Collections.Generic.IReadOnlyCollection<
+        System.Collections.Generic.KeyValuePair<string, object?>>?, int>;
 
 namespace AssemblyToProcess;
 
@@ -33,9 +35,9 @@ public static class ModuleWeaverTestClass
     public static TestAwaitable<bool> SuppressInstrumentationScopeAwaitable() => new(SuppressInstrumentationScope);
 
     [ActivityName]
-    public static Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int> GetActivityName([ActivityTag] int delay) => InternalGetActivityName();
+    public static ActivityName GetActivityName([ActivityTag] int delay) => InternalGetActivityName();
 
-    private static Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int> InternalGetActivityName()
+    private static ActivityName InternalGetActivityName()
     {
         var field = typeof(ActivityAttribute).Assembly.GetType("OpenTelemetry.Proxy.ActivityName")
             ?.GetField("Name", BindingFlags.Static | BindingFlags.NonPublic);
@@ -51,13 +53,13 @@ public static class ModuleWeaverTestClass
         return nameHolder == null
             ? new(null, default, 0)
             : new(nameHolder.GetType().GetField("Name")?.GetValue(nameHolder) as string,
-                nameHolder.GetType().GetField("Tags")?.GetValue(nameHolder) as IReadOnlyCollection<KeyValuePair<string, object?>>,
+                nameHolder.GetType().GetField("Tags")?.GetValue(nameHolder) as
+                    IReadOnlyCollection<KeyValuePair<string, object?>>,
                 Assert.IsType<int>(nameHolder.GetType().GetField("AvailableTimes")?.GetValue(nameHolder)));
     }
 
     [ActivityName(Tags = new[] { nameof(delay) })]
-    public static async ValueTask<Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int>>
-        GetActivityNameAsync(int delay)
+    public static async ValueTask<ActivityName> GetActivityNameAsync(int delay)
     {
         await Task.Delay(100).ConfigureAwait(false);
 
@@ -65,7 +67,7 @@ public static class ModuleWeaverTestClass
     }
 
     [ActivityName(Tags = new[] { nameof(Now) })]
-    public static TestAwaitable<Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int>> GetActivityNameAwaitable(int delay) =>
+    public static TestAwaitable<ActivityName> GetActivityNameAwaitable(int delay) =>
         new(InternalGetActivityName);
 
     [Activity(Tags = new[] { nameof(delay) })]
@@ -95,9 +97,15 @@ public static class ModuleWeaverTestClass
     [Activity]
     public static Task Exception() => Task.FromException(new());
 
-    public static void OutMethod(in int a, out int b, ref int c, int d, int e, [ActivityTag]int f)
+    [return: ActivityTag("def")]
+    public static int OutMethod(in int a, out int b, ref int c, int d, int e, [ActivityTag] int f)
     {
         b = a * a;
         c = a * c;
+
+        return d + e + f;
     }
+
+    [Activity(Tags = new[] { ActivityTagAttribute.ReturnValueTagName })]
+    public static Task<int> ReturnValue(int a) => Task.FromResult(a + 1);
 }

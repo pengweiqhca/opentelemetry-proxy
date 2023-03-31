@@ -2,6 +2,7 @@
 using Fody;
 using Microsoft.FSharp.Control;
 using Microsoft.FSharp.Core;
+using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.Tests.Common;
 using OpenTelemetry.StaticProxy.Fody;
 
@@ -143,15 +144,48 @@ public class ModuleWeaverTest
         var c = new Random().Next(10, 100);
         var refC = c;
 
-        testDelegate(a, out var b, ref refC, 1, 2, 3);
+        var result = testDelegate(a, out var b, ref refC, 1, 2, 3);
 
         Assert.Equal(a * a, b);
         Assert.Equal(a * c, refC);
 
-        Assert.Single(list);
+        var activity = Assert.Single(list);
+
+        Assert.Equal(3, activity.GetTagItem("f"));
+        Assert.Equal(result, activity.GetTagItem("def"));
     }
 
-    private delegate void TestDelegate(in int a, out int b, ref int c, int d, int e, int f);
+    private delegate int TestDelegate(in int a, out int b, ref int c, int d, int e, int f);
+
+    [Fact]
+    public async Task ReturnValueTest()
+    {
+        var method = AssemblyEmit()?.GetMethod(nameof(ModuleWeaverTestClass.ReturnValue));
+
+        Assert.NotNull(method);
+
+        var list = new List<Activity>();
+
+        using var activityListener = new ActivityListener
+        {
+            ShouldListenTo = static activitySource => activitySource.Name == nameof(ModuleWeaverTestClass) &&
+                activitySource.Version == typeof(ModuleWeaverTestClass).Assembly.GetName().Version?.ToString(),
+            Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStarted = list.Add
+        };
+
+        ActivitySource.AddActivityListener(activityListener);
+
+        var value = DateTime.Now.Millisecond;
+
+        var result = await ((Task<int>)method.Invoke(null, new object[] { value })!).ConfigureAwait(false);
+
+        Assert.Equal(value + 1, result);
+
+        var activity = Assert.Single(list);
+
+        Assert.Equal(result, activity.GetTagItem(ActivityTagAttribute.ReturnValueTagName));
+    }
 
     private static async Task ActivityTest(string methodName, Func<object, ValueTask<Activity?>> func,
         Dictionary<string, object> tags)

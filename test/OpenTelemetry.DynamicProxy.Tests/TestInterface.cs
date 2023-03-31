@@ -10,6 +10,7 @@ public interface ITestInterface
 
     void Method0();
 
+    [return: ActivityTag("abc")]
     int Method1();
 
     Task Method2();
@@ -18,7 +19,7 @@ public interface ITestInterface
 
     ValueTask Method4([ActivityTag] int delay);
 
-    [Activity(Tags = new[] { "Field" })]
+    [Activity(Tags = new[] { "Field", ActivityTagAttribute.ReturnValueTagName })]
     ValueTask<int> Method5([ActivityTag] int delay);
 
     [Activity(Tags = new[] { nameof(Now) })]

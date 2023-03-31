@@ -1,13 +1,14 @@
 namespace OpenTelemetry.Proxy;
 
-[AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Property | AttributeTargets.Field)]
+[AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.ReturnValue)]
 public class ActivityTagAttribute : Attribute
 {
+    public const string ReturnValueTagName = "$returnvalue";
+
     public ActivityTagAttribute() { }
 
-    public ActivityTagAttribute(string tagName) =>
-        TagName = string.IsNullOrWhiteSpace(tagName) ? null : tagName;
+    public ActivityTagAttribute(string name) =>
+        Name = string.IsNullOrWhiteSpace(name) ? null : name;
 
-    /// <summary>Default value is {ActivitySourceName}.{Method.Name}</summary>
-    public string? TagName { get; }
+    public string? Name { get; }
 }

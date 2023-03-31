@@ -1,7 +1,11 @@
-﻿using OpenTelemetry.Proxy;
+﻿using Microsoft.Extensions.Internal;
+using OpenTelemetry.Proxy;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq.Expressions;
+using GetTags =
+    System.Func<Castle.DynamicProxy.IInvocation, System.Collections.Generic.IReadOnlyCollection<
+        System.Collections.Generic.KeyValuePair<string, object?>>?>;
 
 namespace OpenTelemetry.DynamicProxy;
 
@@ -49,102 +53,110 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
 
         return (IActivityInvoker)(settings switch
         {
-            ActivitySettings.Activity => Activator.CreateInstance(
-                ActivityInvokerHelper.GetActivityInvokerType(invocation.Method.ReturnType),
+            ActivitySettings.Activity => Activator.CreateInstance(typeof(ActivityInvoker),
                 GetActivitySource(type), activityName, kind,
-                SetActivityTags(invocation.TargetType, invocation.Method)),
-            ActivitySettings.ActivityNameOnly => Activator.CreateInstance(
-                ActivityInvokerHelper.GetActivityNameInvokerType(invocation.Method.ReturnType), activityName,
+                SetActivityTags(invocation.TargetType, invocation.Method, out activityName), activityName),
+            ActivitySettings.ActivityNameOnly => Activator.CreateInstance(typeof(ActivityNameInvoker), activityName,
                 maxUsableTimes, CreateActivityTags(invocation.TargetType, invocation.Method))!,
             ActivitySettings.NonActivityAndSuppressInstrumentation => Activator.CreateInstance(
-                ActivityInvokerHelper.GetActivityNameInvokerType(invocation.Method.ReturnType), true),
+                typeof(ActivityNameInvoker), true),
             _ => activityType switch
             {
-                ActivityType.ImplicitActivity => Activator.CreateInstance(
-                    ActivityInvokerHelper.GetActivityInvokerType(invocation.Method.ReturnType),
+                ActivityType.ImplicitActivity => Activator.CreateInstance(typeof(ActivityInvoker),
                     GetActivitySource(type), activityName, ActivityKind.Internal,
-                    SetActivityTags(invocation.TargetType, invocation.Method)),
-                ActivityType.ImplicitActivityName => Activator.CreateInstance(
-                    ActivityInvokerHelper.GetActivityNameInvokerType(invocation.Method.ReturnType),
+                    SetActivityTags(invocation.TargetType, invocation.Method, out activityName), activityName),
+                ActivityType.ImplicitActivityName => Activator.CreateInstance(typeof(ActivityNameInvoker),
                     activityName, 1, CreateActivityTags(invocation.TargetType, invocation.Method)),
                 _ => ActivityInvokerHelper.Noop
             }
-        })!;
+        });
     }
 
     private ActivitySource GetActivitySource(Type type) => _activitySources.GetOrAdd(type, static type =>
         new(ActivitySourceAttribute.GetActivitySourceName(type), type.Assembly.GetName().Version?.ToString() ?? ""));
 
-    private static Action<IInvocation, Activity>? SetActivityTags(Type type, MethodInfo method)
+    private static Action<IInvocation, Activity>? SetActivityTags(Type type, MethodInfo method,
+        out string? returnValueTagName)
     {
         var invocation = Expression.Parameter(typeof(IInvocation), "invocation");
         var activity = Expression.Parameter(typeof(Activity), "activity");
 
-        var keyValuePairs = GetActivityTags(type, method, method.GetCustomAttribute<ActivityAttribute>()?.Tags?.ToList(),
-            invocation).ToList();
+        var keyValuePairs = GetActivityTags(type, method,
+            method.GetCustomAttribute<ActivityAttribute>()?.Tags?.ToList(),
+            invocation, out returnValueTagName);
 
         return keyValuePairs.Count < 1
             ? null
             : Expression.Lambda<Action<IInvocation, Activity>>(Expression.Block(keyValuePairs.Select(kv =>
             {
                 var value = kv.Value;
-                if (value.Type.IsValueType) value = Expression.Convert(value, typeof(object));
+                if (value.Type.IsValueType || value.Type.IsGenericParameter) value = Expression.Convert(value, typeof(object));
 
                 return Expression.Call(activity, SetTag, Expression.Constant(kv.Key), value);
             })), invocation, activity).Compile();
     }
 
-    private static Func<IInvocation, IReadOnlyCollection<KeyValuePair<string, object?>>?>?
-        CreateActivityTags(Type type, MethodInfo method)
+    private static GetTags? CreateActivityTags(Type type, MethodInfo method)
     {
         var invocation = Expression.Parameter(typeof(IInvocation), "invocation");
 
         var keyValuePairs = GetActivityTags(type, method, (method.GetCustomAttribute<ActivityNameAttribute>() ??
-            method.DeclaringType?.GetCustomAttribute<ActivityNameAttribute>())?.Tags?.ToList(), invocation).ToList();
+            method.DeclaringType?.GetCustomAttribute<ActivityNameAttribute>())?.Tags?.ToList(), invocation, out _);
 
         return keyValuePairs.Count < 1
             ? null
-            : Expression.Lambda<Func<IInvocation, IReadOnlyCollection<KeyValuePair<string, object?>>?>>(
-                Expression.NewArrayInit(typeof(KeyValuePair<string, object>), keyValuePairs.Select(static kv =>
+            : Expression.Lambda<GetTags>(Expression.NewArrayInit(typeof(KeyValuePair<string, object>),
+                keyValuePairs.Select(static kv =>
                 {
                     var value = kv.Value;
-                    if (value.Type.IsValueType) value = Expression.Convert(value, typeof(object));
+                    if (value.Type.IsValueType || value.Type.IsGenericParameter) value = Expression.Convert(value, typeof(object));
 
                     return Expression.New(KeyValuePairCtor, Expression.Constant(kv.Key), value);
                 })), invocation).Compile();
     }
 
-    private static IEnumerable<KeyValuePair<string, Expression>> GetActivityTags(Type type, MethodInfo method,
-        ICollection<string>? tags, Expression invocation)
+    private static IReadOnlyList<KeyValuePair<string, Expression>> GetActivityTags(Type type, MethodInfo method,
+        ICollection<string>? tags, Expression invocation, out string? returnValueTagName)
     {
+        if (method.ReturnType != typeof(void) &&
+            (!CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo) ||
+                awaitableInfo.AwaitableInfo.AwaiterGetResultMethod.ReturnType != typeof(void)))
+            TryGetName(tags, method.ReturnParameter?.GetCustomAttribute<ActivityTagAttribute>(true),
+                ActivityTagAttribute.ReturnValueTagName, out returnValueTagName);
+        else returnValueTagName = null;
+
+        var list = new List<KeyValuePair<string, Expression>>();
+
         foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance |
                      BindingFlags.Static))
             if (TryGetName(tags, field.GetCustomAttribute<ActivityTagAttribute>(true),
                     field.Name, out var name))
-                yield return new(name, Expression.Field(field.IsStatic
+                list.Add(new(name, Expression.Field(field.IsStatic
                     ? null
                     : Expression.Convert(Expression.Property(invocation,
-                        "InvocationTarget"), type), field));
+                        "InvocationTarget"), type), field)));
 
         foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic |
                      BindingFlags.Instance | BindingFlags.Static))
             if (property.GetMethod != null && TryGetName(tags,
                     property.GetCustomAttribute<ActivityTagAttribute>(true),
                     property.Name, out var name))
-                yield return new(name, Expression.Property(property.GetMethod.IsStatic
+                list.Add(new(name, Expression.Property(property.GetMethod.IsStatic
                     ? null
                     : Expression.Convert(Expression.Property(invocation,
-                        "InvocationTarget"), type), property));
+                        "InvocationTarget"), type), property)));
 
         var index = 0;
         foreach (var parameter in method.GetParameters())
             if (TryGetName(tags, parameter.GetCustomAttribute<ActivityTagAttribute>(true),
                     parameter.Name ?? index.ToString(CultureInfo.InvariantCulture), out var name))
             {
-                yield return new(name, Expression.Call(invocation, GetArgumentValue, Expression.Constant(index)));
+                list.Add(new(name, Expression.Call(invocation, GetArgumentValue, Expression.Constant(index))));
 
                 index++;
             }
+
+        return list;
     }
 
     private static bool TryGetName(ICollection<string>? tags, ActivityTagAttribute? attr, string memberName,
@@ -158,7 +170,7 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
 
             name = memberName;
         }
-        else name = attr.TagName ?? memberName;
+        else name = string.IsNullOrWhiteSpace(attr.Name) ? memberName : attr.Name!;
 
         tags?.Remove(memberName);
 

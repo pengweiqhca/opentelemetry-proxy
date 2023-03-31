@@ -46,13 +46,17 @@ public class DemoClassProxy : DemoClass
         }
     }
 
-    public override async Task Demo3()
+    public override async Task<int> Demo3()
     {
         var activity = ActivitySource.StartActivity("DemoClass.Demo3");
 
         try
         {
-            await base.Demo3().ConfigureAwait(false);
+            var result = await base.Demo3().ConfigureAwait(false);
+
+            activity?.SetTag(ActivityTagAttribute.ReturnValueTagName, result);
+
+            return result;
         }
         catch (Exception ex)
         {
@@ -66,13 +70,17 @@ public class DemoClassProxy : DemoClass
         }
     }
 
-    public override async Task Demo4()
+    public override async Task<DateTime> Demo4()
     {
         var activity = ActivitySource.StartActivity("DemoClass.Demo4");
 
         try
         {
-            await base.Demo4().ConfigureAwait(false);
+            var result = await base.Demo4().ConfigureAwait(false);
+
+            activity?.SetTag("returnvalue", result);
+
+            return result;
         }
         catch (Exception ex)
         {

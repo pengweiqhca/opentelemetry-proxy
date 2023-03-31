@@ -52,7 +52,7 @@ public class CoercedAwaitableInfoTest
     {
         Assert.NotNull(awaitableInfo.AwaitableType);
         Assert.Equal(awaiterType, awaitableInfo.AwaiterType);
-        Assert.NotNull(awaitableInfo.AwaiterIsCompletedPropertyGetMethod);
+        Assert.NotNull(awaitableInfo.AwaiterIsCompletedProperty);
         Assert.NotNull(awaitableInfo.AwaiterGetResultMethod);
         Assert.NotNull(awaitableInfo.AwaiterOnCompletedMethod);
         Assert.Equal(hasUnsafeOnCompleted, awaitableInfo.AwaiterUnsafeOnCompletedMethod != null);

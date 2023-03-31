@@ -5,15 +5,22 @@ namespace Microsoft.Extensions.Internal;
 
 internal readonly struct AwaitableInfo
 {
-    private const BindingFlags Everything = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance;
-    //private static readonly MethodInfo OnCompleted = typeof(INotifyCompletion).GetMethod(nameof(INotifyCompletion.OnCompleted), Everything, null, new[] { typeof(Action) }, null)!;
-    //private static readonly MethodInfo UnsafeOnCompleted = typeof(ICriticalNotifyCompletion).GetMethod(nameof(ICriticalNotifyCompletion.UnsafeOnCompleted), Everything, null, new[] { typeof(Action) }, null)!;
+    private const BindingFlags Everything =
+        BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance;
+
+    private static readonly MethodInfo OnCompleted =
+        typeof(INotifyCompletion).GetMethod(nameof(INotifyCompletion.OnCompleted), Everything, null,
+            new[] { typeof(Action) }, null)!;
+
+    private static readonly MethodInfo UnsafeOnCompleted =
+        typeof(ICriticalNotifyCompletion).GetMethod(nameof(ICriticalNotifyCompletion.UnsafeOnCompleted), Everything,
+            null, new[] { typeof(Action) }, null)!;
 
     public Type AwaitableType { get; }
 
     public Type AwaiterType { get; }
 
-    public MethodInfo AwaiterIsCompletedPropertyGetMethod { get; }
+    public PropertyInfo AwaiterIsCompletedProperty { get; }
 
     public MethodInfo AwaiterGetResultMethod { get; }
 
@@ -25,7 +32,7 @@ internal readonly struct AwaitableInfo
 
     public AwaitableInfo(Type awaitableType,
         Type awaiterType,
-        MethodInfo awaiterIsCompletedPropertyGetMethod,
+        PropertyInfo awaiterIsCompletedProperty,
         MethodInfo awaiterGetResultMethod,
         MethodInfo awaiterOnCompletedMethod,
         MethodInfo? awaiterUnsafeOnCompletedMethod,
@@ -33,7 +40,7 @@ internal readonly struct AwaitableInfo
     {
         AwaitableType = awaitableType;
         AwaiterType = awaiterType;
-        AwaiterIsCompletedPropertyGetMethod = awaiterIsCompletedPropertyGetMethod;
+        AwaiterIsCompletedProperty = awaiterIsCompletedProperty;
         AwaiterGetResultMethod = awaiterGetResultMethod;
         AwaiterOnCompletedMethod = awaiterOnCompletedMethod;
         AwaiterUnsafeOnCompletedMethod = awaiterUnsafeOnCompletedMethod;
@@ -57,6 +64,7 @@ internal readonly struct AwaitableInfo
         // Awaiter must have property matching "bool IsCompleted { get; }"
         var isCompletedProperty = awaiterType.GetProperty(nameof(TaskAwaiter.IsCompleted), Everything, null,
             typeof(bool), Type.EmptyTypes, null);
+
         if (isCompletedProperty?.GetMethod is null)
         {
             awaitableInfo = default;
@@ -72,36 +80,28 @@ internal readonly struct AwaitableInfo
         }
 
         // INotifyCompletion supplies a method matching "void OnCompleted(Action action)"
-        var onCompletedMethod = /*OnCompleted*/awaiterType.GetMethod(nameof(INotifyCompletion.OnCompleted), Everything,
-            null, new[]
-            {
-                typeof(Action)
-            }, null)!;
+        var onCompletedMethod = OnCompleted;
 
         // Awaiter optionally implements ICriticalNotifyCompletion
         var implementsICriticalNotifyCompletion = typeof(ICriticalNotifyCompletion).IsAssignableFrom(awaiterType);
         MethodInfo? unsafeOnCompletedMethod = null;
         if (implementsICriticalNotifyCompletion)
             // ICriticalNotifyCompletion supplies a method matching "void UnsafeOnCompleted(Action action)"
-            unsafeOnCompletedMethod = /*UnsafeOnCompleted*/awaiterType.GetMethod(
-                nameof(ICriticalNotifyCompletion.UnsafeOnCompleted), Everything, null, new[]
-                {
-                    typeof(Action)
-                }, null)!;
+            unsafeOnCompletedMethod = UnsafeOnCompleted;
 
         // Awaiter must have method matching "void GetResult" or "T GetResult()"
         var getResultMethod =
             awaiterType.GetMethod(nameof(TaskAwaiter.GetResult), Everything, null, Type.EmptyTypes, null);
+
         if (getResultMethod is null)
         {
             awaitableInfo = default;
             return false;
         }
 
-        awaitableInfo = new(
-            type,
+        awaitableInfo = new(type,
             awaiterType,
-            isCompletedProperty.GetMethod,
+            isCompletedProperty,
             getResultMethod,
             onCompletedMethod,
             unsafeOnCompletedMethod,

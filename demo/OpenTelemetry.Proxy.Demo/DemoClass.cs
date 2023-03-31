@@ -39,8 +39,8 @@ public class DemoClass
         Console.WriteLine($"Demo2 end: {_asyncLocal.Value}");
     }
 
-    [Activity]
-    public virtual async Task Demo3()
+    [Activity(Tags = new[] { ActivityTagAttribute.ReturnValueTagName })]
+    public virtual async Task<int> Demo3()
     {
         Console.WriteLine($"Demo3 begin: {_asyncLocal.Value}");
 
@@ -49,10 +49,13 @@ public class DemoClass
         await Task.Delay(Random.Shared.Next(20, 200)).ConfigureAwait(false);
 
         Console.WriteLine($"Demo3 end: {_asyncLocal.Value}");
+
+        return DateTime.Now.Microsecond;
     }
 
     [Activity]
-    public virtual async Task Demo4()
+    [return: ActivityTag("__ReturnValue__")]
+    public virtual async Task<DateTime> Demo4()
     {
         Console.WriteLine($"Demo4 begin: {_asyncLocal.Value}");
 
@@ -61,6 +64,8 @@ public class DemoClass
         await Task.Delay(Random.Shared.Next(20, 200)).ConfigureAwait(false);
 
         Console.WriteLine($"Demo4 end: {_asyncLocal.Value}");
+
+        return DateTime.Now;
     }
 
     [Activity]

@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Internal;
 using OpenTelemetry.Trace;
-using System.Reflection.Emit;
 
 namespace OpenTelemetry.DynamicProxy;
 
@@ -10,14 +9,16 @@ public class ActivityInvoker : IActivityInvoker
     private readonly string _activityName;
     private readonly ActivityKind _kind;
     private readonly Action<IInvocation, Activity>? _setTags;
+    private readonly string? _returnValueTagName;
 
     public ActivityInvoker(ActivitySource activitySource, string activityName, ActivityKind kind,
-        Action<IInvocation, Activity>? setTags)
+        Action<IInvocation, Activity>? setTags, string? returnValueTagName)
     {
         _activitySource = activitySource;
         _activityName = activityName;
         _kind = kind;
         _setTags = setTags;
+        _returnValueTagName = returnValueTagName;
     }
 
     public void Invoke(IInvocation invocation)
@@ -41,172 +42,62 @@ public class ActivityInvoker : IActivityInvoker
         {
             OnException(activity, ex);
 
+            activity.Dispose();
+
             throw;
         }
 
-        InvokeAfter(invocation, activity);
-    }
-
-    protected static void OnException(Activity activity, Exception ex)
-    {
-        activity.SetStatus(ActivityStatusCode.Error, ex.Message).RecordException(ex);
-
-        activity.Dispose();
-    }
-
-    protected virtual void InvokeAfter(IInvocation invocation, Activity activity) => activity.Dispose();
-
-    internal static void BuildAwaitableActivityInvoker(TypeBuilder tb, Type returnType, CoercedAwaitableInfo info)
-    {
-        var awaiterField = tb.DefineField("_awaiter", info.AwaitableInfo.AwaiterType, FieldAttributes.Private);
-        var activityField = tb.DefineField("_activity", typeof(Activity), FieldAttributes.Private);
-
-        #region ctor
-
-        var ctor = tb.DefineConstructor(MethodAttributes.Public |
-            MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
-            CallingConventions.Standard, new[]
-            {
-                typeof(ActivitySource), typeof(string), typeof(ActivityKind), typeof(Action<IInvocation, Activity>)
-            });
-
-        ctor.DefineParameter(0, ParameterAttributes.None, "activitySource");
-        ctor.DefineParameter(1, ParameterAttributes.None, "activityName");
-        ctor.DefineParameter(2, ParameterAttributes.None, "kind");
-        ctor.DefineParameter(2, ParameterAttributes.None, "getTags");
-
-        var il = ctor.GetILGenerator();
-
-        // base(activitySource, activityName, kind, getTags)
-        il.Emit(OpCodes.Ldarg_0);
-        il.Emit(OpCodes.Ldarg_1);
-        il.Emit(OpCodes.Ldarg_2);
-        il.Emit(OpCodes.Ldarg_3);
-        il.Emit(OpCodes.Ldarg_S, 4);
-        il.Emit(OpCodes.Call, typeof(ActivityInvoker).GetConstructors()[0]);
-        il.Emit(OpCodes.Ret);
-
-        #endregion
-
-        #region OnCompleted
-
-        var onCompleted = tb.DefineMethod("OnCompleted", MethodAttributes.Private | MethodAttributes.HideBySig);
-        il = onCompleted.GetILGenerator();
-        il.DeclareLocal(typeof(Exception));
-
-        /*try
+        var func = ActivityInvokerHelper.Convert(invocation.Method.ReturnType);
+        if (func == null)
         {
-            _awaiter.GetResult();
+            if (_returnValueTagName != null) activity.SetTag(_returnValueTagName, invocation.ReturnValue);
 
-            _activity.Dispose();
-        }*/
-        il.BeginExceptionBlock();
-        il.Emit(OpCodes.Ldarg_0);
-        il.Emit(OpCodes.Ldflda, awaiterField);
-        il.Emit(info.AwaitableInfo.AwaiterGetResultMethod.IsFinal ? OpCodes.Call : OpCodes.Callvirt,
-            info.AwaitableInfo.AwaiterGetResultMethod);
+            activity.Dispose();
 
-        if (info.AwaitableInfo.AwaiterGetResultMethod.ReturnType != typeof(void)) il.Emit(OpCodes.Pop);
-        il.Emit(OpCodes.Ldarg_0);
-        il.Emit(OpCodes.Ldfld, activityField);
-        il.Emit(OpCodes.Callvirt, typeof(Activity).GetMethod(nameof(Activity.Dispose))!);
-
-        var end = il.DefineLabel();
-        //il.Emit(OpCodes.Leave_S, end);
-
-        /*catch (Exception ex)
-      {
-        OnException(_activity, ex);
-      }*/
-        il.BeginCatchBlock(typeof(Exception));
-        il.Emit(OpCodes.Stloc_0);
-        il.Emit(OpCodes.Ldarg_0);
-        il.Emit(OpCodes.Ldfld, activityField);
-        il.Emit(OpCodes.Ldloc_0);
-        il.Emit(OpCodes.Call,
-            typeof(ActivityInvoker).GetMethod(nameof(OnException), BindingFlags.Static | BindingFlags.NonPublic)!);
-
-        il.EndExceptionBlock();
-
-        // Stop(_activity);
-        il.MarkLabel(end);
-        il.Emit(OpCodes.Ret);
-
-        #endregion
-
-        #region InvokeAfter
-
-        var invokeAfter = tb.DefineMethod(nameof(InvokeAfter),
-            MethodAttributes.Family | MethodAttributes.Virtual | MethodAttributes.HideBySig, typeof(void), new[]
-            {
-                typeof(IInvocation), typeof(Activity)
-            });
-
-        tb.DefineMethodOverride(invokeAfter,
-            typeof(ActivityInvoker).GetMethod(nameof(InvokeAfter), BindingFlags.Instance | BindingFlags.NonPublic)!);
-
-        invokeAfter.DefineParameter(1, ParameterAttributes.None, "invocation");
-        invokeAfter.DefineParameter(2, ParameterAttributes.None, "activity");
-
-        il = invokeAfter.GetILGenerator();
-
-        var awaiter = il.DeclareLocal(info.AwaitableInfo.AwaiterType);
-
-        // var awaiter = ((AwaitableType)invocation.ReturnValue).GetAwaiter();
-        il.Emit(OpCodes.Ldarg_1);
-        il.Emit(OpCodes.Callvirt, typeof(IInvocation).GetProperty(nameof(IInvocation.ReturnValue))!.GetMethod!);
-        il.Emit(returnType.IsClass ? OpCodes.Castclass : OpCodes.Unbox_Any, returnType);
-        info.CoercerExpression?.Invoke(il);
-
-        if (info.AwaitableInfo.AwaitableType.IsValueType)
-        {
-            var awaitable = il.DeclareLocal(info.AwaitableInfo.AwaitableType);
-
-            il.Emit(OpCodes.Stloc_1);
-            il.Emit(OpCodes.Ldloca_S, awaitable);
+            return;
         }
 
-        il.Emit(info.AwaitableInfo.GetAwaiterMethod.IsFinal ? OpCodes.Call : OpCodes.Callvirt,
-            info.AwaitableInfo.GetAwaiterMethod);
+        var awaiter = func(invocation.ReturnValue).GetAwaiter();
+        if (awaiter.IsCompleted) ActivityAwaiter.OnCompleted(activity, awaiter, _returnValueTagName);
+        else awaiter.UnsafeOnCompleted(new ActivityAwaiter(activity, awaiter, _returnValueTagName).OnCompleted);
+    }
 
-        il.Emit(OpCodes.Stloc_0);
+    private static void OnException(Activity activity, Exception ex) =>
+        activity.SetStatus(ActivityStatusCode.Error, ex.Message).RecordException(ex);
 
-        // _awaiter = awaiter;
-        il.Emit(OpCodes.Ldarg_0);
-        il.Emit(OpCodes.Ldloc_0);
-        il.Emit(OpCodes.Stfld, awaiterField);
+    private sealed class ActivityAwaiter
+    {
+        private readonly Activity _activity;
+        private readonly ObjectMethodExecutorAwaitable.Awaiter _awaiter;
+        private readonly string? _returnValueTagName;
 
-        // _activity = activity;
-        il.Emit(OpCodes.Ldarg_0);
-        il.Emit(OpCodes.Ldarg_2);
-        il.Emit(OpCodes.Stfld, activityField);
+        public ActivityAwaiter(Activity activity, ObjectMethodExecutorAwaitable.Awaiter awaiter,
+            string? returnValueTagName)
+        {
+            _activity = activity;
+            _awaiter = awaiter;
+            _returnValueTagName = returnValueTagName;
+        }
 
-        // if (awaiter.IsCompleted)
-        il.Emit(info.AwaitableInfo.AwaiterType.IsValueType ? OpCodes.Ldloca_S : OpCodes.Ldloc, awaiter);
-        il.Emit(info.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod.IsFinal ? OpCodes.Call : OpCodes.Callvirt,
-            info.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod);
+        public void OnCompleted() => OnCompleted(_activity, _awaiter, _returnValueTagName);
 
-        var falseLabel = il.DefineLabel();
-        il.Emit(OpCodes.Brfalse_S, falseLabel);
+        public static void OnCompleted(Activity activity, ObjectMethodExecutorAwaitable.Awaiter awaiter,
+            string? returnValueTagName)
+        {
+            try
+            {
+                var result = awaiter.GetResult();
 
-        // OnCompleted();
-        il.Emit(OpCodes.Ldarg_0);
-        il.Emit(OpCodes.Call, onCompleted);
-        il.Emit(OpCodes.Ret);
-
-        // else awaiter.OnCompleted(OnCompleted);
-        il.MarkLabel(falseLabel);
-        il.Emit(info.AwaitableInfo.AwaiterType.IsValueType ? OpCodes.Ldloca_S : OpCodes.Ldloc, awaiter);
-        il.Emit(OpCodes.Ldarg_0);
-        il.Emit(OpCodes.Ldftn, onCompleted);
-        il.Emit(OpCodes.Newobj, typeof(Action).GetConstructors()[0]);
-
-        var awaiterOnCompleted = info.AwaitableInfo.AwaiterUnsafeOnCompletedMethod ??
-            info.AwaitableInfo.AwaiterOnCompletedMethod;
-
-        il.Emit(awaiterOnCompleted.IsFinal ? OpCodes.Call : OpCodes.Callvirt, awaiterOnCompleted);
-        il.Emit(OpCodes.Ret);
-
-        #endregion
+                if (returnValueTagName != null) activity.SetTag(returnValueTagName, result);
+            }
+            catch (Exception ex)
+            {
+                OnException(activity, ex);
+            }
+            finally
+            {
+                activity.Dispose();
+            }
+        }
     }
 }

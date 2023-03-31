@@ -245,7 +245,7 @@ internal class StaticProxyEmitter
 
         method.Body.Instructions.Insert(length++, Stloc(activityIndex, method.Body.Variables));
 
-        SetActivityTags(method, activityIndex, ref length);
+        var returnValueTagName = SetActivityTags(method, activityIndex, ref length);
 
         var exceptionIndex = method.Body.Variables.Count;
         method.Body.Variables.Add(new(Context.Exception));
@@ -300,6 +300,9 @@ internal class StaticProxyEmitter
             method.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse_S, brfalse));
             method.Body.Instructions.Add(Ldloc(activityIndex, method.Body.Variables));
             method.Body.Instructions.Add(Ldloc(awaiterVariableIndex, method.Body.Variables));
+            method.Body.Instructions.Add(returnValueTagName == null
+                ? Instruction.Create(OpCodes.Ldnull)
+                : Instruction.Create(OpCodes.Ldstr, returnValueTagName));
 
             method.Body.Instructions.Add(Instruction.Create(OpCodes.Call, staticOnCompleted));
 
@@ -318,6 +321,10 @@ internal class StaticProxyEmitter
             method.Body.Instructions.Add(brfalse);
             method.Body.Instructions.Add(Ldloc(activityIndex, method.Body.Variables));
             method.Body.Instructions.Add(Ldloc(awaiterVariableIndex, method.Body.Variables));
+            method.Body.Instructions.Add(returnValueTagName == null
+                ? Instruction.Create(OpCodes.Ldnull)
+                : Instruction.Create(OpCodes.Ldstr, returnValueTagName));
+
             method.Body.Instructions.Add(Instruction.Create(OpCodes.Newobj, ctor));
             method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldftn, instanceOnCompleted));
             method.Body.Instructions.Add(Instruction.Create(OpCodes.Newobj, Context.ActionCtor));
@@ -354,6 +361,33 @@ internal class StaticProxyEmitter
             finallyHandler.TryStart = catchHandler.TryStart;
 
             method.Body.ExceptionHandlers.Add(finallyHandler);
+
+            if (returnValueTagName != null)
+            {
+                /*IL_003e: ldloc.1
+                  IL_003f: brfalse.s IL_0053
+
+                  IL_0041: ldloc.1
+                  IL_0042: ldstr "def"
+                  IL_0047: ldloc.0
+                  IL_0048: box [mscorlib]System.Int32
+                  IL_004d: callvirt instance class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity::SetTag(string, object)
+                  IL_0052: pop*/
+                var skip = method.Body.Instructions[--index];
+
+                method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
+                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse_S, skip));
+                method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
+                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Ldstr, returnValueTagName));
+                method.Body.Instructions.Insert(index++, Ldloc(returnVariableIndex, method.Body.Variables));
+                if (method.ReturnType.IsValueType || method.ReturnType.IsGenericParameter)
+                    method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Box, method.ReturnType));
+
+                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Callvirt, Context.ActivitySetTag));
+                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Pop));
+
+                index++;
+            }
 
             EmitActivityCatch(method, ref index, catchHandler, activityIndex, exceptionIndex);
 
@@ -599,7 +633,7 @@ internal class StaticProxyEmitter
     {
         var list = GetActivityTags(method, (method.GetCustomAttribute(Context.ActivityNameAttribute) ??
                 method.DeclaringType.GetCustomAttribute(Context.ActivityNameAttribute))?
-            .GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList()).ToList();
+            .GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList(), out _);
 
         if (list.Count < 1) return false;
 
@@ -628,16 +662,18 @@ internal class StaticProxyEmitter
         return true;
     }
 
-    private void SetActivityTags(MethodDefinition method, int activityIndex, ref int index)
+    private string? SetActivityTags(MethodDefinition method, int activityIndex, ref int index)
     {
         var list = GetActivityTags(method, method.GetCustomAttribute(Context.ActivityAttribute)?
-            .GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList()).ToList();
+                .GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList(),
+            out var returnValueTagName);
 
-        if (list.Count < 1) return;
+        if (list.Count < 1) return returnValueTagName;
 
         method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
         method.Body.Instructions.Insert(index,
             Instruction.Create(OpCodes.Brfalse_S, method.Body.Instructions[index++]));
+
         method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
 
         /*IL_0550: Ldloc.0
@@ -652,10 +688,23 @@ internal class StaticProxyEmitter
         }
 
         method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Pop));
+
+        return returnValueTagName;
     }
 
-    private IEnumerable<IReadOnlyList<Instruction>> GetActivityTags(MethodDefinition method, ICollection<string>? tags)
+    private IReadOnlyList<IReadOnlyList<Instruction>> GetActivityTags(MethodDefinition method,
+        ICollection<string>? tags, out string? returnValueTagName)
     {
+        if (!method.ReturnType.HaveSameIdentity(Context.TargetModule.TypeSystem.Void) &&
+            (!CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo) ||
+                !awaitableInfo.AwaitableInfo.AwaiterGetResultMethod.ReturnType.HaveSameIdentity(Context.TargetModule
+                    .TypeSystem.Void)))
+            TryGetName(tags, method.MethodReturnType.GetCustomAttribute(Context.ActivityTagAttribute),
+                "$returnvalue", out returnValueTagName);
+        else returnValueTagName = null;
+
+        var list = new List<IReadOnlyList<Instruction>>();
+
         foreach (var field in method.DeclaringType.Fields)
             if ((!method.IsStatic || field.IsStatic) && TryGetName(tags,
                     field.GetCustomAttribute(Context.ActivityTagAttribute),
@@ -673,10 +722,10 @@ internal class StaticProxyEmitter
 
                 instructions.Add(Instruction.Create(OpCodes.Ldfld, field));
 
-                if (field.FieldType.IsValueType)
+                if (field.FieldType.IsValueType || field.FieldType.IsGenericParameter)
                     instructions.Add(Instruction.Create(OpCodes.Box, field.FieldType));
 
-                yield return instructions;
+                list.Add(instructions);
             }
 
         foreach (var property in method.DeclaringType.Properties)
@@ -698,10 +747,10 @@ internal class StaticProxyEmitter
                     property.GetMethod.IsFinal || property.GetMethod.IsStatic ? OpCodes.Call : OpCodes.Callvirt,
                     method.Module.ImportReference(property.GetMethod)));
 
-                if (property.PropertyType.IsValueType)
+                if (property.PropertyType.IsValueType || property.PropertyType.IsGenericParameter)
                     instructions.Add(Instruction.Create(OpCodes.Box, property.PropertyType));
 
-                yield return instructions;
+                list.Add(instructions);
             }
 
         for (var i = 0; i < method.Parameters.Count; i++)
@@ -717,15 +766,17 @@ internal class StaticProxyEmitter
                     Ldarg(i, method.IsStatic, method.Parameters)
                 };
 
-                if (method.Parameters[i].ParameterType.IsValueType)
-                    instructions.Add(
-                        Instruction.Create(OpCodes.Box, method.Parameters[i].ParameterType));
+                if (method.Parameters[i].ParameterType.IsValueType ||
+                    method.Parameters[i].ParameterType.IsGenericParameter)
+                    instructions.Add(Instruction.Create(OpCodes.Box, method.Parameters[i].ParameterType));
 
-                yield return instructions;
+                list.Add(instructions);
             }
+
+        return list;
     }
 
-    private bool TryGetName(ICollection<string>? tags, CustomAttribute? attr, string memberName,
+    private bool TryGetName(ICollection<string>? tags, ICustomAttribute? attr, string memberName,
         [NotNullWhen(true)] out string? name)
     {
         name = null;

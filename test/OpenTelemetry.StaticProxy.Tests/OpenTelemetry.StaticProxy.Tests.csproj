@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="FodyHelpers" Version="6.6.4" />
+    <PackageReference Include="FodyHelpers" Version="$(FodyVersion)" />
     <PackageReference Include="FSharp.Core" Version="7.*" />
     <PackageReference Include="Moq" Version="4.*" />
     <PackageReference Include="OpenTelemetry" Version="1.4.0" />

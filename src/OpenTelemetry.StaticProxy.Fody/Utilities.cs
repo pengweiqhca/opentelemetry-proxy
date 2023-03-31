@@ -53,17 +53,33 @@ internal static class Utilities
             IsValueType = type.IsValueType
         };
 
-    public static CustomAttribute? GetCustomAttribute(this TypeDefinition type, TypeReference attributeType) =>
-        type.CustomAttributes.FirstOrDefault(attr => attr.AttributeType.HaveSameIdentity(attributeType)) ??
-        type.BaseType?.Resolve().GetCustomAttribute(attributeType);
-
-    public static CustomAttribute? GetCustomAttribute(this MethodDefinition method, TypeReference attributeType)
+    public static CustomAttribute? GetCustomAttribute(this TypeDefinition? type, TypeReference attributeType)
     {
-        var attr = method.CustomAttributes.FirstOrDefault(attr => attr.AttributeType.HaveSameIdentity(attributeType));
-        if (attr != null) return attr;
+        while (type != null)
+        {
+            var customAttribute = GetCustomAttribute((ICustomAttributeProvider)type, attributeType);
+            if (customAttribute != null) return customAttribute;
 
-        var @base = method.GetBaseMethod();
-        return @base == null || @base == method ? null : @base.GetCustomAttribute(attributeType);
+            type = type.BaseType?.Resolve();
+        }
+
+        return null;
+    }
+
+    public static CustomAttribute? GetCustomAttribute(this MethodDefinition? method, TypeReference attributeType)
+    {
+        while (method != null)
+        {
+            var attr = GetCustomAttribute((ICustomAttributeProvider)method, attributeType);
+            if (attr != null) return attr;
+
+            var @base = method.GetBaseMethod();
+            if (@base == null || @base == method) return null;
+
+            method = @base;
+        }
+
+        return null;
     }
 
     public static CustomAttribute? GetCustomAttribute(this ICustomAttributeProvider provider,

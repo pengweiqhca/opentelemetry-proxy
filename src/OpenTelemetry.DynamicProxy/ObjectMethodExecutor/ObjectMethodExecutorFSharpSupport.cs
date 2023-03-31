@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
-using System.Reflection.Emit;
 
 // ReSharper disable once CheckNamespace
 namespace Microsoft.Extensions.Internal;
@@ -23,7 +22,7 @@ internal static class ObjectMethodExecutorFSharpSupport
     private static PropertyInfo? _fsharpOptionOfCancellationTokenNoneProperty;
 
     public static bool TryBuildCoercerFromFSharpAsyncToAwaitable(Type possibleFSharpAsyncType,
-        [NotNullWhen(true)] out Action<ILGenerator>? coerceToAwaitableExpression,
+        [NotNullWhen(true)] out Expression? coerceToAwaitableExpression,
         [NotNullWhen(true)] out Type? awaitableType)
     {
         var methodReturnGenericType = possibleFSharpAsyncType.IsGenericType
@@ -44,12 +43,15 @@ internal static class ObjectMethodExecutorFSharpSupport
             (Microsoft.FSharp.Control.FSharpAsync<TResult>)fsharpAsync,
             FSharpOption<TaskCreationOptions>.None,
             FSharpOption<CancellationToken>.None);*/
-        coerceToAwaitableExpression = il =>
-        {
-            il.Emit(OpCodes.Call, _fsharpOptionOfTaskCreationOptionsNoneProperty.GetMethod!);
-            il.Emit(OpCodes.Call, _fsharpOptionOfCancellationTokenNoneProperty.GetMethod!);
-            il.Emit(OpCodes.Call, _fsharpAsyncStartAsTaskGenericMethod.MakeGenericMethod(awaiterResultType));
-        };
+        var startAsTaskClosedMethod = _fsharpAsyncStartAsTaskGenericMethod.MakeGenericMethod(awaiterResultType);
+
+        var coerceToAwaitableParam = Expression.Parameter(typeof(object));
+        coerceToAwaitableExpression = Expression.Lambda(Expression.Convert(Expression.Call(
+                startAsTaskClosedMethod,
+                Expression.Convert(coerceToAwaitableParam, possibleFSharpAsyncType),
+                Expression.MakeMemberAccess(null, _fsharpOptionOfTaskCreationOptionsNoneProperty),
+                Expression.MakeMemberAccess(null, _fsharpOptionOfCancellationTokenNoneProperty)),
+            typeof(object)), coerceToAwaitableParam);
 
         return true;
     }
@@ -79,7 +81,8 @@ internal static class ObjectMethodExecutorFSharpSupport
 
         // Get a reference to FSharpOption<TaskCreationOptions>.None
         var fsharpOptionOfTaskCreationOptionsType = fsharpOptionType.MakeGenericType(typeof(TaskCreationOptions));
-        _fsharpOptionOfTaskCreationOptionsNoneProperty = fsharpOptionOfTaskCreationOptionsType.GetRuntimeProperty("None")!;
+        _fsharpOptionOfTaskCreationOptionsNoneProperty =
+            fsharpOptionOfTaskCreationOptionsType.GetRuntimeProperty("None")!;
 
         // Get a reference to FSharpOption<CancellationToken>.None
         var fsharpOptionOfCancellationTokenType = fsharpOptionType.MakeGenericType(typeof(CancellationToken));
@@ -88,6 +91,7 @@ internal static class ObjectMethodExecutorFSharpSupport
         // Get a reference to FSharpAsync.StartAsTask<>
         var fsharpAsyncMethods = fsharpAsyncType.GetRuntimeMethods()
             .Where(m => m.Name.Equals("StartAsTask", StringComparison.Ordinal));
+
         foreach (var candidateMethodInfo in fsharpAsyncMethods)
         {
             var parameters = candidateMethodInfo.GetParameters();

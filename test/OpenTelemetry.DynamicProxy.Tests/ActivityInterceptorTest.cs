@@ -1,4 +1,5 @@
 ﻿using Castle.DynamicProxy;
+using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.Tests.Common;
 
 namespace OpenTelemetry.DynamicProxy.Tests;
@@ -34,7 +35,7 @@ public class ActivityInterceptorTest : IDisposable
                 return default;
             },
             $"{typeof(TestInterface1).FullName}.{nameof(ITestInterface.Method1)}",
-            ActivityStatusCode.Unset);
+            ActivityStatusCode.Unset, new() { { "abc", 1 } });
     }
 
     [Fact]
@@ -70,7 +71,7 @@ public class ActivityInterceptorTest : IDisposable
     public Task ValueTaskTTest() => Intercept(
         target => new(target.Method5(100).AsTask()),
         $"{typeof(TestInterface1).FullName}.{nameof(ITestInterface.Method5)}",
-        ActivityStatusCode.Unset, new() { { "delay", 100 }, { "Field", "Abc" } });
+        ActivityStatusCode.Unset, new() { { "delay", 100 }, { "Field", "Abc" }, { ActivityTagAttribute.ReturnValueTagName, 100 } });
 
     [Fact]
     public Task CustomAwaitableTest() => Intercept(async target =>

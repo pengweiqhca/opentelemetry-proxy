@@ -1,4 +1,5 @@
-﻿using System.Reflection.Emit;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Linq.Expressions;
 
 // ReSharper disable once CheckNamespace
 namespace Microsoft.Extensions.Internal;
@@ -7,12 +8,27 @@ internal readonly struct CoercedAwaitableInfo
 {
     public AwaitableInfo AwaitableInfo { get; }
 
-    public Action<ILGenerator>? CoercerExpression { get; }
+    public Expression? CoercerExpression { get; }
 
-    public CoercedAwaitableInfo(AwaitableInfo awaitableInfo) => AwaitableInfo = awaitableInfo;
+    public Type? CoercerResultType { get; }
 
-    public CoercedAwaitableInfo(Action<ILGenerator> coercerExpression, AwaitableInfo coercedAwaitableInfo)
-        : this(coercedAwaitableInfo) => CoercerExpression = coercerExpression;
+    [MemberNotNullWhen(true, nameof(CoercerExpression))]
+    public bool RequiresCoercion => CoercerExpression != null;
+
+    public CoercedAwaitableInfo(AwaitableInfo awaitableInfo)
+    {
+        AwaitableInfo = awaitableInfo;
+        CoercerExpression = null;
+        CoercerResultType = null;
+    }
+
+    public CoercedAwaitableInfo(Expression coercerExpression, Type coercerResultType,
+        AwaitableInfo coercedAwaitableInfo)
+    {
+        CoercerExpression = coercerExpression;
+        CoercerResultType = coercerResultType;
+        AwaitableInfo = coercedAwaitableInfo;
+    }
 
     public static bool IsTypeAwaitable(Type type, out CoercedAwaitableInfo info)
     {
@@ -28,7 +44,7 @@ internal readonly struct CoercedAwaitableInfo
                 out var coercerExpression, out var coercerResultType) &&
             AwaitableInfo.IsTypeAwaitable(coercerResultType, out var coercedAwaitableInfo))
         {
-            info = new(coercerExpression, coercedAwaitableInfo);
+            info = new(coercerExpression, coercerResultType, coercedAwaitableInfo);
             return true;
         }
 

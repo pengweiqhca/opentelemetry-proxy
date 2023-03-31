@@ -41,18 +41,13 @@ public class ActivityAwaiterEmitterTest
             .Callback(tcs.SetResult);
 
         if ((bool)awaiterType.GetProperty(nameof(TaskAwaiter.IsCompleted))!.GetValue(awaiter)!)
-            type.GetMethod("OnCompleted", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, new[]
-            {
-                mock.Object, awaiter
-            });
+            type.GetMethod("OnCompleted", BindingFlags.Public | BindingFlags.Static)!
+                .Invoke(null, new[] { mock.Object, awaiter, null });
         else
         {
             var action = type.GetMethod("OnCompleted", BindingFlags.Public | BindingFlags.Instance)!
-                .CreateDelegate<Action>(
-                    Activator.CreateInstance(type, BindingFlags.Public | BindingFlags.Instance, null, new[]
-                    {
-                        mock.Object, awaiter
-                    }, null));
+                .CreateDelegate<Action>(Activator.CreateInstance(type, BindingFlags.Public | BindingFlags.Instance,
+                    null, new[] { mock.Object, awaiter, null }, null));
 
             if (awaiter is ICriticalNotifyCompletion criticalNotifyCompletion)
                 criticalNotifyCompletion.UnsafeOnCompleted(action);
