@@ -34,7 +34,7 @@ public class TryGetActivityNameTest
     {
         Assert.Equal(ActivitySettings.Activity,
             ActivityInvokerHelper.GetActivityName(new Action(new TestClass1().Method2).Method,
-            typeof(TestClass1), out var activityName, out var kind, out _));
+                typeof(TestClass1), out var activityName, out var kind, out _));
 
         Assert.Equal("TestMethod2", activityName);
         Assert.Equal(ActivityKind.Client, kind);
@@ -44,7 +44,7 @@ public class TryGetActivityNameTest
     public void NoActivityAttribute() =>
         Assert.Equal(ActivitySettings.NonActivityAndSuppressInstrumentation,
             ActivityInvokerHelper.GetActivityName(new Action(new TestClass1().Method3).Method,
-            typeof(TestClass1), out _, out _, out _));
+                typeof(TestClass1), out _, out _, out _));
 
     [Fact, ActivityName(MaxUsableTimes = 3)]
     public void ActivityNameAttribute()
@@ -63,4 +63,24 @@ public class TryGetActivityNameTest
         ActivityInvokerHelper.GetActivityName(
             new Action(new TryGetActivityNameTest().ActivityNameAttribute_MaxUsableTimes0).Method,
             typeof(TryGetActivityNameTest), out _, out _, out _));
+
+    [Fact]
+    public void Interface_Default_AsyncMethod()
+    {
+        Assert.Equal(ActivitySettings.NonActivity, ActivityInvokerHelper.GetActivityName(
+            typeof(ITestInterface2).GetMethod(nameof(ITestInterface2.SyncMethod))!,
+            typeof(ITestInterface2), out _, out _, out _));
+
+        Assert.Equal(ActivitySettings.Activity, ActivityInvokerHelper.GetActivityName(
+            typeof(ITestInterface2).GetMethod(nameof(ITestInterface2.AsyncMethod))!,
+            typeof(ITestInterface2), out _, out _, out _));
+    }
+
+    [ActivitySource]
+    private interface ITestInterface2
+    {
+        void SyncMethod();
+
+        Task AsyncMethod();
+    }
 }
