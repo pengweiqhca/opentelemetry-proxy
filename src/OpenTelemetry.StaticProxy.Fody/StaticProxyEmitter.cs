@@ -18,6 +18,10 @@ internal class StaticProxyEmitter
         var version = Context.TargetModule.Assembly.Name.Version?.ToString() ?? string.Empty;
         foreach (var type in Context.TargetModule.Types.ToArray())
         {
+            if (type.IsInterface || type.IsValueType) continue;
+
+            type.CustomAttributes.Add(new(type.Module.ImportReference(Context.ProxyHasGeneratedAttributeCtor)));
+
             var proxyType = ActivityInvokerHelper.GetActivityName(type, Context);
             if (proxyType.Methods.Count < 1) continue;
 

@@ -22,9 +22,7 @@ internal static class ActivityInvokerHelper
         maxUsableTimes = 0;
 
         // If has processed by fody, invoke directly.
-        if (IsFodyProcessedAssembly.GetOrAdd(method.Module.Assembly, static assembly => assembly.GetType(
-                $"{assembly.ToString().Split(new[] { ',' }, 2)[0].Replace(".", "")}_ProcessedByFody") != null))
-            return ActivitySettings.NonActivity;
+        if (type.IsDefined(typeof(ProxyHasGeneratedAttribute))) return ActivitySettings.NonActivity;
 
         if (method.GetCustomAttribute<NonActivityAttribute>(true) is { } naa)
             return naa.SuppressInstrumentation
