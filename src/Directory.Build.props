@@ -9,7 +9,7 @@
 
     <AssemblyVersion>2.2</AssemblyVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <Version>$(AssemblyVersion).0</Version>
+    <Version>$(AssemblyVersion)</Version>
   </PropertyGroup>
 
   <ItemGroup>

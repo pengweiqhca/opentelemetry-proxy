@@ -11,8 +11,6 @@ internal static class ActivityInvokerHelper
 
     public static IActivityInvoker Noop { get; } = new NoopActivityInvoker();
 
-    private static readonly ConcurrentDictionary<Assembly, bool> IsFodyProcessedAssembly = new();
-
     /// <returns>0: Not a activity</returns>
     public static ActivitySettings GetActivityName(MethodInfo method, Type type, out string? activityName,
         out ActivityKind kind, out int maxUsableTimes)
@@ -20,9 +18,6 @@ internal static class ActivityInvokerHelper
         activityName = null;
         kind = ActivityKind.Internal;
         maxUsableTimes = 0;
-
-        // If has processed by fody, invoke directly.
-        if (type.IsDefined(typeof(ProxyHasGeneratedAttribute))) return ActivitySettings.NonActivity;
 
         if (method.GetCustomAttribute<NonActivityAttribute>(true) is { } naa)
             return naa.SuppressInstrumentation

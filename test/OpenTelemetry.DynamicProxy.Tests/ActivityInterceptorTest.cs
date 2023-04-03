@@ -9,7 +9,12 @@ public class ActivityInterceptorTest : IDisposable
     private readonly ITestInterface _target = new ProxyGenerator()
         .CreateInterfaceProxyWithTarget<ITestInterface>(new TestInterface1(),
             new ActivityInterceptor(new ActivityInvokerFactory()));
+    private readonly ITestInterface2 _target2 = new ProxyGenerator()
+        .CreateInterfaceProxyWithTarget<ITestInterface2>(new TestInterface2(),
+            new ActivityInterceptor(new ActivityInvokerFactory()));
     private readonly ActivityListener _listener = new();
+
+    static ActivityInterceptorTest() => CompletionTrackingAwaiterBase.Initialize();
 
     public ActivityInterceptorTest() => ActivitySource.AddActivityListener(_listener);
 
@@ -24,23 +29,30 @@ public class ActivityInterceptorTest : IDisposable
         ActivityStatusCode.Unset);
 
     [Fact]
-    public Task SyncMethodTest()
-    {
-        CompletionTrackingAwaiterBase.Initialize();
+    public Task SyncMethodTest() => Intercept(target =>
+        {
+            target.Method1();
 
-        return Intercept(target =>
-            {
-                target.Method1();
-
-                return default;
-            },
-            $"{typeof(TestInterface1).FullName}.{nameof(ITestInterface.Method1)}",
-            ActivityStatusCode.Unset, new() { { "abc", 1 } });
-    }
+            return default;
+        },
+        $"{typeof(TestInterface1).FullName}.{nameof(ITestInterface.Method1)}",
+        ActivityStatusCode.Unset, new() { { "abc", 1 } });
 
     [Fact]
     public Task TaskMethodTest() => Intercept(target => new(target.Method2()),
         $"{typeof(TestInterface1).FullName}.{nameof(ITestInterface.Method2)}",
+        ActivityStatusCode.Unset);
+
+    [Fact]
+    public Task InterfaceHierarchyTest() => Intercept(_target2, target =>
+        {
+            var result = target.Method2();
+
+            _target2.Dispose();
+
+            return new(result);
+        },
+        $"{typeof(TestInterface2).FullName}.{nameof(ITestInterface.Method2)}",
         ActivityStatusCode.Unset);
 
     [Fact]
@@ -85,7 +97,10 @@ public class ActivityInterceptorTest : IDisposable
         $"{typeof(TestInterface1).FullName}.{nameof(ITestInterface.Method6)}",
         ActivityStatusCode.Error, new() { { "delay", 100 }, { "Now", new DateTime(2024, 1, 1) } });
 
-    private async Task Intercept(Func<ITestInterface, ValueTask> func, string name, ActivityStatusCode statusCode, Dictionary<string, object>? tags = null)
+    private Task Intercept(Func<ITestInterface, ValueTask> func, string name, ActivityStatusCode statusCode,
+        Dictionary<string, object>? tags = null) => Intercept(_target, func, name, statusCode, tags);
+
+    private static async Task Intercept(ITestInterface target, Func<ITestInterface, ValueTask> func, string name, ActivityStatusCode statusCode, Dictionary<string, object>? tags = null)
     {
         using var activity = new Activity("Test").Start();
 
@@ -101,7 +116,7 @@ public class ActivityInterceptorTest : IDisposable
         listener.ShouldListenTo += _ => true;
         listener.Sample += delegate { return ActivitySamplingResult.AllDataAndRecorded; };
 
-        await func(_target).ConfigureAwait(false);
+        await func(target).ConfigureAwait(false);
 
         if (await Task.WhenAny(tcs.Task, Task.Delay(100)).ConfigureAwait(false) != tcs.Task)
             throw new TimeoutException();

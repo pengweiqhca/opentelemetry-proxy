@@ -102,3 +102,10 @@ public class TestExceptionAwaitable<T>
         public T GetResult() => throw new NotSupportedException();
     }
 }
+
+public interface ITestInterface2 : ITestInterface, IDisposable { }
+
+public class TestInterface2 : TestInterface1, ITestInterface2
+{
+    public void Dispose() { }
+}

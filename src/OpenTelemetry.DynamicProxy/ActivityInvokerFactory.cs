@@ -3,6 +3,7 @@ using OpenTelemetry.Proxy;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq.Expressions;
+using System.Net.Sockets;
 using GetTags =
     System.Func<Castle.DynamicProxy.IInvocation, System.Collections.Generic.IReadOnlyCollection<
         System.Collections.Generic.KeyValuePair<string, object?>>?>;
@@ -20,20 +21,22 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
     private static readonly MethodInfo GetArgumentValue =
         typeof(IInvocation).GetMethod(nameof(IInvocation.GetArgumentValue))!;
 
-    private readonly IDictionary<MethodInfo, IActivityInvoker> _activityInvokers =
-        new Dictionary<MethodInfo, IActivityInvoker>();
+    private readonly Dictionary<Type, Dictionary<MethodInfo, IActivityInvoker>> _activityInvokers = new();
 
     private readonly ConcurrentDictionary<Type, ActivitySource> _activitySources = new();
 
     public void Invoke(IInvocation invocation, ActivityType activityType)
     {
-        if (!_activityInvokers.TryGetValue(invocation.Method, out var invoker))
+        if (!_activityInvokers.TryGetValue(invocation.TargetType, out var activityInvokers))
+            _activityInvokers[invocation.TargetType] = activityInvokers = new();
+
+        if (!activityInvokers.TryGetValue(invocation.Method, out var invoker))
         {
             invoker = CreateActivityInvoker(invocation, activityType);
 
             try
             {
-                _activityInvokers[invocation.Method] = invoker;
+                activityInvokers[invocation.Method] = invoker;
             }
             catch (NullReferenceException) { }
         }
@@ -44,6 +47,9 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
     private IActivityInvoker CreateActivityInvoker(IInvocation invocation, ActivityType activityType)
     {
         var type = invocation.Method.ReflectedType ?? invocation.Method.DeclaringType ?? invocation.TargetType;
+
+        // If has processed by fody, invoke directly.
+        if (type.IsDefined(typeof(ProxyHasGeneratedAttribute))) return ActivityInvokerHelper.Noop;
 
         var settings = ActivityInvokerHelper.GetActivityName(invocation.Method, type, out var activityName,
             out var kind, out var maxUsableTimes);
@@ -90,7 +96,8 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
             : Expression.Lambda<Action<IInvocation, Activity>>(Expression.Block(keyValuePairs.Select(kv =>
             {
                 var value = kv.Value;
-                if (value.Type.IsValueType || value.Type.IsGenericParameter) value = Expression.Convert(value, typeof(object));
+                if (value.Type.IsValueType || value.Type.IsGenericParameter)
+                    value = Expression.Convert(value, typeof(object));
 
                 return Expression.Call(activity, SetTag, Expression.Constant(kv.Key), value);
             })), invocation, activity).Compile();
@@ -109,7 +116,8 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
                 keyValuePairs.Select(static kv =>
                 {
                     var value = kv.Value;
-                    if (value.Type.IsValueType || value.Type.IsGenericParameter) value = Expression.Convert(value, typeof(object));
+                    if (value.Type.IsValueType || value.Type.IsGenericParameter)
+                        value = Expression.Convert(value, typeof(object));
 
                     return Expression.New(KeyValuePairCtor, Expression.Constant(kv.Key), value);
                 })), invocation).Compile();
