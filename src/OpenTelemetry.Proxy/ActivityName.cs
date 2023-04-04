@@ -24,7 +24,7 @@ public static class ActivityName
 
         holder?.Clear();
 
-        Name.Value = name != null && readTimes != 0
+        Name.Value = (tags != null || name != null) && readTimes != 0
             ? new() { Name = name, Tags = tags, AvailableTimes = readTimes }
             : null;
 
