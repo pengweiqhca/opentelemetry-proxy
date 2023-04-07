@@ -1,29 +1,29 @@
 # OpenTelemetry.Proxy
 
-Generate activity to wrap method, modify inner activity name or discard inner activity.
+Generate an activity to wrap the method, modify name of the inner activity or discard inner activity.
 
 ## Attribute
 
 ### [ActivitySource]
 
 #### DynamicProxy
-[ActivitySource] can be define on `interface` or `class`, all methods(interface) or virtaul method(class) will automatically generate activity, except define [NonActivity] on method.
+[ActivitySource] can be define on `interface` or `class`, all methods defined in the interface or virtual methods defined in the class will automatically generate activity, unless defined [NonActivity] on method.
 
-`IncludeNonAsyncStateMachineMethod`: default include all async method of interface or define [AsyncStateMachine] public or protected virtual method of class (except `async void` method). If true, will include all method of interface and all public or protected virtual method of class.
+`IncludeNonAsyncStateMachineMethod`: default include all async methods of defined in an interface, or all [AsyncStateMachine] public or protected virtual method of class (except for `async void` method). If true, all methods defined in the interface will be included and all public or protected virtual methods of the class.
 
 #### StaticProxy
-[ActivitySource] can be define on `class`, all methods will automatically generate activity, except define [NonActivity] on method.
+[ActivitySource] can be defined on a `class`, all methods will automatically generate activity, except for those that are defined [NonActivity] on method.
 
-`IncludeNonAsyncStateMachineMethod`: default include all define [AsyncStateMachine] public method of class (except `async void` method). If true, will include all method of class.
+`IncludeNonAsyncStateMachineMethod`: public methods defined in the class that are marked with the [AsyncStateMachine] attribute (except for `async void` method). If true, will include all methods of class.
 
 ### [Activity]
-[Activity] can be define on method only.
+[Activity] can be defined on method only.
 
 ### [NonActivity]
-If define [NonActivity] on method, call method will not generate activity. if `SuppressInstrumentation` is true, inner activity will be discard.
+If defined [NonActivity] on method, call method will not generate an activity. if `SuppressInstrumentation` is true, the inner activity will be discarded.
 
 ### [ActivityName]
-Modify inner activity DisplayName, must invoke `TracerProviderBuilder.AddProcessor(new ActivityNameProcessor())`. If type define [ActivitySource], method define [Activity] or [NonActivity], [ActivityName] will not take effect.
+To modify the DisplayName of an inner activity, you must invoke `TracerProviderBuilder.AddProcessor(new ActivityNameProcessor())`. If a type is defined with the [ActivitySource] attribute or a method is defined with the [Activity] or [NonActivity] attribute, the [ActivityName] attribute will not take effect.
 
 ### [ActivityTag]
 
@@ -31,11 +31,11 @@ Modify inner activity DisplayName, must invoke `TracerProviderBuilder.AddProcess
 
 ## About DynamicProxy and StaticProxy
 
-1. DynamicProxy work on runtime, it will generate a proxy class to wrap method, so it not support AOT.
+1. DynamicProxy works at runtime by generatting a proxy class to wrap methods, so it does not support AOT.
 
-2. StaticProxy work on compile time, it modify raw type IL code, so it support **AOT**.
+2. StaticProxy works at compile time by modifying the raw type IL code, so it support **AOT**.
 
-3. DynamicProxy will not generate a proxy class if type already processed by StaticProxy.
+3. DynamicProxy will not generate a proxy class if type has already been processed by StaticProxy.
 
 ## QA
 ### How to get ActivitySource name?
