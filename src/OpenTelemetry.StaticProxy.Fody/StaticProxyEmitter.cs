@@ -169,7 +169,9 @@ internal class StaticProxyEmitter
                 awaitableInfo.AwaitableInfo.AwaiterOnCompletedMethod;
 
             method.Body.Instructions.Insert(index, Instruction.Create(
-                onCompleted.IsFinal ? OpCodes.Call : OpCodes.Callvirt,
+                awaitableInfo.AwaitableInfo.AwaitableType.IsValueType || onCompleted.IsFinal
+                    ? OpCodes.Call
+                    : OpCodes.Callvirt,
                 Context.TargetModule.ImportReference(onCompleted)
                     .MakeHostInstanceGeneric(method.Body.Variables[awaiterVariableIndex].VariableType)));
         }
@@ -273,23 +275,19 @@ internal class StaticProxyEmitter
             }
 
             /*IL_0033: ldloc.0
-            IL_0034: brtrue.s IL_0038
-
-            IL_0036: ldloc.1
-            IL_0037: ret*/
-            var ldReturn = Ldloca(returnVariableIndex, awaitableInfo.AwaitableInfo.AwaitableType.IsValueType,
-                method.Body.Variables);
-
+            IL_0034: brfalse.s IL_006b*/
             method.Body.Instructions.Insert(index++, leave);
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brtrue_S, ldReturn));
 
-            index += 2;
+            leave = method.Body.Instructions[^2];
 
-            var awaiterVariableIndex = InvokeAwaiterIsCompleted(method, ref index, awaitableInfo, ldReturn);
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse_S, leave));
+
+            var awaiterVariableIndex = InvokeAwaiterIsCompleted(method, ref index, awaitableInfo, Ldloca(
+                returnVariableIndex, awaitableInfo.AwaitableInfo.AwaitableType.IsValueType,
+                method.Body.Variables));
+
             var brfalse = Ldloca(awaiterVariableIndex, awaitableInfo.AwaitableInfo.AwaiterType.IsValueType,
                 method.Body.Variables);
-
-            var br = Ldloc(returnVariableIndex, method.Body.Variables);
 
             var (ctor, instanceOnCompleted, staticOnCompleted) = Context.ActivityAwaiterEmitter.GetActivityAwaiter(
                 method.Body.Variables[awaiterVariableIndex].VariableType,
@@ -301,16 +299,16 @@ internal class StaticProxyEmitter
             IL_004a: ldloc.2
             IL_004b: call void class OpenTelemetry.StaticProxy.Fody.Tests.TestClass/ActivityAwaiter`1<int32>::OnCompleted(class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity, valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<!0>)
             IL_0050: br.s IL_006b*/
-            method.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse_S, brfalse));
-            method.Body.Instructions.Add(Ldloc(activityIndex, method.Body.Variables));
-            method.Body.Instructions.Add(Ldloc(awaiterVariableIndex, method.Body.Variables));
-            method.Body.Instructions.Add(returnValueTagName == null
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse_S, brfalse));
+            method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
+            method.Body.Instructions.Insert(index++, Ldloc(awaiterVariableIndex, method.Body.Variables));
+            method.Body.Instructions.Insert(index++, returnValueTagName == null
                 ? Instruction.Create(OpCodes.Ldnull)
                 : Instruction.Create(OpCodes.Ldstr, returnValueTagName));
 
-            method.Body.Instructions.Add(Instruction.Create(OpCodes.Call, staticOnCompleted));
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Call, staticOnCompleted));
 
-            method.Body.Instructions.Add(Instruction.Create(OpCodes.Br_S, br));
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Br_S, leave));
 
             /*IL_0052: ldloca.s 2
     IL_0054: ldloc.0
@@ -322,26 +320,26 @@ internal class StaticProxyEmitter
 
     IL_006b: ldloc.1
     IL_006c: ret*/
-            method.Body.Instructions.Add(brfalse);
-            method.Body.Instructions.Add(Ldloc(activityIndex, method.Body.Variables));
-            method.Body.Instructions.Add(Ldloc(awaiterVariableIndex, method.Body.Variables));
-            method.Body.Instructions.Add(returnValueTagName == null
+            method.Body.Instructions.Insert(index++, brfalse);
+            method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
+            method.Body.Instructions.Insert(index++, Ldloc(awaiterVariableIndex, method.Body.Variables));
+            method.Body.Instructions.Insert(index++, returnValueTagName == null
                 ? Instruction.Create(OpCodes.Ldnull)
                 : Instruction.Create(OpCodes.Ldstr, returnValueTagName));
 
-            method.Body.Instructions.Add(Instruction.Create(OpCodes.Newobj, ctor));
-            method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldftn, instanceOnCompleted));
-            method.Body.Instructions.Add(Instruction.Create(OpCodes.Newobj, Context.ActionCtor));
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Newobj, ctor));
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Ldftn, instanceOnCompleted));
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Newobj, Context.ActionCtor));
 
             var onCompleted = awaitableInfo.AwaitableInfo.AwaiterUnsafeOnCompletedMethod ??
                 awaitableInfo.AwaitableInfo.AwaiterOnCompletedMethod;
 
-            method.Body.Instructions.Add(Instruction.Create(onCompleted.IsFinal ? OpCodes.Call : OpCodes.Callvirt,
+            method.Body.Instructions.Insert(index, Instruction.Create(
+                awaitableInfo.AwaitableInfo.AwaiterType.IsValueType || onCompleted.IsFinal
+                    ? OpCodes.Call
+                    : OpCodes.Callvirt,
                 Context.TargetModule.ImportReference(onCompleted)
                     .MakeHostInstanceGeneric(method.Body.Variables[awaiterVariableIndex].VariableType)));
-
-            method.Body.Instructions.Add(br);
-            method.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
         }
         else
         {
@@ -614,7 +612,11 @@ internal class StaticProxyEmitter
                 method.Body.Instructions.Insert(index++, instruction);
 
         method.Body.Instructions.Insert(index++,
-            Instruction.Create(awaitableInfo.AwaitableInfo.GetAwaiterMethod.IsFinal ? OpCodes.Call : OpCodes.Callvirt,
+            Instruction.Create(
+                awaitableInfo.AwaitableInfo.AwaitableType.IsValueType ||
+                awaitableInfo.AwaitableInfo.GetAwaiterMethod.IsFinal
+                    ? OpCodes.Call
+                    : OpCodes.Callvirt,
                 method.Module.ImportReference(awaitableInfo.AwaitableInfo.GetAwaiterMethod)
                     .MakeHostInstanceGeneric(awaitableInfo.AwaitableInfo.AwaitableType)));
 
@@ -626,7 +628,10 @@ internal class StaticProxyEmitter
             Ldloca(awaiterVariableIndex, awaitableInfo.AwaitableInfo.AwaiterType.IsValueType, method.Body.Variables));
 
         method.Body.Instructions.Insert(index++, Instruction.Create(
-            awaitableInfo.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod.IsFinal ? OpCodes.Call : OpCodes.Callvirt,
+            awaitableInfo.AwaitableInfo.AwaiterType.IsValueType ||
+            awaitableInfo.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod.IsFinal
+                ? OpCodes.Call
+                : OpCodes.Callvirt,
             method.Module.ImportReference(awaitableInfo.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod)
                 .MakeHostInstanceGeneric(awaitableInfo.AwaitableInfo.AwaiterType)));
 
@@ -748,7 +753,9 @@ internal class StaticProxyEmitter
                 if (!property.GetMethod.IsStatic) instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
 
                 instructions.Add(Instruction.Create(
-                    property.GetMethod.IsFinal || property.GetMethod.IsStatic ? OpCodes.Call : OpCodes.Callvirt,
+                    method.DeclaringType.IsValueType || property.GetMethod.IsFinal || property.GetMethod.IsStatic
+                        ? OpCodes.Call
+                        : OpCodes.Callvirt,
                     method.Module.ImportReference(property.GetMethod)));
 
                 if (property.PropertyType.IsValueType || property.PropertyType.IsGenericParameter)
