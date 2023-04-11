@@ -2,6 +2,7 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
+using Mono.Collections.Generic;
 using OpenTelemetry.Proxy;
 using System.Diagnostics.CodeAnalysis;
 
@@ -32,9 +33,9 @@ internal class StaticProxyEmitter
 
             foreach (var method in proxyType.Methods)
             {
-                //Empty method is unnecessary weave in;
+                //Empty or no return method is unnecessary weave in;
                 var isVoid = method.Key.ReturnType.HaveSameIdentity(Context.TargetModule.TypeSystem.Void);
-                if (isVoid && method.Key.Body.Instructions.Count < 2) continue;
+                if (isVoid && method.Key.Body.Instructions.Count < 2 || method.Key.Body.Instructions[^1].OpCode != OpCodes.Ret) continue;
 
                 if (method.Value.Settings == ActivitySettings.NonActivityAndSuppressInstrumentation)
                     EmitSuppressInstrumentationScope(method.Key, isVoid);
@@ -447,6 +448,12 @@ internal class StaticProxyEmitter
     private static (int, Instruction?) ProcessReturn(MethodDefinition method, bool isVoid,
         bool hasAsyncStateMachineAttribute, Func<int, Instruction>? createLeave)
     {
+        var checkLeaveS = method.Body.ExceptionHandlers.Count < 1 ||
+            method.Body.ExceptionHandlers[^1].HandlerEnd !=
+            method.Body.Instructions[isVoid ? ^1 : ^2];
+
+        var leaveCode = method.Body.Instructions[^1].Offset > byte.MaxValue ? OpCodes.Leave : OpCodes.Leave_S;
+
         var variableIndex = -1;
         Instruction? leave = null;
         for (var index = method.Body.Instructions.Count - 1; index > 0; index--)
@@ -465,7 +472,7 @@ internal class StaticProxyEmitter
                     continue;
             }
 
-            if (!isVoid && !IsLdloc(method.Body.Instructions[index - 1], out _))
+            if (!isVoid && !IsLdloc(method.Body.Instructions[index - 1], method.Body.Variables, out _))
             {
                 if (leave == null)
                 {
@@ -477,20 +484,16 @@ internal class StaticProxyEmitter
             }
 
             if (leave != null) // Replace ret with Leave_S
-                method.Body.Instructions[index] = Instruction.Create(OpCodes.Leave_S, leave);
+                method.Body.Instructions[index] = Instruction.Create(leaveCode, leave);
             else
             {
-                var checkLeaveS = method.Body.ExceptionHandlers.Count < 1 ||
-                    method.Body.ExceptionHandlers[^1].HandlerEnd !=
-                    method.Body.Instructions[isVoid ? ^1 : ^2];
-
                 if (isVoid)
                 {
                     leave = createLeave == null ? method.Body.Instructions[index] : createLeave(variableIndex);
 
                     if (checkLeaveS && CheckLeaveS(method, hasAsyncStateMachineAttribute, index, leave)) index++;
                 }
-                else if (variableIndex < 0 && IsLdloc(method.Body.Instructions[index - 1], out variableIndex))
+                else if (variableIndex < 0 && IsLdloc(method.Body.Instructions[index - 1], method.Body.Variables, out variableIndex))
                 {
                     leave = createLeave == null ? method.Body.Instructions[index - 1] : createLeave(variableIndex);
 
@@ -518,7 +521,7 @@ internal class StaticProxyEmitter
 
         return (variableIndex, createLeave == null ? null : leave);
 
-        static bool IsLdloc(Instruction instruction, out int variableIndex)
+        static bool IsLdloc(Instruction instruction, Collection<VariableDefinition> variables, out int variableIndex)
         {
             if (instruction.OpCode == OpCodes.Ldloc_0)
             {
@@ -546,13 +549,15 @@ internal class StaticProxyEmitter
 
             if (instruction.OpCode == OpCodes.Ldloc_S)
             {
-                variableIndex = (byte)instruction.Operand;
+                variableIndex = instruction.Operand is byte b ? b : variables.IndexOf((VariableDefinition)instruction.Operand);
+
                 return true;
             }
 
             if (instruction.OpCode == OpCodes.Ldloc)
             {
-                variableIndex = (ushort)instruction.Operand;
+                variableIndex = instruction.Operand is ushort b ? b : variables.IndexOf((VariableDefinition)instruction.Operand);
+
                 return true;
             }
 
