@@ -453,12 +453,13 @@ internal class StaticProxyEmitter
         {
             if (method.Body.Instructions[index].OpCode != OpCodes.Ret)
             {
-                if (method.Body.Instructions[index].OpCode != OpCodes.Br_S) continue;
+                var opCode = method.Body.Instructions[index].OpCode;
+                if (opCode != OpCodes.Br_S && opCode != OpCodes.Br) continue;
 
-                method.Body.Instructions[index].OpCode = OpCodes.Leave_S;
+                method.Body.Instructions[index].OpCode = opCode == OpCodes.Br ? OpCodes.Leave : OpCodes.Leave_S;
                 method.Body.Instructions[index].Operand = leave;
 
-                var opCode = method.Body.Instructions[index - 1].OpCode;
+                opCode = method.Body.Instructions[index - 1].OpCode;
                 if (opCode == OpCodes.Stloc_0 || opCode == OpCodes.Stloc_1 || opCode == OpCodes.Stloc_2 ||
                     opCode == OpCodes.Stloc_3 || opCode == OpCodes.Stloc_S || opCode == OpCodes.Stloc)
                     continue;
@@ -568,11 +569,18 @@ internal class StaticProxyEmitter
 
             if (instruction.Operand == leave)
             {
-                if (instruction.OpCode == OpCodes.Leave_S) return false;
+                if (instruction.OpCode == OpCodes.Leave_S || instruction.OpCode == OpCodes.Leave) return false;
 
                 if (instruction.OpCode == OpCodes.Br_S)
                 {
                     instruction.OpCode = OpCodes.Leave_S;
+
+                    return false;
+                }
+
+                if (instruction.OpCode == OpCodes.Br)
+                {
+                    instruction.OpCode = OpCodes.Leave;
 
                     return false;
                 }
@@ -581,6 +589,14 @@ internal class StaticProxyEmitter
             if (instruction.OpCode == OpCodes.Br_S && instruction.Operand != leave)
             {
                 instruction.OpCode = OpCodes.Leave_S;
+                instruction.Operand = leave;
+
+                return false;
+            }
+
+            if (instruction.OpCode == OpCodes.Br && instruction.Operand != leave)
+            {
+                instruction.OpCode = OpCodes.Leave;
                 instruction.Operand = leave;
 
                 return false;
