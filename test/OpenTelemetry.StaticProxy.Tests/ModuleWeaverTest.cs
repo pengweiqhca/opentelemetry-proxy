@@ -72,8 +72,17 @@ public class ModuleWeaverTest
         static instance => new((Activity?)instance), new() { { "delay", 100 } });
 
     [Fact]
-    public Task GetCurrentActivityAsync() => ActivityTest(nameof(ModuleWeaverTestClass.GetCurrentActivityAsync),
-        static instance => new((Task<Activity?>)instance), new() { { "delay", 100 } });
+    public async Task GetCurrentActivityAsync()
+    {
+        await ActivityTest(nameof(ModuleWeaverTestClass.GetCurrentActivityAsync),
+            static instance => new((Task<Activity?>)instance), new() { { "delay", 100 } }).ConfigureAwait(false);
+
+        await ActivityTest(nameof(ModuleWeaverTestClass.GetCurrentActivity2Async),
+            static instance => new((Task<Activity?>)instance), new() { { "delay", 100 } }).ConfigureAwait(false);
+
+        await ActivityTest(nameof(ModuleWeaverTestClass.AWaitGetCurrentActivityAsync),
+            static instance => new((Task<Activity?>)instance), new() { { "delay", 100 } }).ConfigureAwait(false);
+    }
 
     [Fact]
     public Task GetCurrentActivityFSharpAsync() => ActivityTest(

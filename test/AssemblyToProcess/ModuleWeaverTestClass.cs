@@ -73,22 +73,37 @@ public static class ModuleWeaverTestClass
     [Activity(Tags = new[] { nameof(delay) })]
     public static Activity? GetCurrentActivity(int delay) => Activity.Current;
 
-    private static async Task<Activity?> CurrentActivityAsync()
+    private static async Task<Activity?> CurrentActivityAsync(int delay)
     {
-        await Task.Delay(100).ConfigureAwait(false);
+        await Task.Delay(delay).ConfigureAwait(false);
 
         return Activity.Current;
     }
 
     [Activity]
-    public static async Task<Activity?> GetCurrentActivityAsync([ActivityTag] int delay) =>
-        await CurrentActivityAsync().ConfigureAwait(false);
+    public static Task<Activity?> GetCurrentActivityAsync([ActivityTag] int delay) =>
+        delay < 10 ? Task.FromResult(Activity.Current) : CurrentActivityAsync(delay);
+
+    [Activity]
+    public static Task<Activity?> GetCurrentActivity2Async([ActivityTag] int delay)
+    {
+        if (delay < 10)
+            return Task.FromResult(Activity.Current);
+
+        Console.WriteLine(DateTime.Now);
+
+        return CurrentActivityAsync(delay);
+    }
+
+    [Activity]
+    public static async Task<Activity?> AWaitGetCurrentActivityAsync([ActivityTag] int delay) =>
+        delay < 10 ? Activity.Current : await CurrentActivityAsync(delay).ConfigureAwait(false);
 
     public static DateTime Now { get; } = new(2024, 1, 1);
 
     [Activity(Tags = new[] { nameof(Now) })]
     public static FSharpAsync<Activity?> GetCurrentActivityFSharpAsync(int delay) =>
-        FSharpAsync.AwaitTask(CurrentActivityAsync());
+        FSharpAsync.AwaitTask(CurrentActivityAsync(delay));
 
     [Activity(Tags = new[] { nameof(Now) })]
     public static TestAwaitable<Activity?> GetCurrentActivityAwaitable([ActivityTag] int delay) =>

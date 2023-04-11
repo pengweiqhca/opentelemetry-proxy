@@ -451,7 +451,18 @@ internal class StaticProxyEmitter
         Instruction? leave = null;
         for (var index = method.Body.Instructions.Count - 1; index > 0; index--)
         {
-            if (method.Body.Instructions[index].OpCode != OpCodes.Ret) continue;
+            if (method.Body.Instructions[index].OpCode != OpCodes.Ret)
+            {
+                if (method.Body.Instructions[index].OpCode != OpCodes.Br_S) continue;
+
+                method.Body.Instructions[index].OpCode = OpCodes.Leave_S;
+                method.Body.Instructions[index].Operand = leave;
+
+                var opCode = method.Body.Instructions[index - 1].OpCode;
+                if (opCode == OpCodes.Stloc_0 || opCode == OpCodes.Stloc_1 || opCode == OpCodes.Stloc_2 ||
+                    opCode == OpCodes.Stloc_3 || opCode == OpCodes.Stloc_S || opCode == OpCodes.Stloc)
+                    continue;
+            }
 
             if (!isVoid && !IsLdloc(method.Body.Instructions[index - 1], out _))
             {
