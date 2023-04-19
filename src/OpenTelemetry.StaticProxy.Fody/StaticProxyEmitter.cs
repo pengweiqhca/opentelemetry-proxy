@@ -35,7 +35,8 @@ internal class StaticProxyEmitter
             {
                 //Empty or no return method is unnecessary weave in;
                 var isVoid = method.Key.ReturnType.HaveSameIdentity(Context.TargetModule.TypeSystem.Void);
-                if (isVoid && method.Key.Body.Instructions.Count < 2 || method.Key.Body.Instructions[^1].OpCode != OpCodes.Ret) continue;
+                if (isVoid && method.Key.Body.Instructions.Count < 2 ||
+                    method.Key.Body.Instructions[^1].OpCode != OpCodes.Ret) continue;
 
                 if (method.Value.Settings == ActivitySettings.NonActivityAndSuppressInstrumentation)
                     EmitSuppressInstrumentationScope(method.Key, isVoid);
@@ -493,7 +494,8 @@ internal class StaticProxyEmitter
 
                     if (checkLeaveS && CheckLeaveS(method, hasAsyncStateMachineAttribute, index, leave)) index++;
                 }
-                else if (variableIndex < 0 && IsLdloc(method.Body.Instructions[index - 1], method.Body.Variables, out variableIndex))
+                else if (variableIndex < 0 && IsLdloc(method.Body.Instructions[index - 1], method.Body.Variables,
+                             out variableIndex))
                 {
                     leave = createLeave == null ? method.Body.Instructions[index - 1] : createLeave(variableIndex);
 
@@ -549,14 +551,18 @@ internal class StaticProxyEmitter
 
             if (instruction.OpCode == OpCodes.Ldloc_S)
             {
-                variableIndex = instruction.Operand is byte b ? b : variables.IndexOf((VariableDefinition)instruction.Operand);
+                variableIndex = instruction.Operand is byte b
+                    ? b
+                    : variables.IndexOf((VariableDefinition)instruction.Operand);
 
                 return true;
             }
 
             if (instruction.OpCode == OpCodes.Ldloc)
             {
-                variableIndex = instruction.Operand is ushort b ? b : variables.IndexOf((VariableDefinition)instruction.Operand);
+                variableIndex = instruction.Operand is ushort b
+                    ? b
+                    : variables.IndexOf((VariableDefinition)instruction.Operand);
 
                 return true;
             }
@@ -712,8 +718,8 @@ internal class StaticProxyEmitter
         if (list.Count < 1) return returnValueTagName;
 
         method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
-        method.Body.Instructions.Insert(index,
-            Instruction.Create(OpCodes.Brfalse_S, method.Body.Instructions[index++]));
+        method.Body.Instructions.Insert(index, Instruction.Create(list.Count < 6 ? OpCodes.Brfalse_S : OpCodes.Brfalse,
+            method.Body.Instructions[index++]));
 
         method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
 
