@@ -15,22 +15,22 @@ public class StaticProxyEmitterTest
 
     public StaticProxyEmitterTest(ITestOutputHelper output) => _output = output;
 
-    [Theory]
-    [InlineData(typeof(StaticProxyEmitterTest))]
-    [InlineData(typeof(StaticProxyEmitterTestClass))]
-    public void AddActivitySourceTest(Type type)
+    [Fact]
+    public void AddActivitySourceTest()
     {
         var emitter = CreateEmitter();
 
         var name = Guid.NewGuid().ToString("N");
         var version = DateTime.Now.ToString("HH.mm.ss.fff");
 
-        emitter.AddActivitySource(emitter.Context.TargetModule.GetType(type.FullName), name, version);
+        emitter.AddActivitySource(name, version);
+        emitter.AddActivitySource(name, version);
 
         var assembly = SaveAndLoad(emitter, _output);
 
-        var field = assembly.GetType(type.FullName!)!.GetField("ActivitySource@",
-            BindingFlags.Static | BindingFlags.NonPublic)!;
+        var type = assembly.GetTypes().Single(t => t.Name.StartsWith("@ActivitySource@"));
+
+        var field = type.GetField($"{name}@{version}", BindingFlags.Static | BindingFlags.Public)!;
 
         Assert.NotNull(field);
 
@@ -120,10 +120,7 @@ public class StaticProxyEmitterTest
         emitter.EmitActivity(emitter.Context.TargetModule
                 .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
                 .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.GetCurrentActivity)),
-            false, emitter.AddActivitySource(
-                emitter.Context.TargetModule.GetType(typeof(StaticProxyEmitterTestClass).FullName), name,
-                version),
-            activityName, (int)ActivityKind.Client);
+            false, emitter.AddActivitySource(name, version), activityName, (int)ActivityKind.Client);
 
         var assembly = SaveAndLoad(emitter, _output);
 
@@ -162,10 +159,7 @@ public class StaticProxyEmitterTest
         emitter.EmitActivity(emitter.Context.TargetModule
                 .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
                 .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.TryCatch)),
-            false, emitter.AddActivitySource(
-                emitter.Context.TargetModule.GetType(typeof(StaticProxyEmitterTestClass).FullName), name,
-                version),
-            activityName, (int)ActivityKind.Client);
+            false, emitter.AddActivitySource(name, version), activityName, (int)ActivityKind.Client);
 
         var assembly = SaveAndLoad(emitter, _output);
 
@@ -274,7 +268,7 @@ public class StaticProxyEmitterTest
     [MemberData(nameof(AsyncMethods))]
     public async Task ActivityAsync(string methodName, Func<object, Task> func)
     {
-        var activity = new Activity("test").Start();
+        var _ = new Activity("test").Start();
 
         var emitter = CreateEmitter();
 
@@ -285,10 +279,7 @@ public class StaticProxyEmitterTest
         emitter.EmitActivity(emitter.Context.TargetModule
                 .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
                 .Single(m => m.Name == methodName),
-            false, emitter.AddActivitySource(
-                emitter.Context.TargetModule.GetType(typeof(StaticProxyEmitterTestClass).FullName), name,
-                version),
-            activityName, (int)ActivityKind.Client);
+            false, emitter.AddActivitySource(name, version), activityName, (int)ActivityKind.Client);
 
         var assembly = SaveAndLoad(emitter, _output);
 
@@ -308,6 +299,8 @@ public class StaticProxyEmitterTest
         Assert.NotNull(method);
 
         await func(method.Invoke(null, Array.Empty<object?>())!).ConfigureAwait(false);
+
+        Assert.Single(list);
     }
 
     public static IEnumerable<object[]> AsyncMethods()
@@ -371,6 +364,81 @@ public class StaticProxyEmitterTest
         };
     }
 
+    [Theory]
+    [MemberData(nameof(GenericTestSource))]
+    public async Task GenericTest(Delegate rawMethod, object?[] args, Func<object, Task> func)
+    {
+        var emitter = CreateEmitter();
+
+        var type = rawMethod.Method.DeclaringType;
+
+        Assert.NotNull(type);
+
+        var typeName = (type.IsGenericType ? type.GetGenericTypeDefinition() : type).FullName;
+
+        Assert.NotNull(typeName);
+
+        var name = Guid.NewGuid().ToString("N");
+        var activityName = Guid.NewGuid().ToString("N");
+        var version = DateTime.Now.ToString("HH.mm.ss.fff");
+
+        emitter.EmitActivity(emitter.Context.TargetModule.GetType(typeName).GetMethods()
+                .Single(m => m.Name == rawMethod.Method.Name),
+            false, emitter.AddActivitySource(name, version),
+            activityName, (int)ActivityKind.Client);
+
+        var assembly = SaveAndLoad(emitter, _output);
+
+        var type2 = assembly.GetType(typeName);
+
+        Assert.NotNull(type2);
+
+        if (type.IsGenericType) type2 = type2.MakeGenericType(type.GetGenericArguments());
+
+        var method = type2.GetMethod(rawMethod.Method.Name);
+
+        Assert.NotNull(method);
+
+        var list = new List<Activity>();
+
+        using var activityListener = new ActivityListener
+        {
+            ShouldListenTo = activitySource => activitySource.Name == name && activitySource.Version == version,
+            Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStarted = list.Add
+        };
+
+        ActivitySource.AddActivityListener(activityListener);
+
+        await func(method.MakeGenericMethod(rawMethod.Method.GetGenericArguments()).Invoke(null, args)!).ConfigureAwait(false);
+
+        Assert.Single(list);
+    }
+
+    public static IEnumerable<object[]> GenericTestSource()
+    {
+        yield return new object[]
+        {
+            new Func<int, Task<int>>(StaticProxyEmitterTestClass.GenericMethod),
+            new object?[] { 1 },
+            (Func<object, Task>)(instance => (Task)instance)
+        };
+
+        yield return new object[]
+        {
+            new Func<bool, int, string, ValueTask<(bool, int, string)>>(StaticProxyEmitterTestClass<bool>.GenericMethod),
+            new object?[] { true, 1, Guid.NewGuid().ToString() },
+            (Func<object, Task>)(instance => ((ValueTask<(bool, int, string)>)instance).AsTask())
+        };
+
+        yield return new object[]
+        {
+            new Func<bool, int, string, ValueTask<(bool, int, string)>>(StaticProxyEmitterTestClass<bool, int>.GenericMethod),
+            new object?[] { true, 1, Guid.NewGuid().ToString() },
+            (Func<object, Task>)(instance => ((ValueTask<(bool, int, string)>)instance).AsTask())
+        };
+    }
+
     private static StaticProxyEmitter CreateEmitter() => new(new(
         AssemblyDefinition.ReadAssembly(typeof(StaticProxyEmitterTest).Assembly.Location).MainModule,
         AssemblyDefinition.ReadAssembly(typeof(Activity).Assembly.Location).MainModule,
@@ -392,8 +460,6 @@ public class StaticProxyEmitterTest
 
 public static class StaticProxyEmitterTestClass
 {
-    private static readonly ActivitySource ActivitySource = new("Test", "1.0.0");
-
     public static bool SuppressInstrumentationScope() => Sdk.SuppressInstrumentation;
 
     public static Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int> GetActivityName(
@@ -462,6 +528,8 @@ public static class StaticProxyEmitterTestClass
         return DateTime.Now.Millisecond;
     }
 
+    public static Task<T> GenericMethod<T>(T arg) => Task.FromResult(arg);
+
     public static Task TaskMethod() => TaskTMethod();
 
     public static async ValueTask<int> ValueTTask()
@@ -482,4 +550,16 @@ public static class StaticProxyEmitterTestClass
     public static TestAwaitableWithICriticalNotifyCompletion CriticalNotifyCompletion() => new();
 
     public static TestAwaitableWithoutICriticalNotifyCompletion NotifyCompletion() => new();
+}
+
+public static class StaticProxyEmitterTestClass<T>
+{
+
+    public static ValueTask<(T, T1, T2)> GenericMethod<T1, T2>(T t0, T1 t1, T2 t2) => new((t0, t1, t2));
+}
+
+public static class StaticProxyEmitterTestClass<T1, T2>
+{
+
+    public static ValueTask<(T1, T2, T)> GenericMethod<T>(T1 t1, T2 t2, T t3) => new((t1, t2, t3));
 }

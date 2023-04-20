@@ -6,7 +6,7 @@ public class DemoClass
     private readonly AsyncLocal<string> _asyncLocal = new();
 
     [Activity]
-    public virtual async Task Demo()
+    public virtual async Task<T> Demo<T>(T arg)
     {
         Console.WriteLine($"Demo begin: {_asyncLocal.Value}");
 
@@ -19,6 +19,8 @@ public class DemoClass
         await Demo5().ConfigureAwait(false);
 
         Console.WriteLine($"Demo end: {_asyncLocal.Value}");
+
+        return arg;
     }
 
     [Activity]

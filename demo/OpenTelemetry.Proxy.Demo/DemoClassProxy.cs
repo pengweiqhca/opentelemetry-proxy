@@ -6,13 +6,13 @@ public class DemoClassProxy : DemoClass
 {
     private static readonly ActivitySource ActivitySource = new("DemoClass");
 
-    public override async Task Demo()
+    public override async Task<T> Demo<T>(T arg)
     {
         var activity = ActivitySource.StartActivity("DemoClass.Demo");
 
         try
         {
-            await base.Demo().ConfigureAwait(false);
+            return await base.Demo(arg).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

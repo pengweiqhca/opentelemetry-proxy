@@ -10,6 +10,8 @@ namespace OpenTelemetry.StaticProxy.Fody;
 
 internal class StaticProxyEmitter
 {
+    private TypeDefinition? _activitySource;
+
     public EmitContext Context { get; }
 
     public StaticProxyEmitter(EmitContext context) => Context = context;
@@ -47,7 +49,7 @@ internal class StaticProxyEmitter
                             : method.Value.Name, method.Value.MaxUsableTimes);
                 else if (method.Value.Settings == ActivitySettings.Activity)
                     EmitActivity(method.Key, isVoid,
-                        activitySource ??= AddActivitySource(type, activitySourceName, version),
+                        activitySource ??= AddActivitySource(activitySourceName, version),
                         string.IsNullOrWhiteSpace(method.Value.Name)
                             ? $"{activitySourceName}.{method.Key.Name}"
                             : method.Value.Name!, method.Value.Kind);
@@ -55,31 +57,45 @@ internal class StaticProxyEmitter
         }
     }
 
-    public FieldReference AddActivitySource(TypeDefinition type, string name, string version)
+    public FieldReference AddActivitySource(string name, string version)
     {
-        var activitySource = new FieldDefinition("ActivitySource@", FieldAttributes.Private | FieldAttributes.Static,
+        if (_activitySource == null)
+        {
+            _activitySource = new(string.Empty, "@ActivitySource@" + Guid.NewGuid().ToString("N"),
+                TypeAttributes.Class | TypeAttributes.Abstract | TypeAttributes.Sealed)
+            {
+                BaseType = Context.TargetModule.TypeSystem.Object
+            };
+
+            Context.TargetModule.Types.Add(_activitySource);
+        }
+
+        var fieldName = $"{name}@{version}";
+
+        var activitySource = _activitySource.Fields.FirstOrDefault(f => f.Name == fieldName);
+        if (activitySource != null) return activitySource;
+
+        activitySource = new(fieldName, FieldAttributes.InitOnly | FieldAttributes.Static | FieldAttributes.Public,
             Context.ActivitySource);
 
-        type.Fields.Add(activitySource);
+        _activitySource.Fields.Add(activitySource);
 
-        var cctor = type.GetStaticConstructor();
+        var cctor = _activitySource.GetStaticConstructor();
         if (cctor == null)
         {
             cctor = new(".cctor",
                 MethodAttributes.Private | MethodAttributes.HideBySig | MethodAttributes.SpecialName |
-                MethodAttributes.RTSpecialName | MethodAttributes.Static, type.Module.TypeSystem.Void);
+                MethodAttributes.RTSpecialName | MethodAttributes.Static, _activitySource.Module.TypeSystem.Void);
 
-            type.Methods.Add(cctor);
-
-            cctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
+            _activitySource.Methods.Add(cctor);
         }
+        else cctor.Body.Instructions.RemoveAt(cctor.Body.Instructions.Count - 1);
 
-        cctor.Body.Instructions.Insert(0, Instruction.Create(OpCodes.Ldstr, name));
-
-        cctor.Body.Instructions.Insert(1, Instruction.Create(OpCodes.Ldstr, version));
-        cctor.Body.Instructions.Insert(2, Instruction.Create(OpCodes.Newobj, Context.ActivitySourceCtor));
-
-        cctor.Body.Instructions.Insert(3, Instruction.Create(OpCodes.Stsfld, activitySource));
+        cctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldstr, name));
+        cctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldstr, version));
+        cctor.Body.Instructions.Add(Instruction.Create(OpCodes.Newobj, Context.ActivitySourceCtor));
+        cctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stsfld, activitySource));
+        cctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
 
         return activitySource;
     }
@@ -174,7 +190,7 @@ internal class StaticProxyEmitter
                 awaitableInfo.AwaitableInfo.AwaitableType.IsValueType || onCompleted.IsFinal
                     ? OpCodes.Call
                     : OpCodes.Callvirt,
-                Context.TargetModule.ImportReference(onCompleted)
+                Context.TargetModule.ImportReference(onCompleted, method)
                     .MakeHostInstanceGeneric(method.Body.Variables[awaiterVariableIndex].VariableType)));
         }
         else
@@ -255,15 +271,15 @@ internal class StaticProxyEmitter
 
         var returnValueTagName = SetActivityTags(method, activityIndex, ref length);
 
-        var exceptionIndex = method.Body.Variables.Count;
-        method.Body.Variables.Add(new(Context.Exception));
-
         var index = method.Body.Instructions.Count - (isVoid ? 1 : 2);
 
         if (leave != null)
         {
             if (!hasAsyncStateMachineAttribute)
             {
+                var exceptionIndex = method.Body.Variables.Count;
+                method.Body.Variables.Add(new(Context.Exception));
+
                 var catchHandler = new ExceptionHandler(ExceptionHandlerType.Catch)
                 {
                     CatchType = Context.Exception,
@@ -293,7 +309,7 @@ internal class StaticProxyEmitter
 
             var (ctor, instanceOnCompleted, staticOnCompleted) = Context.ActivityAwaiterEmitter.GetActivityAwaiter(
                 method.Body.Variables[awaiterVariableIndex].VariableType,
-                Context.TargetModule.ImportReference(awaitableInfo.AwaitableInfo.AwaiterGetResultMethod));
+                Context.TargetModule.ImportReference(awaitableInfo.AwaitableInfo.AwaiterGetResultMethod, method));
 
             /*IL_0047: brfalse.s IL_0052
 
@@ -340,11 +356,14 @@ internal class StaticProxyEmitter
                 awaitableInfo.AwaitableInfo.AwaiterType.IsValueType || onCompleted.IsFinal
                     ? OpCodes.Call
                     : OpCodes.Callvirt,
-                Context.TargetModule.ImportReference(onCompleted)
+                Context.TargetModule.ImportReference(onCompleted, method)
                     .MakeHostInstanceGeneric(method.Body.Variables[awaiterVariableIndex].VariableType)));
         }
         else
         {
+            var exceptionIndex = method.Body.Variables.Count;
+            method.Body.Variables.Add(new(Context.Exception));
+
             var finallyHandler = new ExceptionHandler(ExceptionHandlerType.Finally)
             {
                 HandlerStart = Ldloc(activityIndex, method.Body.Variables),
@@ -638,7 +657,7 @@ internal class StaticProxyEmitter
     {
         var awaiterVariableIndex = method.Body.Variables.Count;
 
-        method.Body.Variables.Add(new(method.Module.ImportReference(awaitableInfo.AwaitableInfo.AwaiterType)));
+        method.Body.Variables.Add(new(method.Module.ImportReference(awaitableInfo.AwaitableInfo.AwaiterType, method)));
 
         /*IL_0019: ldloca.s 1
         IL_001b: call instance valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<!0> valuetype [System.Threading.Tasks.Extensions]System.Threading.Tasks.ValueTask`1<int32>::GetAwaiter()
@@ -655,7 +674,7 @@ internal class StaticProxyEmitter
                 awaitableInfo.AwaitableInfo.GetAwaiterMethod.IsFinal
                     ? OpCodes.Call
                     : OpCodes.Callvirt,
-                method.Module.ImportReference(awaitableInfo.AwaitableInfo.GetAwaiterMethod)
+                method.Module.ImportReference(awaitableInfo.AwaitableInfo.GetAwaiterMethod, method)
                     .MakeHostInstanceGeneric(awaitableInfo.AwaitableInfo.AwaitableType)));
 
         method.Body.Instructions.Insert(index++, Stloc(awaiterVariableIndex, method.Body.Variables));
@@ -670,7 +689,7 @@ internal class StaticProxyEmitter
             awaitableInfo.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod.IsFinal
                 ? OpCodes.Call
                 : OpCodes.Callvirt,
-            method.Module.ImportReference(awaitableInfo.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod)
+            method.Module.ImportReference(awaitableInfo.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod, method)
                 .MakeHostInstanceGeneric(awaitableInfo.AwaitableInfo.AwaiterType)));
 
         return awaiterVariableIndex;
@@ -794,7 +813,7 @@ internal class StaticProxyEmitter
                     method.DeclaringType.IsValueType || property.GetMethod.IsFinal || property.GetMethod.IsStatic
                         ? OpCodes.Call
                         : OpCodes.Callvirt,
-                    method.Module.ImportReference(property.GetMethod)));
+                    method.Module.ImportReference(property.GetMethod, method)));
 
                 if (property.PropertyType.IsValueType || property.PropertyType.IsGenericParameter)
                     instructions.Add(Instruction.Create(OpCodes.Box, property.PropertyType));

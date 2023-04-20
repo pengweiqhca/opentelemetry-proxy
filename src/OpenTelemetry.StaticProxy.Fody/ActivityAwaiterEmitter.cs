@@ -123,7 +123,7 @@ internal class ActivityAwaiterEmitter
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stfld, _context.TargetModule.ImportReference(activity)));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
-        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stfld, _context.TargetModule.ImportReference(awaiter)));
+        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stfld, _context.TargetModule.ImportReference(awaiter, ctor)));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_3));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stfld,
@@ -166,7 +166,7 @@ internal class ActivityAwaiterEmitter
 
         onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
         onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldfld,
-            _context.TargetModule.ImportReference(awaiter)));
+            _context.TargetModule.ImportReference(awaiter, onCompleted)));
 
         onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
         onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldfld,

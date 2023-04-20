@@ -45,7 +45,7 @@ app.Map("/", static context =>
     if (Activity.Current is { } activity)
         context.Response.Headers["x-trace-id"] = activity.TraceId.ToString();
 
-    return context.RequestServices.GetRequiredService<DemoClass>().Demo();
+    return context.RequestServices.GetRequiredService<DemoClass>().Demo(DateTime.Now.Second);
 });
 
 app.Services.GetRequiredService<MeterProvider>();
