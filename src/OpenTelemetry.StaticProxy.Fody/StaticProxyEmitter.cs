@@ -61,7 +61,7 @@ internal class StaticProxyEmitter
     {
         if (_activitySource == null)
         {
-            _activitySource = new(string.Empty, "@ActivitySource@" + Guid.NewGuid().ToString("N"),
+            _activitySource = new(string.Empty, "@ActivitySource@",
                 TypeAttributes.Class | TypeAttributes.Abstract | TypeAttributes.Sealed)
             {
                 BaseType = Context.TargetModule.TypeSystem.Object
@@ -155,7 +155,27 @@ internal class StaticProxyEmitter
                 method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Rethrow));
             }
 
-            var awaiterVariableIndex = InvokeAwaiterIsCompleted(method, ref index, awaitableInfo, leave);
+            var awaiterVariableIndex = method.Body.Variables.Count;
+
+            method.Body.Variables.Add(new(method.Module.ImportReference(awaitableInfo.AwaitableInfo.AwaiterType, method)));
+
+            GetAwaiter(method, ref index, awaitableInfo, leave);
+
+            method.Body.Instructions.Insert(index++, Stloc(awaiterVariableIndex, method.Body.Variables));
+
+            /*IL_0021: ldloca.s 2
+              IL_0023: call instance bool valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<int32>::get_IsCompleted()*/
+            method.Body.Instructions.Insert(index++,
+                Ldloca(awaiterVariableIndex, awaitableInfo.AwaitableInfo.AwaiterType.IsValueType,
+                    method.Body.Variables));
+
+            method.Body.Instructions.Insert(index++, Instruction.Create(
+                awaitableInfo.AwaitableInfo.AwaiterType.IsValueType ||
+                awaitableInfo.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod.IsFinal
+                    ? OpCodes.Call
+                    : OpCodes.Callvirt,
+                method.Module.ImportReference(awaitableInfo.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod, method)
+                    .MakeHostInstanceGeneric(awaitableInfo.AwaitableInfo.AwaiterType)));
 
             var brfalse = Ldloca(awaiterVariableIndex,
                 awaitableInfo.AwaitableInfo.AwaiterType.IsValueType, method.Body.Variables);
@@ -300,64 +320,15 @@ internal class StaticProxyEmitter
 
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse_S, leave));
 
-            var awaiterVariableIndex = InvokeAwaiterIsCompleted(method, ref index, awaitableInfo, Ldloca(
+            GetAwaiter(method, ref index, awaitableInfo, Ldloca(
                 returnVariableIndex, awaitableInfo.AwaitableInfo.AwaitableType.IsValueType,
                 method.Body.Variables));
-
-            var brfalse = Ldloca(awaiterVariableIndex, awaitableInfo.AwaitableInfo.AwaiterType.IsValueType,
-                method.Body.Variables);
-
-            var (ctor, instanceOnCompleted, staticOnCompleted) = Context.ActivityAwaiterEmitter.GetActivityAwaiter(
-                method.Body.Variables[awaiterVariableIndex].VariableType,
-                Context.TargetModule.ImportReference(awaitableInfo.AwaitableInfo.AwaiterGetResultMethod, method));
-
-            /*IL_0047: brfalse.s IL_0052
-
-            IL_0049: ldloc.0
-            IL_004a: ldloc.2
-            IL_004b: call void class OpenTelemetry.StaticProxy.Fody.Tests.TestClass/ActivityAwaiter`1<int32>::OnCompleted(class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity, valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<!0>)
-            IL_0050: br.s IL_006b*/
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse_S, brfalse));
             method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
-            method.Body.Instructions.Insert(index++, Ldloc(awaiterVariableIndex, method.Body.Variables));
             method.Body.Instructions.Insert(index++, returnValueTagName == null
                 ? Instruction.Create(OpCodes.Ldnull)
                 : Instruction.Create(OpCodes.Ldstr, returnValueTagName));
 
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Call, staticOnCompleted));
-
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Br_S, leave));
-
-            /*IL_0052: ldloca.s 2
-    IL_0054: ldloc.0
-    IL_0055: ldloc.2
-    IL_0056: newobj instance void class OpenTelemetry.StaticProxy.Fody.Tests.TestClass/ActivityAwaiter`1<int32>::.ctor(class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity, valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<!0>)
-    IL_005b: ldftn instance void class OpenTelemetry.StaticProxy.Fody.Tests.TestClass/ActivityAwaiter`1<int32>::OnCompleted()
-    IL_0061: newobj instance void [mscorlib]System.Action::.ctor(object, native int)
-    IL_0066: call instance void valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<int32>::UnsafeOnCompleted(class [mscorlib]System.Action)
-
-    IL_006b: ldloc.1
-    IL_006c: ret*/
-            method.Body.Instructions.Insert(index++, brfalse);
-            method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
-            method.Body.Instructions.Insert(index++, Ldloc(awaiterVariableIndex, method.Body.Variables));
-            method.Body.Instructions.Insert(index++, returnValueTagName == null
-                ? Instruction.Create(OpCodes.Ldnull)
-                : Instruction.Create(OpCodes.Ldstr, returnValueTagName));
-
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Newobj, ctor));
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Ldftn, instanceOnCompleted));
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Newobj, Context.ActionCtor));
-
-            var onCompleted = awaitableInfo.AwaitableInfo.AwaiterUnsafeOnCompletedMethod ??
-                awaitableInfo.AwaitableInfo.AwaiterOnCompletedMethod;
-
-            method.Body.Instructions.Insert(index, Instruction.Create(
-                awaitableInfo.AwaitableInfo.AwaiterType.IsValueType || onCompleted.IsFinal
-                    ? OpCodes.Call
-                    : OpCodes.Callvirt,
-                Context.TargetModule.ImportReference(onCompleted, method)
-                    .MakeHostInstanceGeneric(method.Body.Variables[awaiterVariableIndex].VariableType)));
+            method.Body.Instructions.Insert(index, Instruction.Create(OpCodes.Call, Context.ActivityAwaiterEmitter.GetActivityAwaiter(awaitableInfo.AwaitableInfo)));
         }
         else
         {
@@ -652,13 +623,9 @@ internal class StaticProxyEmitter
         method.Body.ExceptionHandlers.Add(exceptionHandler);
     }
 
-    private static int InvokeAwaiterIsCompleted(MethodDefinition method, ref int index,
+    private static void GetAwaiter(MethodDefinition method, ref int index,
         CoercedAwaitableInfo awaitableInfo, Instruction ldReturn)
     {
-        var awaiterVariableIndex = method.Body.Variables.Count;
-
-        method.Body.Variables.Add(new(method.Module.ImportReference(awaitableInfo.AwaitableInfo.AwaiterType, method)));
-
         /*IL_0019: ldloca.s 1
         IL_001b: call instance valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<!0> valuetype [System.Threading.Tasks.Extensions]System.Threading.Tasks.ValueTask`1<int32>::GetAwaiter()
         IL_0020: stloc.2*/
@@ -676,23 +643,6 @@ internal class StaticProxyEmitter
                     : OpCodes.Callvirt,
                 method.Module.ImportReference(awaitableInfo.AwaitableInfo.GetAwaiterMethod, method)
                     .MakeHostInstanceGeneric(awaitableInfo.AwaitableInfo.AwaitableType)));
-
-        method.Body.Instructions.Insert(index++, Stloc(awaiterVariableIndex, method.Body.Variables));
-
-        /*IL_0021: ldloca.s 2
-        IL_0023: call instance bool valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<int32>::get_IsCompleted()*/
-        method.Body.Instructions.Insert(index++,
-            Ldloca(awaiterVariableIndex, awaitableInfo.AwaitableInfo.AwaiterType.IsValueType, method.Body.Variables));
-
-        method.Body.Instructions.Insert(index++, Instruction.Create(
-            awaitableInfo.AwaitableInfo.AwaiterType.IsValueType ||
-            awaitableInfo.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod.IsFinal
-                ? OpCodes.Call
-                : OpCodes.Callvirt,
-            method.Module.ImportReference(awaitableInfo.AwaitableInfo.AwaiterIsCompletedPropertyGetMethod, method)
-                .MakeHostInstanceGeneric(awaitableInfo.AwaitableInfo.AwaiterType)));
-
-        return awaiterVariableIndex;
     }
 
     private bool GetActivityTags(MethodDefinition method, ref int index)

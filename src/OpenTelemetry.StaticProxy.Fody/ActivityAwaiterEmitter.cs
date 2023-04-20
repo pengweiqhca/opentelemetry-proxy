@@ -1,10 +1,8 @@
-﻿using Mono.Cecil;
+﻿using Microsoft.Extensions.Internal;
+using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using System.Text;
-using TypeCache =
-    System.ValueTuple<Mono.Cecil.TypeReference, Mono.Cecil.MethodReference, Mono.Cecil.MethodReference,
-        Mono.Cecil.MethodReference>;
 
 namespace OpenTelemetry.StaticProxy.Fody;
 
@@ -12,35 +10,120 @@ internal class ActivityAwaiterEmitter
 {
     private static readonly string CoreLibKey = Guid.NewGuid().ToString();
 
-    private readonly Dictionary<TypeReference, TypeCache> _awaiterTypes = new(new TypeReferenceComparer());
+    private readonly Dictionary<TypeReference, MethodDefinition> _awaiterTypes = new(new TypeReferenceComparer());
     private readonly EmitContext _context;
 
     public ActivityAwaiterEmitter(EmitContext context) => _context = context;
 
-    public (MethodReference ctor, MethodReference instanceOnCompleted, MethodReference staticOnCompleted)
-        GetActivityAwaiter(TypeReference awaiterType, MethodReference getResult)
+    public MethodReference GetActivityAwaiter(AwaitableInfo awaitableInfo)
     {
-        ICollection<TypeReference> genericArguments = Array.Empty<TypeReference>();
-        var elementType = awaiterType;
-        if (awaiterType is GenericInstanceType git)
+        if (awaitableInfo.AwaiterType is GenericInstanceType git)
         {
-            elementType = git.ElementType;
+            if (!_awaiterTypes.TryGetValue(git.ElementType, out var awaiter))
+                _awaiterTypes[git.ElementType] = awaiter = CreateActivityAwaiter(git.ElementType, awaitableInfo);
 
-            genericArguments = git.GenericArguments;
+            return awaiter.MakeHostInstanceGeneric(
+                awaiter.DeclaringType.MakeGenericInstanceType(git.GenericArguments.ToArray()));
         }
-
-        if (!_awaiterTypes.TryGetValue(elementType, out var awaiter))
-            _awaiterTypes[elementType] = awaiter = CreateActivityAwaiter(elementType, getResult);
-
-        if (genericArguments.Count < 1) return (awaiter.Item2, awaiter.Item3, awaiter.Item4);
-
-        awaiterType = awaiter.Item1.MakeGenericInstanceType(genericArguments.ToArray());
-
-        return (awaiter.Item2.MakeHostInstanceGeneric(awaiterType), awaiter.Item3.MakeHostInstanceGeneric(awaiterType),
-            awaiter.Item4.MakeHostInstanceGeneric(awaiterType));
+        else
+            return !_awaiterTypes.TryGetValue(awaitableInfo.AwaiterType, out var awaiter)
+                ? (_awaiterTypes[awaitableInfo.AwaiterType] =
+                    CreateActivityAwaiter(awaitableInfo.AwaiterType, awaitableInfo))
+                : awaiter;
     }
 
-    private TypeCache CreateActivityAwaiter(TypeReference awaiterType, MethodReference getResult)
+    private MethodDefinition CreateActivityAwaiter(TypeReference awaiterType, AwaitableInfo awaitableInfo)
+    {
+        awaiterType = _context.TargetModule.ImportReference(awaiterType);
+
+        var (type, ctor, onCompleted, completed) =
+            CreateActivityAwaiter(awaiterType,
+                _context.TargetModule.ImportReference(awaitableInfo.AwaiterGetResultMethod));
+
+        var method = new MethodDefinition("OnCompleted",
+            MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.Static,
+            _context.TargetModule.TypeSystem.Void)
+        {
+            Parameters = { completed.Parameters[0], completed.Parameters[1], completed.Parameters[2] }
+        };
+
+        type.Methods.Add(method);
+
+        if (awaiterType.HasGenericParameters)
+            awaiterType = awaiterType.MakeGenericInstanceType(awaiterType.GenericParameters.ToArray<TypeReference>());
+
+        /*IL_0021: ldarga.s 1
+        IL_0023: call instance bool valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<int32>::get_IsCompleted()*/
+        method.Body.Instructions.Add(awaiterType.IsValueType
+            ? Instruction.Create(OpCodes.Ldarga_S, method.Parameters[0])
+            : Instruction.Create(OpCodes.Ldarg_0));
+
+        method.Body.Instructions.Add(Instruction.Create(
+            awaitableInfo.AwaiterType.IsValueType ||
+            awaitableInfo.AwaiterIsCompletedPropertyGetMethod.IsFinal
+                ? OpCodes.Call
+                : OpCodes.Callvirt,
+            method.Module.ImportReference(awaitableInfo.AwaiterIsCompletedPropertyGetMethod)
+                .MakeHostInstanceGeneric(completed.Parameters[0].ParameterType)));
+
+        var brfalse = awaiterType.IsValueType
+            ? Instruction.Create(OpCodes.Ldarga_S, method.Parameters[0])
+            : Instruction.Create(OpCodes.Ldarg_0);
+
+        /*IL_0047: brfalse.s IL_0052
+
+        IL_0049: ldloc.0
+        IL_004a: ldloc.2
+        IL_004b: call void class OpenTelemetry.StaticProxy.Fody.Tests.TestClass/ActivityAwaiter`1<int32>::OnCompleted(class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity, valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<!0>)
+        IL_0050: ret*/
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse_S, brfalse));
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_1));
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Call,
+            type.HasGenericParameters ? completed.MakeHostInstanceGeneric(awaiterType) : completed));
+
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
+
+        /*IL_0052: ldloca.s 2
+IL_0054: ldloc.0
+IL_0055: ldloc.2
+IL_0056: newobj instance void class OpenTelemetry.StaticProxy.Fody.Tests.TestClass/ActivityAwaiter`1<int32>::.ctor(class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity, valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<!0>)
+IL_005b: ldftn instance void class OpenTelemetry.StaticProxy.Fody.Tests.TestClass/ActivityAwaiter`1<int32>::OnCompleted()
+IL_0061: newobj instance void [mscorlib]System.Action::.ctor(object, native int)
+IL_0066: call instance void valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<int32>::UnsafeOnCompleted(class [mscorlib]System.Action)
+
+IL_006c: ret*/
+        method.Body.Instructions.Add(brfalse);
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_1));
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
+
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Newobj,
+            type.HasGenericParameters ? ctor.MakeHostInstanceGeneric(awaiterType) : ctor));
+
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldftn,
+            type.HasGenericParameters ? onCompleted.MakeHostInstanceGeneric(awaiterType) : onCompleted));
+
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Newobj, _context.ActionCtor));
+
+        var awaiterOnCompleted = awaitableInfo.AwaiterUnsafeOnCompletedMethod ??
+            awaitableInfo.AwaiterOnCompletedMethod;
+
+        method.Body.Instructions.Add(Instruction.Create(
+            awaitableInfo.AwaiterType.IsValueType || awaiterOnCompleted.IsFinal
+                ? OpCodes.Call
+                : OpCodes.Callvirt,
+            _context.TargetModule.ImportReference(awaiterOnCompleted)
+                .MakeHostInstanceGeneric(method.Parameters[0].ParameterType)));
+
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
+
+        return method;
+    }
+
+    private ValueTuple<TypeDefinition, MethodDefinition, MethodDefinition, MethodDefinition>
+        CreateActivityAwaiter(TypeReference awaiterType, MethodReference getResult)
     {
         var type = new TypeDefinition("", "@ActivityAwaiter@" + _awaiterTypes.Count,
             TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit)
@@ -64,40 +147,40 @@ internal class ActivityAwaiterEmitter
     .field private initonly valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<!T> _awaiter*/
         const FieldAttributes initOnly = FieldAttributes.Private | FieldAttributes.InitOnly;
 
-        FieldDefinition activity, awaiter, returnValueTagName;
-        type.Fields.Add(activity = new("_activity", initOnly, _context.Activity));
+        FieldDefinition awaiter, activity, returnValueTagName;
         type.Fields.Add(awaiter = new("_awaiter", initOnly, awaiterType));
+        type.Fields.Add(activity = new("_activity", initOnly, _context.Activity));
         type.Fields.Add(returnValueTagName =
             new("_returnValueTagName", initOnly, _context.TargetModule.TypeSystem.String));
 
         var parameters = new[]
         {
-            new ParameterDefinition("activity", ParameterAttributes.None, _context.Activity),
             new ParameterDefinition("awaiter", ParameterAttributes.None, awaiterType),
+            new ParameterDefinition("activity", ParameterAttributes.None, _context.Activity),
             new ParameterDefinition("returnValueTagName", ParameterAttributes.None,
                 _context.TargetModule.TypeSystem.String),
         };
 
         var ctor = new MethodDefinition(".ctor",
-            MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName |
+            MethodAttributes.Private | MethodAttributes.HideBySig | MethodAttributes.SpecialName |
             MethodAttributes.RTSpecialName, _context.TargetModule.TypeSystem.Void);
 
         Array.ForEach(parameters, ctor.Parameters.Add);
 
         type.Methods.Add(ctor);
 
-        var onCompleted = new MethodDefinition("OnCompleted", MethodAttributes.Public | MethodAttributes.HideBySig,
+        var onCompleted = new MethodDefinition("OnCompleted", MethodAttributes.Private | MethodAttributes.HideBySig,
             _context.TargetModule.TypeSystem.Void);
 
         type.Methods.Add(onCompleted);
 
-        var onCompletedStatic = new MethodDefinition("OnCompleted",
-            MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.Static,
+        var completed = new MethodDefinition("Completed",
+            MethodAttributes.Private | MethodAttributes.HideBySig | MethodAttributes.Static,
             _context.TargetModule.TypeSystem.Void);
 
-        Array.ForEach(parameters, onCompletedStatic.Parameters.Add);
+        Array.ForEach(parameters, completed.Parameters.Add);
 
-        type.Methods.Add(onCompletedStatic);
+        type.Methods.Add(completed);
 
         TypeReference type2 = type.HasGenericParameters
             ? type.MakeGenericInstanceType(type.GenericParameters.ToArray<TypeReference>())
@@ -120,10 +203,10 @@ internal class ActivityAwaiterEmitter
 
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_1));
-        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stfld, _context.TargetModule.ImportReference(activity)));
+        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stfld, _context.TargetModule.ImportReference(awaiter)));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
-        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stfld, _context.TargetModule.ImportReference(awaiter, ctor)));
+        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stfld, _context.TargetModule.ImportReference(activity)));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_3));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stfld,
@@ -140,11 +223,11 @@ internal class ActivityAwaiterEmitter
         IL_0027: ret*/
         var ret = Instruction.Create(OpCodes.Ret);
 
-        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_1));
+        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, _context.ActivityGetParent));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse_S, ret));
 
-        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_1));
+        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, _context.ActivityGetParent));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Call, _context.ActivitySetCurrent));
 
@@ -162,11 +245,11 @@ internal class ActivityAwaiterEmitter
         IL_0011: ret*/
         onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
         onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldfld,
-            _context.TargetModule.ImportReference(activity)));
+            _context.TargetModule.ImportReference(awaiter, onCompleted)));
 
         onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
         onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldfld,
-            _context.TargetModule.ImportReference(awaiter, onCompleted)));
+            _context.TargetModule.ImportReference(activity)));
 
         onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
         onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldfld,
@@ -176,12 +259,7 @@ internal class ActivityAwaiterEmitter
         onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Call,
             new MethodReference("OnCompleted", _context.TargetModule.TypeSystem.Void, type2)
             {
-                Parameters =
-                {
-                    new ParameterDefinition(_context.Activity),
-                    new ParameterDefinition(awaiterType),
-                    new ParameterDefinition(_context.TargetModule.TypeSystem.String),
-                }
+                Parameters = { parameters[0], parameters[1], parameters[2], }
             }));
 
         onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
@@ -190,14 +268,16 @@ internal class ActivityAwaiterEmitter
 
         #region static OnCompleted
 
-        onCompletedStatic.Body.InitLocals = true;
-        onCompletedStatic.Body.Variables.Add(new(_context.Exception));
+        completed.Body.InitLocals = true;
+        completed.Body.Variables.Add(new(_context.Exception));
 
         var finallyHandler = new ExceptionHandler(ExceptionHandlerType.Finally)
         {
-            TryStart = Instruction.Create(awaiterType.IsValueType ? OpCodes.Ldarga_S : OpCodes.Ldarg_S,
-                onCompletedStatic.Parameters[1]),
-            HandlerStart = Instruction.Create(OpCodes.Ldarg_0),
+            TryStart = awaiterType.IsValueType
+                ? Instruction.Create(OpCodes.Ldarga_S,
+                    completed.Parameters[0])
+                : Instruction.Create(OpCodes.Ldarg_0),
+            HandlerStart = Instruction.Create(OpCodes.Ldarg_1),
             HandlerEnd = Instruction.Create(OpCodes.Ret)
         };
 
@@ -213,8 +293,8 @@ internal class ActivityAwaiterEmitter
 
         catchHandler.TryEnd = catchHandler.HandlerStart;
 
-        onCompletedStatic.Body.ExceptionHandlers.Add(catchHandler);
-        onCompletedStatic.Body.ExceptionHandlers.Add(finallyHandler);
+        completed.Body.ExceptionHandlers.Add(catchHandler);
+        completed.Body.ExceptionHandlers.Add(finallyHandler);
 
         /*IL_0000: ldarga.s awaiter
           IL_0002: call instance object Microsoft.Extensions.Internal.ObjectMethodExecutorAwaitable/Awaiter::GetResult()
@@ -229,59 +309,59 @@ internal class ActivityAwaiterEmitter
           IL_0013: pop
 
           IL_0014: leave.s IL_0027*/
-        onCompletedStatic.Body.Instructions.Add(finallyHandler.TryStart);
+        completed.Body.Instructions.Add(finallyHandler.TryStart);
 
-        onCompletedStatic.Body.Instructions.Add(Instruction.Create(
+        completed.Body.Instructions.Add(Instruction.Create(
             awaiterType.IsValueType ? OpCodes.Call : OpCodes.Callvirt,
             getResult.MakeHostInstanceGeneric(awaiterType)));
 
         var instruction = Instruction.Create(OpCodes.Leave_S, finallyHandler.HandlerEnd);
         if (!getResult.ReturnType.HaveSameIdentity(_context.TargetModule.TypeSystem.Void))
         {
-            onCompletedStatic.Body.Variables.Add(new(getResult.ReturnType));
+            completed.Body.Variables.Add(new(getResult.ReturnType));
 
-            onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Stloc_1));
-            onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
-            onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse_S, instruction));
-            onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
-            onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
-            onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Ldloc_1));
+            completed.Body.Instructions.Add(Instruction.Create(OpCodes.Stloc_1));
+            completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
+            completed.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse_S, instruction));
+            completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_1));
+            completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
+            completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldloc_1));
             if (getResult.ReturnType.IsValueType || getResult.ReturnType.IsGenericParameter)
-                onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Box, getResult.ReturnType));
+                completed.Body.Instructions.Add(Instruction.Create(OpCodes.Box, getResult.ReturnType));
 
-            onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, _context.ActivitySetTag));
-            onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Pop));
+            completed.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, _context.ActivitySetTag));
+            completed.Body.Instructions.Add(Instruction.Create(OpCodes.Pop));
         }
 
-        onCompletedStatic.Body.Instructions.Add(instruction);
+        completed.Body.Instructions.Add(instruction);
 
         /*IL_0016: stloc.1
           IL_0017: ldarg.0
           IL_0018: ldloc.1
           IL_0019: call void OpenTelemetry.DynamicProxy.ActivityInvoker::OnException(class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity, class [mscorlib]System.Exception)
           IL_001e: leave.s IL_0027*/
-        onCompletedStatic.Body.Instructions.Add(catchHandler.HandlerStart);
-        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
-        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Ldc_I4_2));
-        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Ldloc_0));
-        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, _context.GetMessage));
-        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Call, _context.ActivitySetStatus));
-        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Ldloc_0));
-        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Call, _context.RecordException));
-        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Leave_S, finallyHandler.HandlerEnd));
+        completed.Body.Instructions.Add(catchHandler.HandlerStart);
+        completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_1));
+        completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldc_I4_2));
+        completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldloc_0));
+        completed.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, _context.GetMessage));
+        completed.Body.Instructions.Add(Instruction.Create(OpCodes.Call, _context.ActivitySetStatus));
+        completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldloc_0));
+        completed.Body.Instructions.Add(Instruction.Create(OpCodes.Call, _context.RecordException));
+        completed.Body.Instructions.Add(Instruction.Create(OpCodes.Leave_S, finallyHandler.HandlerEnd));
 
         /*IL_0020: ldarg.0
           IL_0021: callvirt instance void [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity::Dispose()
           IL_0026: endfinally*/
-        onCompletedStatic.Body.Instructions.Add(finallyHandler.HandlerStart);
-        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, _context.ActivityDispose));
-        onCompletedStatic.Body.Instructions.Add(Instruction.Create(OpCodes.Endfinally));
+        completed.Body.Instructions.Add(finallyHandler.HandlerStart);
+        completed.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, _context.ActivityDispose));
+        completed.Body.Instructions.Add(Instruction.Create(OpCodes.Endfinally));
 
-        onCompletedStatic.Body.Instructions.Add(finallyHandler.HandlerEnd);
+        completed.Body.Instructions.Add(finallyHandler.HandlerEnd);
 
         #endregion
 
-        return (type, ctor, onCompleted, onCompletedStatic);
+        return (type, ctor, onCompleted, completed);
     }
 
     private sealed class TypeReferenceComparer : IEqualityComparer<TypeReference>

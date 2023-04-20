@@ -1,4 +1,5 @@
-﻿using Mono.Cecil;
+﻿using Microsoft.Extensions.Internal;
+using Mono.Cecil;
 using Moq;
 using Moq.Protected;
 using OpenTelemetry.Proxy;
@@ -11,6 +12,7 @@ namespace OpenTelemetry.StaticProxy.Fody.Tests;
 
 public class ActivityAwaiterEmitterTest
 {
+    private static readonly string name = Guid.NewGuid().ToString();
     private readonly ITestOutputHelper _output;
 
     public ActivityAwaiterEmitterTest(ITestOutputHelper output) => _output = output;
@@ -23,38 +25,36 @@ public class ActivityAwaiterEmitterTest
 
         var awaiterType = func.Method.ReturnType;
 
-        context.ActivityAwaiterEmitter.GetActivityAwaiter(context.TargetModule.ImportReference(awaiterType),
-            context.TargetModule.ImportReference(awaiterType
-                .GetMethod(nameof(TaskAwaiter.GetResult))!));
+        Assert.True(CoercedAwaitableInfo.IsTypeAwaitable(context.TargetModule.ImportReference(awaiterType), out var coercedAwaitableInfo));
 
-        var awaiter = func.Method.Invoke(func.Target, null);
+        var getAwaiter = awaiterType.GetMethod(nameof(Task.GetAwaiter));
+
+        Assert.NotNull(getAwaiter);
+
+        awaiterType = getAwaiter.ReturnType;
+
+        context.ActivityAwaiterEmitter.GetActivityAwaiter(coercedAwaitableInfo.AwaitableInfo);
+
+        var awaitable = func.Method.Invoke(func.Target, null);
+
+        Assert.NotNull(awaitable);
+
+        var awaiter = getAwaiter.Invoke(awaitable, Array.Empty<object>());
 
         var type = SaveAndLoad(context, _output).GetTypes()[0];
+
         if (awaiterType.IsGenericType) type = type.MakeGenericType(awaiterType.GenericTypeArguments);
 
-        //protected virtual void Dispose(bool disposing)
-        var mock = new Mock<Activity>("Test");
+        var mock = new Mock<Activity>(name);
 
         var tcs = new TaskCompletionSource();
 
-        mock.Protected().Setup("Dispose", ItExpr.IsAny<bool>())
+        //protected virtual void Dispose(bool disposing)
+        mock.Protected().Setup(nameof(IDisposable.Dispose), ItExpr.IsAny<bool>())
             .Callback(tcs.SetResult);
 
-        if ((bool)awaiterType.GetProperty(nameof(TaskAwaiter.IsCompleted))!.GetValue(awaiter)!)
-            type.GetMethod("OnCompleted", BindingFlags.Public | BindingFlags.Static)!
-                .Invoke(null, new[] { mock.Object, awaiter, null });
-        else
-        {
-            var action = type.GetMethod("OnCompleted", BindingFlags.Public | BindingFlags.Instance)!
-                .CreateDelegate<Action>(Activator.CreateInstance(type, BindingFlags.Public | BindingFlags.Instance,
-                    null, new[] { mock.Object, awaiter, null }, null));
-
-            if (awaiter is ICriticalNotifyCompletion criticalNotifyCompletion)
-                criticalNotifyCompletion.UnsafeOnCompleted(action);
-            else if (awaiter is INotifyCompletion notifyCompletion)
-                notifyCompletion.OnCompleted(action);
-            else Assert.Fail("Unknown awaiter type");
-        }
+        type.GetMethod(nameof(TaskAwaiter.OnCompleted), BindingFlags.Public | BindingFlags.Static)!
+            .Invoke(null, new[] { awaiter, mock.Object, null });
 
         if (await Task.WhenAny(tcs.Task, Task.Delay(5000)).ConfigureAwait(false) != tcs.Task)
             Assert.Fail("Timeout");
@@ -64,7 +64,7 @@ public class ActivityAwaiterEmitterTest
         else
         {
             Assert.Equal(ActivityStatusCode.Error, mock.Object.Status);
-            Assert.Equal("Test", mock.Object.StatusDescription);
+            Assert.Equal(name, mock.Object.StatusDescription);
 
             Assert.Contains(mock.Object.Events, x => x.Name == "exception");
         }
@@ -76,77 +76,77 @@ public class ActivityAwaiterEmitterTest
     {
         yield return new object[]
         {
-            true, () => Task.CompletedTask.GetAwaiter()
+            true, () => Task.CompletedTask
         };
 
         yield return new object[]
         {
-            false, () => Task.FromException(new("Test")).GetAwaiter()
+            false, () => Task.FromException(new(name))
         };
 
         yield return new object[]
         {
-            true, () => Task.Delay(1000).GetAwaiter()
+            true, () => Task.Delay(1000)
         };
 
         yield return new object[]
         {
-            true, () => Task.FromResult(1).GetAwaiter()
+            true, () => Task.FromResult(1)
         };
 
         yield return new object[]
         {
-            false, () => Task.FromException<int>(new("Test")).GetAwaiter()
+            false, () => Task.FromException<int>(new(name))
         };
 
         yield return new object[]
         {
-            true, () => Task.Delay(1000).ContinueWith(_ => 1).GetAwaiter()
+            true, () => Task.Delay(1000).ContinueWith(_ => 1)
         };
 
         yield return new object[]
         {
-            true, () => new ValueTask().GetAwaiter()
+            true, () => new ValueTask()
         };
 
         yield return new object[]
         {
-            true, () => new ValueTask(Task.Delay(1000)).GetAwaiter()
+            true, () => new ValueTask(Task.Delay(1000))
         };
 
         yield return new object[]
         {
-            true, () => new ValueTask<int>(1).GetAwaiter()
+            true, () => new ValueTask<int>(1)
         };
 
         yield return new object[]
         {
-            true, () => new ValueTask(Task.Delay(1000).ContinueWith(_ => 1)).GetAwaiter()
+            true, () => new ValueTask(Task.Delay(1000).ContinueWith(_ => 1))
         };
 
         yield return new object[]
         {
-            true, () => new TestAwaitable(() => true).GetAwaiter()
+            true, () => new TestAwaitable(() => true)
         };
 
         yield return new object[]
         {
-            true, () => new TestAwaitable<int>(() => 1).GetAwaiter()
+            true, () => new TestAwaitable<int>(() => 1)
         };
 
         yield return new object[]
         {
-            true, () => new TestAwaitableWithICriticalNotifyCompletion().GetAwaiter()
+            true, () => new TestAwaitableWithICriticalNotifyCompletion()
         };
 
         yield return new object[]
         {
-            true, () => new TestAwaitableWithoutICriticalNotifyCompletion().GetAwaiter()
+            true, () => new TestAwaitableWithoutICriticalNotifyCompletion()
         };
     }
 
     private static EmitContext GetContext() => new(
-        AssemblyDefinition.CreateAssembly(new("Test", new(1, 0, 0)), "Test", ModuleKind.Dll).MainModule,
+        AssemblyDefinition.CreateAssembly(new(name, new(1, 0, 0)), name, ModuleKind.Dll).MainModule,
         AssemblyDefinition.ReadAssembly(typeof(Activity).Assembly.Location).MainModule,
         AssemblyDefinition.ReadAssembly(typeof(SuppressInstrumentationScope).Assembly.Location).MainModule,
         AssemblyDefinition.ReadAssembly(typeof(BaseProvider).Assembly.Location).MainModule,
