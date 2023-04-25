@@ -12,7 +12,7 @@ namespace OpenTelemetry.StaticProxy.Fody.Tests;
 
 public class ActivityAwaiterEmitterTest
 {
-    private static readonly string name = Guid.NewGuid().ToString();
+    private static readonly string Name = Guid.NewGuid().ToString();
     private readonly ITestOutputHelper _output;
 
     public ActivityAwaiterEmitterTest(ITestOutputHelper output) => _output = output;
@@ -45,7 +45,7 @@ public class ActivityAwaiterEmitterTest
 
         if (awaiterType.IsGenericType) type = type.MakeGenericType(awaiterType.GenericTypeArguments);
 
-        var mock = new Mock<Activity>(name);
+        var mock = new Mock<Activity>(Name);
 
         var tcs = new TaskCompletionSource();
 
@@ -64,7 +64,7 @@ public class ActivityAwaiterEmitterTest
         else
         {
             Assert.Equal(ActivityStatusCode.Error, mock.Object.Status);
-            Assert.Equal(name, mock.Object.StatusDescription);
+            Assert.Equal(Name, mock.Object.StatusDescription);
 
             Assert.Contains(mock.Object.Events, x => x.Name == "exception");
         }
@@ -81,7 +81,7 @@ public class ActivityAwaiterEmitterTest
 
         yield return new object[]
         {
-            false, () => Task.FromException(new(name))
+            false, () => Task.FromException(new(Name))
         };
 
         yield return new object[]
@@ -96,7 +96,7 @@ public class ActivityAwaiterEmitterTest
 
         yield return new object[]
         {
-            false, () => Task.FromException<int>(new(name))
+            false, () => Task.FromException<int>(new(Name))
         };
 
         yield return new object[]
@@ -146,7 +146,7 @@ public class ActivityAwaiterEmitterTest
     }
 
     private static EmitContext GetContext() => new(
-        AssemblyDefinition.CreateAssembly(new(name, new(1, 0, 0)), name, ModuleKind.Dll).MainModule,
+        AssemblyDefinition.CreateAssembly(new(Name, new(1, 0, 0)), Name, ModuleKind.Dll).MainModule,
         AssemblyDefinition.ReadAssembly(typeof(Activity).Assembly.Location).MainModule,
         AssemblyDefinition.ReadAssembly(typeof(SuppressInstrumentationScope).Assembly.Location).MainModule,
         AssemblyDefinition.ReadAssembly(typeof(BaseProvider).Assembly.Location).MainModule,
