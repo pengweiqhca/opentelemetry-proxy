@@ -8,17 +8,22 @@ public static class ActivityName
     {
         if (Name.Value is not { } holder || holder.AvailableTimes == 0) return default;
 
-        if (holder.AvailableTimes < 0 || Interlocked.Decrement(ref holder.AvailableTimes) >= 0) return (holder.Name, holder.Tags);
+        if (holder.AvailableTimes < 0 || Interlocked.Decrement(ref holder.AvailableTimes) >= 0)
+            return (holder.Name, holder.Tags);
 
         holder.Clear();
 
         return default;
     }
 
-    [Obsolete("Old method.", true)]
-    public static IDisposable SetName(string? name, int readTimes) => SetName(null, name, readTimes);
+    public static IDisposable SetName(string name, IReadOnlyCollection<KeyValuePair<string, object?>>? tags = null,
+        int readTimes = 1) => SetName(tags, name, readTimes);
 
-    public static IDisposable SetName(IReadOnlyCollection<KeyValuePair<string, object?>>? tags, string? name, int readTimes)
+    public static IDisposable SetName(IReadOnlyCollection<KeyValuePair<string, object?>> tags, int readTimes = 1) =>
+        SetName(tags, null, readTimes);
+
+    public static IDisposable SetName(IReadOnlyCollection<KeyValuePair<string, object?>>? tags, string? name,
+        int readTimes = 1)
     {
         var holder = Name.Value;
 
@@ -52,6 +57,6 @@ public static class ActivityName
     {
         public static IDisposable Instance { get; } = new Disposable();
 
-        public void Dispose() => SetName(null, null, 0);
+        public void Dispose() => SetName(tags: null, null, 0);
     }
 }
