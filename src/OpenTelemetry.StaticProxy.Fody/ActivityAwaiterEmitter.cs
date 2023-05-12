@@ -76,7 +76,7 @@ internal class ActivityAwaiterEmitter
         IL_004a: ldloc.2
         IL_004b: call void class OpenTelemetry.StaticProxy.Fody.Tests.TestClass/ActivityAwaiter`1<int32>::OnCompleted(class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity, valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<!0>)
         IL_0050: ret*/
-        method.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse_S, brfalse));
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse, brfalse));
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_1));
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
@@ -118,6 +118,8 @@ IL_006c: ret*/
                 .MakeHostInstanceGeneric(method.Parameters[0].ParameterType)));
 
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
+
+        method.Body.OptimizeMacros();
 
         return method;
     }
@@ -225,7 +227,7 @@ IL_006c: ret*/
 
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, _context.ActivityGetParent));
-        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse_S, ret));
+        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse, ret));
 
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, _context.ActivityGetParent));
@@ -271,7 +273,7 @@ IL_006c: ret*/
         var finallyHandler = new ExceptionHandler(ExceptionHandlerType.Finally)
         {
             TryStart = awaiterType.IsValueType
-                ? Instruction.Create(OpCodes.Ldarga_S,
+                ? Instruction.Create(OpCodes.Ldarga,
                     completed.Parameters[0])
                 : Instruction.Create(OpCodes.Ldarg_0),
             HandlerStart = Instruction.Create(OpCodes.Ldarg_1),
@@ -312,14 +314,14 @@ IL_006c: ret*/
             awaiterType.IsValueType ? OpCodes.Call : OpCodes.Callvirt,
             getResult.MakeHostInstanceGeneric(awaiterType)));
 
-        var instruction = Instruction.Create(OpCodes.Leave_S, finallyHandler.HandlerEnd);
+        var instruction = Instruction.Create(OpCodes.Leave, finallyHandler.HandlerEnd);
         if (!getResult.ReturnType.HaveSameIdentity(_context.TargetModule.TypeSystem.Void))
         {
             completed.Body.Variables.Add(new(getResult.ReturnType));
 
             completed.Body.Instructions.Add(Instruction.Create(OpCodes.Stloc_1));
             completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
-            completed.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse_S, instruction));
+            completed.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse, instruction));
             completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_1));
             completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
             completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldloc_1));
@@ -345,7 +347,7 @@ IL_006c: ret*/
         completed.Body.Instructions.Add(Instruction.Create(OpCodes.Call, _context.ActivitySetStatus));
         completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldloc_0));
         completed.Body.Instructions.Add(Instruction.Create(OpCodes.Call, _context.RecordException));
-        completed.Body.Instructions.Add(Instruction.Create(OpCodes.Leave_S, finallyHandler.HandlerEnd));
+        completed.Body.Instructions.Add(Instruction.Create(OpCodes.Leave, finallyHandler.HandlerEnd));
 
         /*IL_0020: ldarg.0
           IL_0021: callvirt instance void [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity::Dispose()
@@ -357,6 +359,10 @@ IL_006c: ret*/
         completed.Body.Instructions.Add(finallyHandler.HandlerEnd);
 
         #endregion
+
+        ctor.Body.OptimizeMacros();
+        onCompleted.Body.OptimizeMacros();
+        completed.Body.OptimizeMacros();
 
         return (type, ctor, onCompleted, completed);
     }

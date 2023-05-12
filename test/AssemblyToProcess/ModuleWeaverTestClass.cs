@@ -118,8 +118,12 @@ public static class ModuleWeaverTestClass
         b = a * a;
         c = a * c;
 
+        Console.WriteLine(A()?.ToString());
+
         return d + e + f;
     }
+
+    private static object? A() => null;
 
     [Activity(Tags = new[] { ActivityTagAttribute.ReturnValueTagName })]
     public static Task<int> ReturnValue(int a) => Task.FromResult(a + 1);

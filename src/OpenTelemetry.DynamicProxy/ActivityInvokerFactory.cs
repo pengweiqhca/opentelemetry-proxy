@@ -3,7 +3,6 @@ using OpenTelemetry.Proxy;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq.Expressions;
-using System.Net.Sockets;
 using GetTags =
     System.Func<Castle.DynamicProxy.IInvocation, System.Collections.Generic.IReadOnlyCollection<
         System.Collections.Generic.KeyValuePair<string, object?>>?>;

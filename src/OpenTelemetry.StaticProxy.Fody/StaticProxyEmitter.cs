@@ -2,7 +2,6 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
-using Mono.Collections.Generic;
 using OpenTelemetry.Proxy;
 using System.Diagnostics.CodeAnalysis;
 
@@ -113,11 +112,14 @@ internal class StaticProxyEmitter
     // https://stackoverflow.com/questions/11074518/add-a-try-catch-with-mono-cecil
     private void EmitDisposable(MethodDefinition method, bool isVoid, Func<int> createDisposable)
     {
+        var hasAsyncStateMachineAttribute = method.GetCustomAttribute(Context.AsyncStateMachineAttribute) != null;
+
+        if (!hasAsyncStateMachineAttribute) ReplaceBody(method, isVoid);
+
         method.Body.InitLocals = true;
 
         var isTypeAwaitable = CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo);
-        var hasAsyncStateMachineAttribute =
-            isTypeAwaitable && method.GetCustomAttribute(Context.AsyncStateMachineAttribute) != null;
+        hasAsyncStateMachineAttribute = hasAsyncStateMachineAttribute && isTypeAwaitable;
 
         var (_, leave) = ProcessReturn(method, isVoid, hasAsyncStateMachineAttribute,
             isTypeAwaitable
@@ -157,7 +159,8 @@ internal class StaticProxyEmitter
 
             var awaiterVariableIndex = method.Body.Variables.Count;
 
-            method.Body.Variables.Add(new(method.Module.ImportReference(awaitableInfo.AwaitableInfo.AwaiterType, method)));
+            method.Body.Variables.Add(
+                new(method.Module.ImportReference(awaitableInfo.AwaitableInfo.AwaiterType, method)));
 
             GetAwaiter(method, ref index, awaitableInfo, leave);
 
@@ -185,10 +188,10 @@ internal class StaticProxyEmitter
             IL_002a: ldloc.0
             IL_002b: callvirt instance void [mscorlib]System.IDisposable::Dispose()
             IL_0030: br.s IL_0046*/
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse_S, brfalse));
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse, brfalse));
             method.Body.Instructions.Insert(index++, Ldloc(disposeVariableIndex, method.Body.Variables));
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Callvirt, Context.Dispose));
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Br_S,
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Br,
                 method.Body.Instructions[isVoid ? ^1 : ^2]));
 
             /*IL_0032: ldloca.s 2
@@ -233,11 +236,13 @@ internal class StaticProxyEmitter
             var endFinally = Instruction.Create(OpCodes.Endfinally);
 
             method.Body.Instructions.Insert(index++, finallyHandler.HandlerStart);
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse_S, endFinally));
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse, endFinally));
             method.Body.Instructions.Insert(index++, Ldloc(disposeVariableIndex, method.Body.Variables));
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Callvirt, Context.Dispose));
             method.Body.Instructions.Insert(index, endFinally);
         }
+
+        method.Body.OptimizeMacros();
     }
 
     public void EmitActivityName(MethodDefinition method, bool isVoid, string? activityName,
@@ -261,14 +266,17 @@ internal class StaticProxyEmitter
     public void EmitActivity(MethodDefinition method, bool isVoid,
         FieldReference activitySource, string? activityName, int activityKind)
     {
+        var hasAsyncStateMachineAttribute = method.GetCustomAttribute(Context.AsyncStateMachineAttribute) != null;
+
+        if (!hasAsyncStateMachineAttribute) ReplaceBody(method, isVoid);
+
         method.Body.InitLocals = true;
+
+        var isTypeAwaitable = CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo);
+        hasAsyncStateMachineAttribute = hasAsyncStateMachineAttribute && isTypeAwaitable;
 
         var activityIndex = method.Body.Variables.Count;
         method.Body.Variables.Add(new(Context.Activity));
-
-        var isTypeAwaitable = CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo);
-        var hasAsyncStateMachineAttribute =
-            isTypeAwaitable && method.GetCustomAttribute(Context.AsyncStateMachineAttribute) != null;
 
         var (returnVariableIndex, leave) = ProcessReturn(method, isVoid, hasAsyncStateMachineAttribute, isTypeAwaitable
             ? _ => Ldloc(activityIndex, method.Body.Variables)
@@ -318,17 +326,20 @@ internal class StaticProxyEmitter
 
             leave = method.Body.Instructions[^2];
 
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse_S, leave));
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse, leave));
 
             GetAwaiter(method, ref index, awaitableInfo, Ldloca(
                 returnVariableIndex, awaitableInfo.AwaitableInfo.AwaitableType.IsValueType,
                 method.Body.Variables));
+
             method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
             method.Body.Instructions.Insert(index++, returnValueTagName == null
                 ? Instruction.Create(OpCodes.Ldnull)
                 : Instruction.Create(OpCodes.Ldstr, returnValueTagName));
 
-            method.Body.Instructions.Insert(index, Instruction.Create(OpCodes.Call, Context.ActivityAwaiterEmitter.GetActivityAwaiter(awaitableInfo.AwaitableInfo)));
+            method.Body.Instructions.Insert(index,
+                Instruction.Create(OpCodes.Call,
+                    Context.ActivityAwaiterEmitter.GetActivityAwaiter(awaitableInfo.AwaitableInfo)));
         }
         else
         {
@@ -370,7 +381,7 @@ internal class StaticProxyEmitter
                 var skip = method.Body.Instructions[--index];
 
                 method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
-                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse_S, skip));
+                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse, skip));
                 method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
                 method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Ldstr, returnValueTagName));
                 method.Body.Instructions.Insert(index++, Ldloc(returnVariableIndex, method.Body.Variables));
@@ -395,11 +406,67 @@ internal class StaticProxyEmitter
             var endFinally = Instruction.Create(OpCodes.Endfinally);
 
             method.Body.Instructions.Insert(index++, finallyHandler.HandlerStart);
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse_S, endFinally));
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse, endFinally));
             method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Call, Context.ActivityDispose));
             method.Body.Instructions.Insert(index, endFinally);
         }
+
+        method.Body.OptimizeMacros();
+    }
+
+    private static void ReplaceBody(MethodDefinition method, bool isVoid)
+    {
+        if (!ShouldGenerateMethod(method.Body.Instructions, isVoid)) return;
+
+        var newMethod = method.CreateCopyAndCleanBody(method.Name + "@");
+
+        method.DeclaringType.Methods.Add(newMethod);
+
+        for (var i = 0; i < method.Parameters.Count; i++)
+            method.Body.Instructions.Add(Ldarg(i, method.IsStatic, method.Parameters));
+
+        MethodReference mr = newMethod;
+
+        if (method.DeclaringType.HasGenericParameters)
+        {
+            var t = new GenericInstanceType(method.DeclaringType);
+
+            foreach (var p in method.DeclaringType.GenericParameters) t.GenericArguments.Add(p);
+
+            mr = new GenericInstanceMethod(mr.MakeHostInstanceGeneric(t));
+        }
+
+        if (newMethod.HasGenericParameters)
+        {
+            if (mr is not GenericInstanceMethod m) mr = m = new(newMethod);
+
+            foreach (var p in method.GenericParameters) m.GenericArguments.Add(p);
+        }
+
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Call, mr));
+
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
+    }
+
+    private static readonly IReadOnlyList<OpCode> SupportedJump = new[]
+        { OpCodes.Br_S, OpCodes.Leave_S, OpCodes.Br, OpCodes.Leave };
+
+    private static bool ShouldGenerateMethod(IList<Instruction> instructions, bool isVoid)
+    {
+        var list = new List<Instruction>(2) { instructions[^1] };
+
+        if (!isVoid && IsLdloc(instructions[^2])) list.Add(instructions[^2]);
+
+        for (var index = instructions.Count - 2; index > 0; index--)
+        {
+            var instruction = instructions[index];
+
+            // Unsupported jump
+            if (list.Contains(instruction.Operand) && !SupportedJump.Contains(instruction.OpCode)) return true;
+        }
+
+        return false;
     }
 
     private void EmitActivityCatch(MethodDefinition method, ref int index, ExceptionHandler catchHandler,
@@ -422,7 +489,7 @@ internal class StaticProxyEmitter
 
         method.Body.Instructions.Insert(index++, catchHandler.HandlerStart);
         method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
-        method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse_S, catchEnd));
+        method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse, catchEnd));
 
         method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
         method.Body.Instructions.Insert(index++, LdI4(2));
@@ -439,175 +506,148 @@ internal class StaticProxyEmitter
     private static (int, Instruction?) ProcessReturn(MethodDefinition method, bool isVoid,
         bool hasAsyncStateMachineAttribute, Func<int, Instruction>? createLeave)
     {
-        var checkLeaveS = method.Body.ExceptionHandlers.Count < 1 ||
-            method.Body.ExceptionHandlers[^1].HandlerEnd !=
-            method.Body.Instructions[isVoid ? ^1 : ^2];
+        var (variableIndex, raw) = RetOrBr2LeaveS(method.Body, hasAsyncStateMachineAttribute, isVoid);
+        if (variableIndex < 0 || createLeave == null) return (variableIndex, null);
 
-        var leaveCode = method.Body.Instructions[^1].Offset > byte.MaxValue ? OpCodes.Leave : OpCodes.Leave_S;
-
-        var variableIndex = -1;
-        Instruction? leave = null;
-        for (var index = method.Body.Instructions.Count - 1; index > 0; index--)
+        var leave = createLeave(variableIndex);
+        for (var index = method.Body.Instructions.Count - 2; index > 0; index--)
         {
-            if (method.Body.Instructions[index].OpCode != OpCodes.Ret)
-            {
-                var opCode = method.Body.Instructions[index].OpCode;
-                if (opCode != OpCodes.Br_S && opCode != OpCodes.Br) continue;
+            var instruction = method.Body.Instructions[index];
 
-                method.Body.Instructions[index].OpCode = opCode == OpCodes.Br ? OpCodes.Leave : OpCodes.Leave_S;
-                method.Body.Instructions[index].Operand = leave;
-
-                opCode = method.Body.Instructions[index - 1].OpCode;
-                if (opCode == OpCodes.Stloc_0 || opCode == OpCodes.Stloc_1 || opCode == OpCodes.Stloc_2 ||
-                    opCode == OpCodes.Stloc_3 || opCode == OpCodes.Stloc_S || opCode == OpCodes.Stloc)
-                    continue;
-            }
-
-            if (!isVoid && !IsLdloc(method.Body.Instructions[index - 1], method.Body.Variables, out _))
-            {
-                if (leave == null)
-                {
-                    variableIndex = method.Body.Variables.Count;
-                    method.Body.Variables.Add(new(method.ReturnType));
-                }
-
-                method.Body.Instructions.Insert(index++, Stloc(variableIndex, method.Body.Variables));
-            }
-
-            if (leave != null) // Replace ret with Leave_S
-                method.Body.Instructions[index] = Instruction.Create(leaveCode, leave);
-            else
-            {
-                if (isVoid)
-                {
-                    leave = createLeave == null ? method.Body.Instructions[index] : createLeave(variableIndex);
-
-                    if (checkLeaveS && CheckLeaveS(method, hasAsyncStateMachineAttribute, index, leave)) index++;
-                }
-                else if (variableIndex < 0 && IsLdloc(method.Body.Instructions[index - 1], method.Body.Variables,
-                             out variableIndex))
-                {
-                    leave = createLeave == null ? method.Body.Instructions[index - 1] : createLeave(variableIndex);
-
-                    if (checkLeaveS && CheckLeaveS(method, hasAsyncStateMachineAttribute, index - 1, leave)) index++;
-                }
-                else if (createLeave == null)
-                {
-                    leave = Ldloc(variableIndex, method.Body.Variables);
-
-                    if (checkLeaveS && CheckLeaveS(method, hasAsyncStateMachineAttribute, index, leave)) index++;
-
-                    method.Body.Instructions.Insert(index++, leave);
-                }
-                else
-                {
-                    if (checkLeaveS && CheckLeaveS(method, hasAsyncStateMachineAttribute, index,
-                            leave = createLeave(variableIndex))) index++;
-
-                    method.Body.Instructions.Insert(index++, Ldloc(variableIndex, method.Body.Variables));
-                }
-            }
-
-            if (hasAsyncStateMachineAttribute) break;
+            if (instruction.Operand == raw && SupportedJump.Contains(instruction.OpCode)) instruction.Operand = leave;
         }
 
-        return (variableIndex, createLeave == null ? null : leave);
+        return (variableIndex, leave);
 
-        static bool IsLdloc(Instruction instruction, Collection<VariableDefinition> variables, out int variableIndex)
+        static (int, Instruction) RetOrBr2LeaveS(MethodBody body, bool hasAsyncStateMachineAttribute, bool isVoid)
         {
-            if (instruction.OpCode == OpCodes.Ldloc_0)
+            var checkLeaveS = body.ExceptionHandlers.Count < 1 ||
+                body.ExceptionHandlers[^1].HandlerEnd !=
+                body.Instructions[isVoid ? ^1 : ^2];
+
+            var ret = body.Instructions[^1];
+            if (isVoid)
             {
-                variableIndex = 0;
-                return true;
-            }
+                if (hasAsyncStateMachineAttribute) return (-1, ret);
 
-            if (instruction.OpCode == OpCodes.Ldloc_1)
-            {
-                variableIndex = 1;
-                return true;
-            }
+                if (!SupportedJump.Contains(body.Instructions[^2].OpCode) && body.Instructions[^2].Operand != ret &&
+                    checkLeaveS)
+                    body.Instructions.Insert(body.Instructions.Count - 1, Instruction.Create(OpCodes.Leave, ret));
 
-            if (instruction.OpCode == OpCodes.Ldloc_2)
-            {
-                variableIndex = 2;
-                return true;
-            }
-
-            if (instruction.OpCode == OpCodes.Ldloc_3)
-            {
-                variableIndex = 3;
-                return true;
-            }
-
-            if (instruction.OpCode == OpCodes.Ldloc_S)
-            {
-                variableIndex = instruction.Operand is byte b
-                    ? b
-                    : variables.IndexOf((VariableDefinition)instruction.Operand);
-
-                return true;
-            }
-
-            if (instruction.OpCode == OpCodes.Ldloc)
-            {
-                variableIndex = instruction.Operand is ushort b
-                    ? b
-                    : variables.IndexOf((VariableDefinition)instruction.Operand);
-
-                return true;
-            }
-
-            variableIndex = -1;
-            return false;
-        }
-
-        static bool CheckLeaveS(MethodDefinition method, bool hasAsyncStateMachineAttribute, int index,
-            Instruction leave)
-        {
-            if (hasAsyncStateMachineAttribute) return false;
-
-            var instruction = method.Body.Instructions[index - 1];
-
-            if (instruction.Operand == leave)
-            {
-                if (instruction.OpCode == OpCodes.Leave_S || instruction.OpCode == OpCodes.Leave) return false;
-
-                if (instruction.OpCode == OpCodes.Br_S)
+                for (var index = body.Instructions.Count - 2; index > 0; index--)
                 {
-                    instruction.OpCode = OpCodes.Leave_S;
-
-                    return false;
+                    var instruction = body.Instructions[index];
+                    if (instruction.OpCode == OpCodes.Ret)
+                    {
+                        instruction.OpCode = OpCodes.Leave;
+                        instruction.Operand = ret;
+                    }
+                    else if (SupportedJump.Contains(instruction.OpCode) && instruction.Operand == ret)
+                        instruction.OpCode = OpCodes.Leave;
                 }
 
-                if (instruction.OpCode == OpCodes.Br)
+                return (-1, ret);
+            }
+
+            var ldRet = body.Instructions[^2];
+            if (!IsLdloc(body.Instructions[^2], body.Variables, out var variableIndex))
+            {
+                variableIndex = body.Variables.Count;
+
+                body.Variables.Add(new(body.Method.ReturnType));
+
+                var i = body.Instructions.Count - 1;
+                body.Instructions.Insert(i, ldRet = Ldloc(variableIndex, body.Variables));
+                if (!hasAsyncStateMachineAttribute && checkLeaveS)
+                    body.Instructions.Insert(i, Instruction.Create(OpCodes.Leave, ldRet));
+
+                body.Instructions.Insert(i, Stloc(variableIndex, body.Variables));
+            }
+            else if (!SupportedJump.Contains(body.Instructions[^3].OpCode) && body.Instructions[^3].Operand != ldRet &&
+                     checkLeaveS)
+                body.Instructions.Insert(body.Instructions.Count - 2, Instruction.Create(OpCodes.Leave, ldRet));
+
+            for (var index = body.Instructions.Count - 3; index > 0; index--)
+            {
+                var instruction = body.Instructions[index];
+                if (instruction.OpCode == OpCodes.Ret)
                 {
                     instruction.OpCode = OpCodes.Leave;
+                    instruction.Operand = ldRet;
 
-                    return false;
+                    if (IsLdloc(body.Instructions[index - 1])) body.Instructions.RemoveAt(--index);
+                    else body.Instructions.Insert(index, Stloc(variableIndex, body.Variables));
+                }
+                else if (SupportedJump.Contains(instruction.OpCode))
+                {
+                    if (instruction.Operand == ldRet) instruction.OpCode = OpCodes.Leave;
+                    else if (instruction.Operand == ret)
+                    {
+                        instruction.OpCode = OpCodes.Leave;
+                        instruction.Operand = ldRet;
+
+                        if (IsLdloc(body.Instructions[index - 1])) body.Instructions.RemoveAt(--index);
+                        else body.Instructions.Insert(index, Stloc(variableIndex, body.Variables));
+                    }
                 }
             }
 
-            if (instruction.OpCode == OpCodes.Br_S && instruction.Operand != leave)
-            {
-                instruction.OpCode = OpCodes.Leave_S;
-                instruction.Operand = leave;
+            return (variableIndex, ldRet);
+        }
+    }
 
-                return false;
-            }
+  private  static bool IsLdloc(Instruction instruction, IList<VariableDefinition> variables, out int variableIndex)
+    {
+        if (instruction.OpCode == OpCodes.Ldloc_0)
+        {
+            variableIndex = 0;
+            return true;
+        }
 
-            if (instruction.OpCode == OpCodes.Br && instruction.Operand != leave)
-            {
-                instruction.OpCode = OpCodes.Leave;
-                instruction.Operand = leave;
+        if (instruction.OpCode == OpCodes.Ldloc_1)
+        {
+            variableIndex = 1;
+            return true;
+        }
 
-                return false;
-            }
+        if (instruction.OpCode == OpCodes.Ldloc_2)
+        {
+            variableIndex = 2;
+            return true;
+        }
 
-            method.Body.Instructions.Insert(index, Instruction.Create(OpCodes.Leave_S, leave));
+        if (instruction.OpCode == OpCodes.Ldloc_3)
+        {
+            variableIndex = 3;
+            return true;
+        }
+
+        if (instruction.OpCode == OpCodes.Ldloc_S)
+        {
+            variableIndex = instruction.Operand is byte b
+                ? b
+                : variables.IndexOf((VariableDefinition)instruction.Operand);
 
             return true;
         }
+
+        if (instruction.OpCode == OpCodes.Ldloc)
+        {
+            variableIndex = instruction.Operand is ushort b
+                ? b
+                : variables.IndexOf((VariableDefinition)instruction.Operand);
+
+            return true;
+        }
+
+        variableIndex = -1;
+        return false;
     }
+
+    private static bool IsLdloc(Instruction instruction) =>
+        instruction.OpCode == OpCodes.Ldloc_0 || instruction.OpCode == OpCodes.Ldloc_1 ||
+        instruction.OpCode == OpCodes.Ldloc_2 || instruction.OpCode == OpCodes.Ldloc_3 ||
+        instruction.OpCode == OpCodes.Ldloc_S || instruction.OpCode == OpCodes.Ldloc;
 
     private static void ProcessHandler(MethodDefinition method, bool isVoid, int index,
         ExceptionHandler exceptionHandler)
@@ -687,7 +727,7 @@ internal class StaticProxyEmitter
         if (list.Count < 1) return returnValueTagName;
 
         method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
-        method.Body.Instructions.Insert(index, Instruction.Create(list.Count < 6 ? OpCodes.Brfalse_S : OpCodes.Brfalse,
+        method.Body.Instructions.Insert(index, Instruction.Create(OpCodes.Brfalse,
             method.Body.Instructions[index++]));
 
         method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
