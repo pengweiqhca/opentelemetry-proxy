@@ -76,7 +76,7 @@ internal class ActivityAwaiterEmitter
         IL_004a: ldloc.2
         IL_004b: call void class OpenTelemetry.StaticProxy.Fody.Tests.TestClass/ActivityAwaiter`1<int32>::OnCompleted(class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity, valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<!0>)
         IL_0050: ret*/
-        method.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse_S, brfalse));
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse, brfalse));
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_1));
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
@@ -119,6 +119,8 @@ IL_006c: ret*/
 
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
 
+        method.Body.OptimizeMacros();
+
         return method;
     }
 
@@ -147,11 +149,16 @@ IL_006c: ret*/
     .field private initonly valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<!T> _awaiter*/
         const FieldAttributes initOnly = FieldAttributes.Private | FieldAttributes.InitOnly;
 
-        FieldDefinition awaiter, activity, returnValueTagName;
-        type.Fields.Add(awaiter = new("_awaiter", initOnly, awaiterType));
-        type.Fields.Add(activity = new("_activity", initOnly, _context.Activity));
-        type.Fields.Add(returnValueTagName =
-            new("_returnValueTagName", initOnly, _context.TargetModule.TypeSystem.String));
+        type.Fields.Add(new("_awaiter", initOnly, awaiterType));
+        type.Fields.Add(new("_activity", initOnly, _context.Activity));
+        type.Fields.Add(new("_returnValueTagName", initOnly, _context.TargetModule.TypeSystem.String));
+
+        var type2 = _context.TargetModule.ImportReference(type);
+        if (type.HasGenericParameters)
+            type2 = type.MakeGenericInstanceType(type.GenericParameters.ToArray<TypeReference>());
+
+        var activity = new FieldReference("_activity", _context.Activity, type2);
+        var returnValueTagName = new FieldReference("_returnValueTagName", _context.TargetModule.TypeSystem.String, type2);
 
         var parameters = new[]
         {
@@ -182,10 +189,6 @@ IL_006c: ret*/
 
         type.Methods.Add(completed);
 
-        TypeReference type2 = type.HasGenericParameters
-            ? type.MakeGenericInstanceType(type.GenericParameters.ToArray<TypeReference>())
-            : type;
-
         #endregion
 
         #region ctor
@@ -203,14 +206,13 @@ IL_006c: ret*/
 
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_1));
-        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stfld, _context.TargetModule.ImportReference(awaiter)));
+        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stfld, _context.TargetModule.ImportReference(new FieldReference("_awaiter", awaiterType, type2), ctor)));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
-        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stfld, _context.TargetModule.ImportReference(activity)));
+        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stfld, activity));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_3));
-        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stfld,
-            _context.TargetModule.ImportReference(returnValueTagName)));
+        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stfld, returnValueTagName));
 
         /*IL_0014: ldarg.1
         IL_0015: callvirt instance class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity::get_Parent()
@@ -225,7 +227,7 @@ IL_006c: ret*/
 
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, _context.ActivityGetParent));
-        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse_S, ret));
+        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse, ret));
 
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, _context.ActivityGetParent));
@@ -244,21 +246,18 @@ IL_006c: ret*/
         IL_000c: call void class OpenTelemetry.StaticProxy.Fody.Tests.TestClass/ActivityAwaiter`1<!T>::OnCompleted(class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity, valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<!0>)
         IL_0011: ret*/
         onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
-        onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldfld,
-            _context.TargetModule.ImportReference(awaiter, onCompleted)));
+        onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldfld, _context.TargetModule.ImportReference(new FieldReference("_awaiter", awaiterType, type2), onCompleted)));
 
         onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
-        onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldfld,
-            _context.TargetModule.ImportReference(activity)));
+        onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldfld, activity));
 
         onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
-        onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldfld,
-            _context.TargetModule.ImportReference(returnValueTagName)));
+        onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Ldfld, returnValueTagName));
 
-        //onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Call, onCompletedStatic));
         onCompleted.Body.Instructions.Add(Instruction.Create(OpCodes.Call,
-            new MethodReference("OnCompleted", _context.TargetModule.TypeSystem.Void, type2)
+            new MethodReference("Completed", _context.TargetModule.TypeSystem.Void, type2)
             {
+                HasThis = false,
                 Parameters = { parameters[0], parameters[1], parameters[2], }
             }));
 
@@ -274,7 +273,7 @@ IL_006c: ret*/
         var finallyHandler = new ExceptionHandler(ExceptionHandlerType.Finally)
         {
             TryStart = awaiterType.IsValueType
-                ? Instruction.Create(OpCodes.Ldarga_S,
+                ? Instruction.Create(OpCodes.Ldarga,
                     completed.Parameters[0])
                 : Instruction.Create(OpCodes.Ldarg_0),
             HandlerStart = Instruction.Create(OpCodes.Ldarg_1),
@@ -315,14 +314,14 @@ IL_006c: ret*/
             awaiterType.IsValueType ? OpCodes.Call : OpCodes.Callvirt,
             getResult.MakeHostInstanceGeneric(awaiterType)));
 
-        var instruction = Instruction.Create(OpCodes.Leave_S, finallyHandler.HandlerEnd);
+        var instruction = Instruction.Create(OpCodes.Leave, finallyHandler.HandlerEnd);
         if (!getResult.ReturnType.HaveSameIdentity(_context.TargetModule.TypeSystem.Void))
         {
             completed.Body.Variables.Add(new(getResult.ReturnType));
 
             completed.Body.Instructions.Add(Instruction.Create(OpCodes.Stloc_1));
             completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
-            completed.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse_S, instruction));
+            completed.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse, instruction));
             completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_1));
             completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
             completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldloc_1));
@@ -348,7 +347,7 @@ IL_006c: ret*/
         completed.Body.Instructions.Add(Instruction.Create(OpCodes.Call, _context.ActivitySetStatus));
         completed.Body.Instructions.Add(Instruction.Create(OpCodes.Ldloc_0));
         completed.Body.Instructions.Add(Instruction.Create(OpCodes.Call, _context.RecordException));
-        completed.Body.Instructions.Add(Instruction.Create(OpCodes.Leave_S, finallyHandler.HandlerEnd));
+        completed.Body.Instructions.Add(Instruction.Create(OpCodes.Leave, finallyHandler.HandlerEnd));
 
         /*IL_0020: ldarg.0
           IL_0021: callvirt instance void [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity::Dispose()
@@ -360,6 +359,10 @@ IL_006c: ret*/
         completed.Body.Instructions.Add(finallyHandler.HandlerEnd);
 
         #endregion
+
+        ctor.Body.OptimizeMacros();
+        onCompleted.Body.OptimizeMacros();
+        completed.Body.OptimizeMacros();
 
         return (type, ctor, onCompleted, completed);
     }

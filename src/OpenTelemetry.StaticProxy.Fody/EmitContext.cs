@@ -108,7 +108,7 @@ internal class EmitContext
 
         SetName = targetModule.ImportReference(openTelemetryProxyModule
             .GetType("OpenTelemetry.Proxy.ActivityName")
-            .GetMethods().Single(static m => m.Name == nameof(SetName) && m.Parameters.Count == 3));
+            .GetMethods().Single(static m => m.Name == nameof(SetName) && m.Parameters.Count == 3 && m.Parameters[0].ParameterType.Name == "IReadOnlyCollection`1"));
 
         ActivityAttribute = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ActivityAttribute");
         ActivityNameAttribute = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ActivityNameAttribute");

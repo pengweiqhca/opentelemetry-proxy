@@ -1,5 +1,7 @@
 ﻿using Mono.Cecil;
 using Mono.Cecil.Rocks;
+using ICustomAttributeProvider = Mono.Cecil.ICustomAttributeProvider;
+using MethodAttributes = Mono.Cecil.MethodAttributes;
 
 namespace OpenTelemetry.StaticProxy.Fody;
 
@@ -186,4 +188,50 @@ internal static class Utilities
     public static bool IsFSharpCore(this IMetadataScope scope) => HaveSameIdentity(scope, FSharpCore);
 
     public static bool IsCoreLib(this IMetadataScope scope) => CoreLibRef.Any(x => x.HaveSameIdentity(scope));
+
+    public static MethodDefinition CreateCopyAndCleanBody(this MethodDefinition rawMethod, string newMethodName)
+    {
+        var newMethod = new MethodDefinition(newMethodName, rawMethod.Attributes, rawMethod.ReturnType);
+
+        newMethod.Attributes |= MethodAttributes.Private | MethodAttributes.Final;
+
+        newMethod.Attributes &= ~(MethodAttributes.Public | MethodAttributes.Family | MethodAttributes.Virtual);
+
+        foreach (var genericParameter in rawMethod.GenericParameters)
+            newMethod.GenericParameters.Add(genericParameter.CreateCopy(newMethod));
+
+        foreach (var parameterDefinition in rawMethod.Parameters) newMethod.Parameters.Add(parameterDefinition);
+
+        if (!rawMethod.HasBody) return newMethod;
+
+        newMethod.Body.InitLocals = rawMethod.Body.InitLocals;
+
+        foreach (var variableDefinition in rawMethod.Body.Variables)
+            newMethod.Body.Variables.Add(variableDefinition);
+
+        foreach (var exceptionHandler in rawMethod.Body.ExceptionHandlers)
+            newMethod.Body.ExceptionHandlers.Add(exceptionHandler);
+
+        foreach (var instruction in rawMethod.Body.Instructions) newMethod.Body.Instructions.Add(instruction);
+
+        newMethod.Body.OptimizeMacros();
+
+        rawMethod.Body.Variables.Clear();
+        rawMethod.Body.ExceptionHandlers.Clear();
+        rawMethod.Body.Instructions.Clear();
+
+        return newMethod;
+    }
+
+    private static GenericParameter CreateCopy(this GenericParameter original, IGenericParameterProvider owner)
+    {
+        var copy = new GenericParameter(original.Name, owner)
+        {
+            Attributes = original.Attributes
+        };
+
+        foreach(var constraint in original.Constraints) copy.Constraints.Add(constraint);
+
+        return copy;
+    }
 }

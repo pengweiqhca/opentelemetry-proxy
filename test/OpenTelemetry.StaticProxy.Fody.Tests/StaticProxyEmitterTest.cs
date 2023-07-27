@@ -448,7 +448,7 @@ public class StaticProxyEmitterTest
 
     private static Assembly SaveAndLoad(StaticProxyEmitter emitter, ITestOutputHelper output)
     {
-        var path = Path.Combine(AppContext.BaseDirectory, Path.GetTempFileName());
+        var path = Path.Combine(AppContext.BaseDirectory, Path.GetTempFileName() + ".dll");
 
         emitter.Context.TargetModule.Assembly.Write(path);
 
@@ -507,12 +507,19 @@ public static class StaticProxyEmitterTestClass
         }
     }
 
-    public static void Void() => Console.WriteLine("abc");
+    public static void Void()
+    {
+        if (DateTime.Now.Second < 10) return;
+
+        Console.WriteLine("abc");
+    }
 
     public static void TryCatchVoid()
     {
         try
         {
+            if (DateTime.Now.Second < 10) return;
+
             Console.WriteLine("abc");
         }
         finally

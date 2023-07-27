@@ -1,7 +1,6 @@
 ﻿using Mono.Cecil;
 using Mono.Cecil.Cil;
 using OpenTelemetry.StaticProxy.Fody;
-using System.Diagnostics.CodeAnalysis;
 
 // ReSharper disable once CheckNamespace
 namespace Microsoft.Extensions.Internal;
