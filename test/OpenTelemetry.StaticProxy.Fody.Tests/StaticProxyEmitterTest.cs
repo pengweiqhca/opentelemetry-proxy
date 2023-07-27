@@ -28,7 +28,7 @@ public class StaticProxyEmitterTest
 
         var assembly = SaveAndLoad(emitter, _output);
 
-        var type = assembly.GetTypes().Single(t => t.Name.StartsWith("@ActivitySource@"));
+        var type = assembly.GetTypes().Single(t => t.Name == "@ActivitySource@");
 
         var field = type.GetField($"{name}@{version}", BindingFlags.Static | BindingFlags.Public)!;
 
