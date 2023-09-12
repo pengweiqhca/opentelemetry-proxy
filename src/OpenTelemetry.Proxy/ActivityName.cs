@@ -2,11 +2,11 @@
 
 public static class ActivityName
 {
-    private static readonly AsyncLocal<NameHolder?> Name = new();
+    private static readonly AsyncLocal<ValueHolder?> Holder = new();
 
     internal static (string? Name, IEnumerable<KeyValuePair<string, object?>>? Tags) GetName()
     {
-        if (Name.Value is not { } holder || holder.AvailableTimes == 0) return default;
+        if (Holder.Value is not { } holder || holder.AvailableTimes == 0) return default;
 
         if (holder.AvailableTimes < 0 || Interlocked.Decrement(ref holder.AvailableTimes) >= 0)
             return (holder.Name, holder.Tags);
@@ -19,30 +19,38 @@ public static class ActivityName
     public static IDisposable SetName(string name, IReadOnlyCollection<KeyValuePair<string, object?>>? tags = null,
         int readTimes = 1) => SetName(tags, name, readTimes);
 
+    public static IDisposable SetName(string name, string tagName, object? tagValue, int readTimes = 1) =>
+        SetName(new[] { new KeyValuePair<string, object?>(tagName, tagValue) }, name, readTimes);
+
     public static IDisposable SetName(IReadOnlyCollection<KeyValuePair<string, object?>> tags, int readTimes = 1) =>
         SetName(tags, null, readTimes);
 
     public static IDisposable SetName(IReadOnlyCollection<KeyValuePair<string, object?>>? tags, string? name,
         int readTimes = 1)
     {
-        var holder = Name.Value;
+        var holder = Holder.Value;
 
-        holder?.Clear();
+        if (holder != null)
+        {
+            // If the current holder hava no name, and the new holder only have name, then merge them.
+            if (tags == null && name != null && holder.Name == null) tags = holder.Tags;
 
-        Name.Value = (tags != null || name != null) && readTimes != 0
+            holder.Clear();
+        }
+
+        Holder.Value = (tags != null || name != null) && readTimes != 0
             ? new() { Name = name, Tags = tags, AvailableTimes = readTimes }
             : null;
 
         return Disposable.Instance;
     }
 
-    private sealed class NameHolder
+    private sealed class ValueHolder
     {
-        // ReSharper disable once MemberHidesStaticFromOuterClass
         public string? Name;
 
-        // ReSharper disable once MemberHidesStaticFromOuterClass
         public IReadOnlyCollection<KeyValuePair<string, object?>>? Tags;
+
         public int AvailableTimes;
 
         public void Clear()
