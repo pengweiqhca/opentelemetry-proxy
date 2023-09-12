@@ -36,6 +36,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenTelemetry.Proxy.Tests.Common", "test\OpenTelemetry.Proxy.Tests.Common\OpenTelemetry.Proxy.Tests.Common.csproj", "{32C63373-98BA-48AD-96D5-B08FB0D026C5}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "demo", "demo", "{513A2B43-4F20-4013-961A-6644DB084610}"
+	ProjectSection(SolutionItems) = preProject
+		demo\Directory.Build.props = demo\Directory.Build.props
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenTelemetry.DynamicProxy.Demo", "demo\OpenTelemetry.DynamicProxy.Demo\OpenTelemetry.DynamicProxy.Demo.csproj", "{FCE0BE4D-E709-4AEA-8DE0-9119BAA78872}"
 EndProject
