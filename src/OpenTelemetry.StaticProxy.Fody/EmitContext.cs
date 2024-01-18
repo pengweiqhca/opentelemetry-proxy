@@ -18,7 +18,7 @@ internal class EmitContext
 
     public MethodReference ActivitySetCurrent { get; }
 
-    public MethodReference ActivitySetTag { get; }
+    public MethodReference ActivitySetTagEnumerable { get; }
 
     public TypeReference ActivitySource { get; }
 
@@ -88,7 +88,9 @@ internal class EmitContext
 
         ActivitySetCurrent = targetModule.ImportReference(activity.Methods.Single(static m => m.Name == "set_Current"));
 
-        ActivitySetTag = targetModule.ImportReference(activity.Methods.Single(static m => m.Name == "SetTag"));
+        ActivitySetTagEnumerable = targetModule.ImportReference(openTelemetryProxyModule
+            .GetType("OpenTelemetry.Proxy.ActivityExtensions")
+            .GetMethods().Single(static m => m.Name == "SetTagEnumerable"));
 
         ActivitySource = targetModule.ImportReference(activitySource);
         ActivitySourceCtor =

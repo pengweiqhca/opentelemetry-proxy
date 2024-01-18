@@ -389,7 +389,7 @@ internal class StaticProxyEmitter
                 if (method.ReturnType.IsValueType || method.ReturnType.IsGenericParameter)
                     method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Box, method.ReturnType));
 
-                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Callvirt, Context.ActivitySetTag));
+                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Call, Context.ActivitySetTagEnumerable));
                 method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Pop));
 
                 index++;
@@ -741,7 +741,7 @@ internal class StaticProxyEmitter
         {
             foreach (var instruction in tag) method.Body.Instructions.Insert(index++, instruction);
 
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Callvirt, Context.ActivitySetTag));
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Call, Context.ActivitySetTagEnumerable));
         }
 
         method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Pop));

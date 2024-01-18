@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Internal;
+using OpenTelemetry.Proxy;
 using OpenTelemetry.Trace;
 
 namespace OpenTelemetry.DynamicProxy;
@@ -50,7 +51,7 @@ public class ActivityInvoker : IActivityInvoker
         var func = ActivityInvokerHelper.Convert(invocation.Method.ReturnType);
         if (func == null)
         {
-            if (_returnValueTagName != null) activity.SetTag(_returnValueTagName, invocation.ReturnValue);
+            if (_returnValueTagName != null) activity.SetTagEnumerable(_returnValueTagName, invocation.ReturnValue);
 
             activity.Dispose();
 
@@ -88,7 +89,7 @@ public class ActivityInvoker : IActivityInvoker
             {
                 var result = awaiter.GetResult();
 
-                if (returnValueTagName != null) activity.SetTag(returnValueTagName, result);
+                if (returnValueTagName != null) activity.SetTagEnumerable(returnValueTagName, result);
             }
             catch (Exception ex)
             {

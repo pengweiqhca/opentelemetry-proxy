@@ -328,7 +328,7 @@ IL_006c: ret*/
             if (getResult.ReturnType.IsValueType || getResult.ReturnType.IsGenericParameter)
                 completed.Body.Instructions.Add(Instruction.Create(OpCodes.Box, getResult.ReturnType));
 
-            completed.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, _context.ActivitySetTag));
+            completed.Body.Instructions.Add(Instruction.Create(OpCodes.Call, _context.ActivitySetTagEnumerable));
             completed.Body.Instructions.Add(Instruction.Create(OpCodes.Pop));
         }
 

@@ -15,7 +15,7 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
     private static readonly ConstructorInfo KeyValuePairCtor =
         typeof(KeyValuePair<string, object?>).GetConstructors().Single();
 
-    private static readonly MethodInfo SetTag = typeof(Activity).GetMethod(nameof(Activity.SetTag))!;
+    private static readonly MethodInfo SetTagEnumerable = typeof(ActivityExtensions).GetMethod(nameof(ActivityExtensions.SetTagEnumerable))!;
 
     private static readonly MethodInfo GetArgumentValue =
         typeof(IInvocation).GetMethod(nameof(IInvocation.GetArgumentValue))!;
@@ -98,7 +98,7 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
                 if (value.Type.IsValueType || value.Type.IsGenericParameter)
                     value = Expression.Convert(value, typeof(object));
 
-                return Expression.Call(activity, SetTag, Expression.Constant(kv.Key), value);
+                return Expression.Call(SetTagEnumerable, activity, Expression.Constant(kv.Key), value);
             })), invocation, activity).Compile();
     }
 

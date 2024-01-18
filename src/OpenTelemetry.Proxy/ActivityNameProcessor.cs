@@ -10,8 +10,6 @@ public class ActivityNameProcessor : BaseProcessor<Activity>
 
         if (name != null) data.DisplayName = name;
 
-        if (tags == null) return;
-
-        foreach (var kv in tags) data.SetTag(kv.Key, kv.Value);
+        if (tags != null) data.SetTag(tags);
     }
 }

@@ -65,7 +65,7 @@ public class DemoClassProxy : DemoClass
         {
             var result = await base.Demo3().ConfigureAwait(false);
 
-            activity?.SetTag(ActivityTagAttribute.ReturnValueTagName, result);
+            activity?.SetTagEnumerable(ActivityTagAttribute.ReturnValueTagName, result);
 
             return result;
         }
@@ -89,7 +89,7 @@ public class DemoClassProxy : DemoClass
         {
             var result = await base.Demo4().ConfigureAwait(false);
 
-            activity?.SetTag("returnvalue", result);
+            activity?.SetTagEnumerable("returnvalue", result);
 
             return result;
         }
