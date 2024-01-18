@@ -8,6 +8,7 @@ using OpenTelemetry.Exporter;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Proxy;
+using OpenTelemetry.Proxy.Demo;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -43,7 +44,13 @@ var app = builder.Build();
 app.Map("/", static context =>
 {
     if (Activity.Current is { } activity)
-        context.Response.Headers["x-trace-id"] = activity.TraceId.ToString();
+    {
+        context.Response.Headers["x-trace-id"] = activity.Id;
+
+        var values = context.Request.Query["traceParent"];
+        if (values.Count > 0 && ActivityContext.TryParse(values[0], null, out var activityContext))
+            activity.AddLink(new(activityContext, new() { { "abc", "def" }, { "now", DateTime.Now } }));
+    }
 
     return context.RequestServices.GetRequiredService<DemoClass>().Demo(DateTime.Now.Second);
 });
