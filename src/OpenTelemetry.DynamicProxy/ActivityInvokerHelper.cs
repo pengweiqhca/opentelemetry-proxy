@@ -7,7 +7,7 @@ namespace OpenTelemetry.DynamicProxy;
 
 internal static class ActivityInvokerHelper
 {
-    private static readonly ConcurrentDictionary<Type, Func<object, ObjectMethodExecutorAwaitable>?> Factories = new();
+    private static readonly ConcurrentDictionary<Type, Func<object, ObjectMethodExecutorAwaitable>?> Factories = [];
 
     public static IActivityInvoker Noop { get; } = new NoopActivityInvoker();
 

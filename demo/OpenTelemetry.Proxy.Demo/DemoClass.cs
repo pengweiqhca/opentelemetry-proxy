@@ -41,7 +41,7 @@ public class DemoClass
         Console.WriteLine($"Demo2 end: {_asyncLocal.Value}");
     }
 
-    [Activity(Tags = new[] { ActivityTagAttribute.ReturnValueTagName })]
+    [Activity(Tags = [ActivityTagAttribute.ReturnValueTagName])]
     public virtual async Task<int> Demo3()
     {
         Console.WriteLine($"Demo3 begin: {_asyncLocal.Value}");

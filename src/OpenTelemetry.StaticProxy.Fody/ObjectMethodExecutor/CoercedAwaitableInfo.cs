@@ -5,13 +5,11 @@ using OpenTelemetry.StaticProxy.Fody;
 // ReSharper disable once CheckNamespace
 namespace Microsoft.Extensions.Internal;
 
-internal readonly struct CoercedAwaitableInfo
+internal readonly struct CoercedAwaitableInfo(AwaitableInfo awaitableInfo)
 {
-    public AwaitableInfo AwaitableInfo { get; }
+    public AwaitableInfo AwaitableInfo { get; } = awaitableInfo;
 
     public IEnumerable<Instruction>? CoercerExpression { get; }
-
-    public CoercedAwaitableInfo(AwaitableInfo awaitableInfo) => AwaitableInfo = awaitableInfo;
 
     public CoercedAwaitableInfo(IEnumerable<Instruction> coercerExpression, AwaitableInfo coercedAwaitableInfo)
         : this(coercedAwaitableInfo) => CoercerExpression = coercerExpression;

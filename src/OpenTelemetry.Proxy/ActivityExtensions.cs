@@ -5,7 +5,7 @@ namespace OpenTelemetry.Proxy;
 
 public static class ActivityExtensions
 {
-    private static readonly ConcurrentDictionary<Type, Action<Activity, string, object>?> CacheDictionary = new();
+    private static readonly ConcurrentDictionary<Type, Action<Activity, string, object>?> CacheDictionary = [];
     private static readonly MethodInfo EnumerateMethod = typeof(ActivityExtensions).GetMethod(nameof(Enumerate), BindingFlags.Static | BindingFlags.NonPublic)!;
 
     public static Activity SetTag(this Activity activity, IEnumerable<KeyValuePair<string, object?>> tags)

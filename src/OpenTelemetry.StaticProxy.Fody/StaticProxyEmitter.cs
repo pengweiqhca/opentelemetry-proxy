@@ -8,13 +8,11 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace OpenTelemetry.StaticProxy.Fody;
 
-internal class StaticProxyEmitter
+internal class StaticProxyEmitter(EmitContext context)
 {
     private TypeDefinition? _activitySource;
 
-    public EmitContext Context { get; }
-
-    public StaticProxyEmitter(EmitContext context) => Context = context;
+    public EmitContext Context { get; } = context;
 
     public void Emit()
     {
@@ -450,8 +448,7 @@ internal class StaticProxyEmitter
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
     }
 
-    private static readonly IReadOnlyList<OpCode> SupportedJump = new[]
-        { OpCodes.Br_S, OpCodes.Leave_S, OpCodes.Br, OpCodes.Leave };
+    private static readonly IReadOnlyList<OpCode> SupportedJump = [OpCodes.Br_S, OpCodes.Leave_S, OpCodes.Br, OpCodes.Leave];
 
     private static bool ShouldGenerateMethod(IList<Instruction> instructions, bool isVoid)
     {

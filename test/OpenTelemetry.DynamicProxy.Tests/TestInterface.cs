@@ -19,10 +19,10 @@ public interface ITestInterface
 
     ValueTask Method4([ActivityTag] int delay);
 
-    [Activity(Tags = new[] { "Field", ActivityTagAttribute.ReturnValueTagName })]
+    [Activity(Tags = ["Field", ActivityTagAttribute.ReturnValueTagName])]
     ValueTask<int> Method5([ActivityTag] int delay);
 
-    [Activity(Tags = new[] { nameof(Now) })]
+    [Activity(Tags = [nameof(Now)])]
     TestExceptionAwaitable<int> Method6([ActivityTag] int delay);
 }
 
@@ -67,7 +67,7 @@ public class TestInterface1 : ITestInterface
 public class TestExceptionAwaitable<T>
 {
     private bool _isCompleted;
-    private readonly List<Action> _onCompletedCallbacks = new();
+    private readonly List<Action> _onCompletedCallbacks = [];
 
     public TestExceptionAwaitable(int delay) => ThreadPool.QueueUserWorkItem(_ =>
     {
@@ -85,18 +85,14 @@ public class TestExceptionAwaitable<T>
 
     public TestAwaiter GetAwaiter() => new(this);
 
-    public readonly struct TestAwaiter : INotifyCompletion
+    public readonly struct TestAwaiter(TestExceptionAwaitable<T> owner) : INotifyCompletion
     {
-        private readonly TestExceptionAwaitable<T> _owner;
-
-        public TestAwaiter(TestExceptionAwaitable<T> owner) : this() => _owner = owner;
-
-        public bool IsCompleted => _owner._isCompleted;
+        public bool IsCompleted => owner._isCompleted;
 
         public void OnCompleted(Action continuation)
         {
-            if (_owner._isCompleted) continuation();
-            else _owner._onCompletedCallbacks.Add(continuation);
+            if (owner._isCompleted) continuation();
+            else owner._onCompletedCallbacks.Add(continuation);
         }
 
         public T GetResult() => throw new NotSupportedException();

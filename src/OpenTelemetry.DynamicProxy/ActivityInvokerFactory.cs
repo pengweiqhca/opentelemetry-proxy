@@ -20,14 +20,14 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
     private static readonly MethodInfo GetArgumentValue =
         typeof(IInvocation).GetMethod(nameof(IInvocation.GetArgumentValue))!;
 
-    private readonly Dictionary<Type, Dictionary<MethodInfo, IActivityInvoker>> _activityInvokers = new();
+    private readonly Dictionary<Type, Dictionary<MethodInfo, IActivityInvoker>> _activityInvokers = [];
 
-    private readonly ConcurrentDictionary<Type, ActivitySource> _activitySources = new();
+    private readonly ConcurrentDictionary<Type, ActivitySource> _activitySources = [];
 
     public void Invoke(IInvocation invocation, ActivityType activityType)
     {
         if (!_activityInvokers.TryGetValue(invocation.TargetType, out var activityInvokers))
-            _activityInvokers[invocation.TargetType] = activityInvokers = new();
+            _activityInvokers[invocation.TargetType] = activityInvokers = [];
 
         if (!activityInvokers.TryGetValue(invocation.Method, out var invoker))
         {

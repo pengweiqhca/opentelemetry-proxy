@@ -58,7 +58,7 @@ public static class ModuleWeaverTestClass
                 Assert.IsType<int>(nameHolder.GetType().GetField("AvailableTimes")?.GetValue(nameHolder)));
     }
 
-    [ActivityName(Tags = new[] { nameof(delay) })]
+    [ActivityName(Tags = [nameof(delay)])]
     public static async ValueTask<ActivityName> GetActivityNameAsync(int delay)
     {
         await Task.Delay(100).ConfigureAwait(false);
@@ -66,11 +66,11 @@ public static class ModuleWeaverTestClass
         return InternalGetActivityName();
     }
 
-    [ActivityName(Tags = new[] { nameof(Now) })]
+    [ActivityName(Tags = [nameof(Now)])]
     public static TestAwaitable<ActivityName> GetActivityNameAwaitable(int delay) =>
         new(InternalGetActivityName);
 
-    [Activity(Tags = new[] { nameof(delay) })]
+    [Activity(Tags = [nameof(delay)])]
     public static Activity? GetCurrentActivity(int delay) => Activity.Current;
 
     private static async Task<Activity?> CurrentActivityAsync(int delay)
@@ -101,11 +101,11 @@ public static class ModuleWeaverTestClass
 
     public static DateTime Now { get; } = new(2024, 1, 1);
 
-    [Activity(Tags = new[] { nameof(Now) })]
+    [Activity(Tags = [nameof(Now)])]
     public static FSharpAsync<Activity?> GetCurrentActivityFSharpAsync(int delay) =>
         FSharpAsync.AwaitTask(CurrentActivityAsync(delay));
 
-    [Activity(Tags = new[] { nameof(Now) })]
+    [Activity(Tags = [nameof(Now)])]
     public static TestAwaitable<Activity?> GetCurrentActivityAwaitable([ActivityTag] int delay) =>
         new(static () => Activity.Current);
 
@@ -125,6 +125,6 @@ public static class ModuleWeaverTestClass
 
     private static object? A() => null;
 
-    [Activity(Tags = new[] { ActivityTagAttribute.ReturnValueTagName })]
+    [Activity(Tags = [ActivityTagAttribute.ReturnValueTagName])]
     public static Task<int> ReturnValue(int a) => Task.FromResult(a + 1);
 }

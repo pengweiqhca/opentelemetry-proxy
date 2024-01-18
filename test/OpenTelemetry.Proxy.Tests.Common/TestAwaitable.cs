@@ -6,7 +6,7 @@ public class TestAwaitable
 {
     private bool _result;
     private bool _isCompleted;
-    private readonly List<Action> _onCompletedCallbacks = new();
+    private readonly List<Action> _onCompletedCallbacks = [];
 
     public TestAwaitable(Func<bool> resultFunc) => ThreadPool.QueueUserWorkItem(static state =>
     {
@@ -28,26 +28,17 @@ public class TestAwaitable
 
     public TestAwaiter<bool> GetAwaiter() => new(this, () => this._result);
 
-    public readonly struct TestAwaiter<TResult> : INotifyCompletion
+    public readonly struct TestAwaiter<TResult>(TestAwaitable owner, Func<TResult> result) : INotifyCompletion
     {
-        private readonly TestAwaitable _owner;
-        private readonly Func<TResult> _result;
-
-        public TestAwaiter(TestAwaitable owner, Func<TResult> result)
-        {
-            _owner = owner;
-            _result = result;
-        }
-
-        public bool IsCompleted => _owner._isCompleted;
+        public bool IsCompleted => owner._isCompleted;
 
         public void OnCompleted(Action continuation)
         {
-            if (_owner._isCompleted) continuation();
-            else _owner._onCompletedCallbacks.Add(continuation);
+            if (owner._isCompleted) continuation();
+            else owner._onCompletedCallbacks.Add(continuation);
         }
 
-        public TResult GetResult() => _result();
+        public TResult GetResult() => result();
     }
 }
 
@@ -55,7 +46,7 @@ public class TestAwaitable<TResult>
 {
     private TResult _result = default!;
     private bool _isCompleted;
-    private readonly List<Action> _onCompletedCallbacks = new();
+    private readonly List<Action> _onCompletedCallbacks = [];
 
     public TestAwaitable(Func<TResult> resultFunc) => ThreadPool.QueueUserWorkItem(static state =>
     {
@@ -77,20 +68,16 @@ public class TestAwaitable<TResult>
 
     public TestAwaiter GetAwaiter() => new(this);
 
-    public readonly struct TestAwaiter : INotifyCompletion
+    public readonly struct TestAwaiter(TestAwaitable<TResult> owner) : INotifyCompletion
     {
-        private readonly TestAwaitable<TResult> _owner;
-
-        public TestAwaiter(TestAwaitable<TResult> owner) => _owner = owner;
-
-        public bool IsCompleted => _owner._isCompleted;
+        public bool IsCompleted => owner._isCompleted;
 
         public void OnCompleted(Action continuation)
         {
-            if (_owner._isCompleted) continuation();
-            else _owner._onCompletedCallbacks.Add(continuation);
+            if (owner._isCompleted) continuation();
+            else owner._onCompletedCallbacks.Add(continuation);
         }
 
-        public TResult GetResult() => _owner._result;
+        public TResult GetResult() => owner._result;
     }
 }

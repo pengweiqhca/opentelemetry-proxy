@@ -10,12 +10,9 @@ using Xunit.Abstractions;
 
 namespace OpenTelemetry.StaticProxy.Fody.Tests;
 
-public class ActivityAwaiterEmitterTest
+public class ActivityAwaiterEmitterTest(ITestOutputHelper output)
 {
     private static readonly string Name = Guid.NewGuid().ToString();
-    private readonly ITestOutputHelper _output;
-
-    public ActivityAwaiterEmitterTest(ITestOutputHelper output) => _output = output;
 
     [Theory]
     [MemberData(nameof(TestData))]
@@ -39,9 +36,9 @@ public class ActivityAwaiterEmitterTest
 
         Assert.NotNull(awaitable);
 
-        var awaiter = getAwaiter.Invoke(awaitable, Array.Empty<object>());
+        var awaiter = getAwaiter.Invoke(awaitable, []);
 
-        var type = SaveAndLoad(context, _output).GetTypes()[0];
+        var type = SaveAndLoad(context, output).GetTypes()[0];
 
         if (awaiterType.IsGenericType) type = type.MakeGenericType(awaiterType.GenericTypeArguments);
 
@@ -54,7 +51,7 @@ public class ActivityAwaiterEmitterTest
             .Callback(tcs.SetResult);
 
         type.GetMethod(nameof(TaskAwaiter.OnCompleted), BindingFlags.Public | BindingFlags.Static)!
-            .Invoke(null, new[] { awaiter, mock.Object, null });
+            .Invoke(null, [awaiter, mock.Object, null]);
 
         if (await Task.WhenAny(tcs.Task, Task.Delay(5000)).ConfigureAwait(false) != tcs.Task)
             Assert.Fail("Timeout");
@@ -74,75 +71,75 @@ public class ActivityAwaiterEmitterTest
 
     public static IEnumerable<object[]> TestData()
     {
-        yield return new object[]
-        {
+        yield return
+        [
             true, () => Task.CompletedTask
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             false, () => Task.FromException(new(Name))
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             true, () => Task.Delay(1000)
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             true, () => Task.FromResult(1)
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             false, () => Task.FromException<int>(new(Name))
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             true, () => Task.Delay(1000).ContinueWith(_ => 1)
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             true, () => new ValueTask()
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             true, () => new ValueTask(Task.Delay(1000))
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             true, () => new ValueTask<int>(1)
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             true, () => new ValueTask(Task.Delay(1000).ContinueWith(_ => 1))
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             true, () => new TestAwaitable(() => true)
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             true, () => new TestAwaitable<int>(() => 1)
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             true, () => new TestAwaitableWithICriticalNotifyCompletion()
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             true, () => new TestAwaitableWithoutICriticalNotifyCompletion()
-        };
+        ];
     }
 
     private static EmitContext GetContext() => new(

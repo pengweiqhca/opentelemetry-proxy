@@ -47,15 +47,15 @@ internal static class ObjectMethodExecutorFSharpSupport
             (Microsoft.FSharp.Control.FSharpAsync<TResult>)fsharpAsync,
             FSharpOption<TaskCreationOptions>.None,
             FSharpOption<CancellationToken>.None);*/
-        coerceToAwaitableExpression = new[]
-        {
+        coerceToAwaitableExpression =
+        [
             Instruction.Create(OpCodes.Call, possibleFSharpAsyncType.Module
                 .ImportReference(_fsharpOptionOfTaskCreationOptionsNonePropertyGetMethod)),
             Instruction.Create(OpCodes.Call, possibleFSharpAsyncType.Module
                 .ImportReference(_fsharpOptionOfCancellationTokenNonePropertyGetMethod)),
             Instruction.Create(OpCodes.Call, possibleFSharpAsyncType.Module.ImportReference(
                 new GenericInstanceMethod(_fsharpAsyncStartAsTask) { GenericArguments = { awaiterResultType } }))
-        };
+        ];
 
         return true;
     }

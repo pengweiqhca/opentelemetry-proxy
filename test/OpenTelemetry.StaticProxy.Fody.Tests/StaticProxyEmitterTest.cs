@@ -9,12 +9,8 @@ using Xunit.Abstractions;
 
 namespace OpenTelemetry.StaticProxy.Fody.Tests;
 
-public class StaticProxyEmitterTest
+public class StaticProxyEmitterTest(ITestOutputHelper output)
 {
-    private readonly ITestOutputHelper _output;
-
-    public StaticProxyEmitterTest(ITestOutputHelper output) => _output = output;
-
     [Fact]
     public void AddActivitySourceTest()
     {
@@ -26,7 +22,7 @@ public class StaticProxyEmitterTest
         emitter.AddActivitySource(name, version);
         emitter.AddActivitySource(name, version);
 
-        var assembly = SaveAndLoad(emitter, _output);
+        var assembly = SaveAndLoad(emitter, output);
 
         var type = assembly.GetTypes().Single(t => t.Name == "@ActivitySource@");
 
@@ -51,14 +47,14 @@ public class StaticProxyEmitterTest
             .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
             .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.SuppressInstrumentationScope)), false);
 
-        var assembly = SaveAndLoad(emitter, _output);
+        var assembly = SaveAndLoad(emitter, output);
 
         var method = assembly.GetType(typeof(StaticProxyEmitterTestClass).FullName!)!.GetMethod(
             nameof(StaticProxyEmitterTestClass.SuppressInstrumentationScope));
 
         Assert.NotNull(method);
 
-        Assert.True(Assert.IsType<bool>(method.Invoke(null, Array.Empty<object?>())));
+        Assert.True(Assert.IsType<bool>(method.Invoke(null, [])));
 
         Assert.False(StaticProxyEmitterTestClass.SuppressInstrumentationScope());
     }
@@ -82,7 +78,7 @@ public class StaticProxyEmitterTest
                 .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.ActivityName)),
             false, activityName, availableTimes);
 
-        var assembly = SaveAndLoad(emitter, _output);
+        var assembly = SaveAndLoad(emitter, output);
 
         var method = assembly.GetType(typeof(StaticProxyEmitterTestClass).FullName!)!.GetMethod(
             nameof(StaticProxyEmitterTestClass.ActivityName));
@@ -90,7 +86,7 @@ public class StaticProxyEmitterTest
         Assert.NotNull(method);
 
         var tuple = Assert.IsType<Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int>>(
-            method.Invoke(null, new object?[] { 123 }));
+            method.Invoke(null, [123]));
 
         Assert.Equal(activityName, tuple.Item1);
         Assert.NotNull(tuple.Item2);
@@ -122,7 +118,7 @@ public class StaticProxyEmitterTest
                 .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.GetCurrentActivity)),
             false, emitter.AddActivitySource(name, version), activityName, (int)ActivityKind.Client);
 
-        var assembly = SaveAndLoad(emitter, _output);
+        var assembly = SaveAndLoad(emitter, output);
 
         var list = new List<Activity>();
 
@@ -140,7 +136,7 @@ public class StaticProxyEmitterTest
 
         Assert.NotNull(method);
 
-        var result = method.Invoke(null, Array.Empty<object?>());
+        var result = method.Invoke(null, []);
 
         Assert.Equal(Assert.Single(list), Assert.IsType<Activity>(result));
 
@@ -161,7 +157,7 @@ public class StaticProxyEmitterTest
                 .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.TryCatch)),
             false, emitter.AddActivitySource(name, version), activityName, (int)ActivityKind.Client);
 
-        var assembly = SaveAndLoad(emitter, _output);
+        var assembly = SaveAndLoad(emitter, output);
 
         var list = new List<Activity>();
 
@@ -179,7 +175,7 @@ public class StaticProxyEmitterTest
 
         Assert.NotNull(method);
 
-        var result = method.Invoke(null, Array.Empty<object?>());
+        var result = method.Invoke(null, []);
 
         Assert.Equal(Assert.Single(list), Assert.IsType<Activity>(result));
     }
@@ -193,14 +189,14 @@ public class StaticProxyEmitterTest
             .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
             .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.Void)), true);
 
-        var assembly = SaveAndLoad(emitter, _output);
+        var assembly = SaveAndLoad(emitter, output);
 
         var method = assembly.GetType(typeof(StaticProxyEmitterTestClass).FullName!)!.GetMethod(
             nameof(StaticProxyEmitterTestClass.Void));
 
         Assert.NotNull(method);
 
-        method.Invoke(null, Array.Empty<object?>());
+        method.Invoke(null, []);
     }
 
     [Fact]
@@ -212,14 +208,14 @@ public class StaticProxyEmitterTest
             .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
             .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.TryCatchVoid)), true);
 
-        var assembly = SaveAndLoad(emitter, _output);
+        var assembly = SaveAndLoad(emitter, output);
 
         var method = assembly.GetType(typeof(StaticProxyEmitterTestClass).FullName!)!.GetMethod(
             nameof(StaticProxyEmitterTestClass.TryCatchVoid));
 
         Assert.NotNull(method);
 
-        method.Invoke(null, Array.Empty<object?>());
+        method.Invoke(null, []);
     }
 
     [Theory]
@@ -232,13 +228,13 @@ public class StaticProxyEmitterTest
             .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
             .Single(m => m.Name == methodName), false);
 
-        var assembly = SaveAndLoad(emitter, _output);
+        var assembly = SaveAndLoad(emitter, output);
 
         var method = assembly.GetType(typeof(StaticProxyEmitterTestClass).FullName!)!.GetMethod(methodName);
 
         Assert.NotNull(method);
 
-        await func(method.Invoke(null, Array.Empty<object?>())!).ConfigureAwait(false);
+        await func(method.Invoke(null, [])!).ConfigureAwait(false);
     }
 
     [Theory]
@@ -255,13 +251,13 @@ public class StaticProxyEmitterTest
                 .Single(m => m.Name == methodName),
             false, activityName, availableTimes);
 
-        var assembly = SaveAndLoad(emitter, _output);
+        var assembly = SaveAndLoad(emitter, output);
 
         var method = assembly.GetType(typeof(StaticProxyEmitterTestClass).FullName!)!.GetMethod(methodName);
 
         Assert.NotNull(method);
 
-        await func(method.Invoke(null, Array.Empty<object?>())!).ConfigureAwait(false);
+        await func(method.Invoke(null, [])!).ConfigureAwait(false);
     }
 
     [Theory]
@@ -281,7 +277,7 @@ public class StaticProxyEmitterTest
                 .Single(m => m.Name == methodName),
             false, emitter.AddActivitySource(name, version), activityName, (int)ActivityKind.Client);
 
-        var assembly = SaveAndLoad(emitter, _output);
+        var assembly = SaveAndLoad(emitter, output);
 
         var list = new List<Activity>();
 
@@ -298,70 +294,70 @@ public class StaticProxyEmitterTest
 
         Assert.NotNull(method);
 
-        await func(method.Invoke(null, Array.Empty<object?>())!).ConfigureAwait(false);
+        await func(method.Invoke(null, [])!).ConfigureAwait(false);
 
         Assert.Single(list);
     }
 
     public static IEnumerable<object[]> AsyncMethods()
     {
-        yield return new object[]
-        {
+        yield return
+        [
             nameof(StaticProxyEmitterTestClass.TaskMethod), (Func<object, Task>)(instance => (Task)instance)
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             nameof(StaticProxyEmitterTestClass.GetCurrentActivity), (Func<object, Task>)(_ => Task.CompletedTask)
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             nameof(StaticProxyEmitterTestClass.TaskTMethod), (Func<object, Task>)(instance => (Task)instance)
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             nameof(StaticProxyEmitterTestClass.ValueTask),
             (Func<object, Task>)(instance => ((ValueTask)instance).AsTask())
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             nameof(StaticProxyEmitterTestClass.ValueTTask),
             (Func<object, Task>)(instance => ((ValueTask<int>)instance).AsTask())
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             nameof(StaticProxyEmitterTestClass.FSharp),
             (Func<object, Task>)(instance => FSharpAsync.StartAsTask((FSharpAsync<int>)instance,
                 FSharpOption<TaskCreationOptions>.None, FSharpOption<CancellationToken>.None))
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             nameof(StaticProxyEmitterTestClass.Awaitable),
             (Func<object, Task>)(async instance => await (TestAwaitable<int>)instance)
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             nameof(StaticProxyEmitterTestClass.Awaitable2),
             (Func<object, Task>)(async instance => await (TestAwaitable)instance)
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             nameof(StaticProxyEmitterTestClass.CriticalNotifyCompletion),
             (Func<object, Task>)(async instance => await (TestAwaitableWithICriticalNotifyCompletion)instance)
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             nameof(StaticProxyEmitterTestClass.NotifyCompletion),
             (Func<object, Task>)(async instance => await (TestAwaitableWithoutICriticalNotifyCompletion)instance)
-        };
+        ];
     }
 
     [Theory]
@@ -387,7 +383,7 @@ public class StaticProxyEmitterTest
             false, emitter.AddActivitySource(name, version),
             activityName, (int)ActivityKind.Client);
 
-        var assembly = SaveAndLoad(emitter, _output);
+        var assembly = SaveAndLoad(emitter, output);
 
         var type2 = assembly.GetType(typeName);
 
@@ -417,26 +413,26 @@ public class StaticProxyEmitterTest
 
     public static IEnumerable<object[]> GenericTestSource()
     {
-        yield return new object[]
-        {
+        yield return
+        [
             new Func<int, Task<int>>(StaticProxyEmitterTestClass.GenericMethod),
             new object?[] { 1 },
             (Func<object, Task>)(instance => (Task)instance)
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             new Func<bool, int, string, ValueTask<(bool, int, string)>>(StaticProxyEmitterTestClass<bool>.GenericMethod),
             new object?[] { true, 1, Guid.NewGuid().ToString() },
             (Func<object, Task>)(instance => ((ValueTask<(bool, int, string)>)instance).AsTask())
-        };
+        ];
 
-        yield return new object[]
-        {
+        yield return
+        [
             new Func<bool, int, string, ValueTask<(bool, int, string)>>(StaticProxyEmitterTestClass<bool, int>.GenericMethod),
             new object?[] { true, 1, Guid.NewGuid().ToString() },
             (Func<object, Task>)(instance => ((ValueTask<(bool, int, string)>)instance).AsTask())
-        };
+        ];
     }
 
     private static StaticProxyEmitter CreateEmitter() => new(new(

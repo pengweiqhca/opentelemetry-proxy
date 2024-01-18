@@ -6,7 +6,7 @@ internal record ProxyType<T> where T : notnull
 {
     private readonly Dictionary<T, ProxyMethod> _methods;
 
-    public ProxyType() => _methods = new();
+    public ProxyType() => _methods = [];
 
     public ProxyType(IEqualityComparer<T> comparer) => _methods = new(comparer);
 

@@ -7,8 +7,7 @@ public class ActivityTagAttribute : Attribute
 
     public ActivityTagAttribute() { }
 
-    public ActivityTagAttribute(string name) =>
-        Name = string.IsNullOrWhiteSpace(name) ? null : name;
+    public ActivityTagAttribute(string name) => Name = string.IsNullOrWhiteSpace(name) ? null : name;
 
     public string? Name { get; }
 }

@@ -7,29 +7,32 @@ namespace OpenTelemetry.StaticProxy.Fody;
 
 internal static class Utilities
 {
-    private static readonly List<AssemblyNameReference> CoreLibRef = new()
-    {
+    private static readonly List<AssemblyNameReference> CoreLibRef =
+    [
         new("System.Runtime", typeof(object).Assembly.GetName().Version)
         {
-            PublicKeyToken = new byte[] { 0xb0, 0x3f, 0x5f, 0x7f, 0x11, 0xd5, 0x0a, 0x3a }
+            PublicKeyToken = [0xb0, 0x3f, 0x5f, 0x7f, 0x11, 0xd5, 0x0a, 0x3a]
         },
+
         new("System.Private.CoreLib", new(6, 0, 0, 0))
         {
-            PublicKeyToken = new byte[] { 0x7c, 0xec, 0x85, 0xd7, 0xbe, 0xa7, 0x79, 0x8e }
+            PublicKeyToken = [0x7c, 0xec, 0x85, 0xd7, 0xbe, 0xa7, 0x79, 0x8e]
         },
+
         new("netstandard", new(2, 0, 0, 0))
         {
-            PublicKeyToken = new byte[] { 0xcc, 0x7b, 0x13, 0xff, 0xcd, 0x2d, 0xdd, 0x51 }
+            PublicKeyToken = [0xcc, 0x7b, 0x13, 0xff, 0xcd, 0x2d, 0xdd, 0x51]
         },
+
         new("mscorlib", new(4, 0, 0, 0))
         {
-            PublicKeyToken = new byte[] { 0xb7, 0x7a, 0x5c, 0x56, 0x19, 0x34, 0xe0, 0x89 }
+            PublicKeyToken = [0xb7, 0x7a, 0x5c, 0x56, 0x19, 0x34, 0xe0, 0x89]
         }
-    };
+    ];
 
     private static readonly AssemblyNameReference FSharpCore = new("FSharp.Core", new(4, 0, 0, 0))
     {
-        PublicKeyToken = new byte[] { 0xb0, 0x3f, 0x5f, 0x7f, 0x11, 0xd5, 0x0a, 0x3a }
+        PublicKeyToken = [0xb0, 0x3f, 0x5f, 0x7f, 0x11, 0xd5, 0x0a, 0x3a]
     };
 
     public static IEnumerable<MethodDefinition> GetMethods(this TypeDefinition type, string name)

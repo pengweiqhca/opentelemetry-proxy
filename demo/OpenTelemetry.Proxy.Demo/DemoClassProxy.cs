@@ -8,18 +8,17 @@ public class DemoClassProxy : DemoClass
 
     public override async Task<T> Demo<T>(T arg)
     {
-        var activity = ActivitySource.StartActivity(ActivityKind.Internal, links: new[]
-        {
-            new ActivityLink(new(ActivityTraceId.CreateRandom(), ActivitySpanId.CreateRandom(),
+        var activity = ActivitySource.StartActivity(ActivityKind.Internal, links:
+        [
+            new(new(ActivityTraceId.CreateRandom(), ActivitySpanId.CreateRandom(),
                     ActivityTraceFlags.Recorded, "test"),
                 new() { { "abc", "def" }, { "now", DateTime.Now } })
-        }, name: "DemoClass.Demo");
+        ], name: "DemoClass.Demo");
 
-        activity?.AddEvent(new("xxxxx", DateTimeOffset.Now, new()
-        {
+        activity?.AddEvent(new("xxxxx", DateTimeOffset.Now, [
             KeyValuePair.Create("dddd", (object?)3333),
             KeyValuePair.Create("asdfasdfasd", (object?)Guid.NewGuid())
-        }));
+        ]));
 
         try
         {

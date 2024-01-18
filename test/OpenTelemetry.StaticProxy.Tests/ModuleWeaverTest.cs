@@ -32,7 +32,7 @@ public class ModuleWeaverTest
 
         Assert.NotNull(method);
 
-        Assert.True(await func(method.Invoke(null, Array.Empty<object?>())!).ConfigureAwait(false));
+        Assert.True(await func(method.Invoke(null, [])!).ConfigureAwait(false));
     }
 
     [Fact]
@@ -59,8 +59,7 @@ public class ModuleWeaverTest
 
         Assert.NotNull(method);
 
-        var (activityName, tags2, availableTimes) =
-            await func(method.Invoke(null, new object[] { 200 })!).ConfigureAwait(false);
+        var (activityName, tags2, availableTimes) = await func(method.Invoke(null, [200])!).ConfigureAwait(false);
 
         Assert.Equal($"{typeof(ModuleWeaverTestClass).FullName}.{methodName}", activityName);
         Assert.Equal(tags, tags2);
@@ -116,7 +115,7 @@ public class ModuleWeaverTest
 
         try
         {
-            await ((Task)method.Invoke(null, Array.Empty<object?>())!).ConfigureAwait(false);
+            await ((Task)method.Invoke(null, [])!).ConfigureAwait(false);
         }
         catch
         {
@@ -187,7 +186,7 @@ public class ModuleWeaverTest
 
         var value = DateTime.Now.Millisecond;
 
-        var result = await ((Task<int>)method.Invoke(null, new object[] { value })!).ConfigureAwait(false);
+        var result = await ((Task<int>)method.Invoke(null, [ value ])!).ConfigureAwait(false);
 
         Assert.Equal(value + 1, result);
 
@@ -215,7 +214,7 @@ public class ModuleWeaverTest
 
         Assert.NotNull(method);
 
-        var activity = await func(method.Invoke(null, new object?[] { 100 })!).ConfigureAwait(false);
+        var activity = await func(method.Invoke(null, [100])!).ConfigureAwait(false);
 
         Assert.Equal(Assert.Single(list), activity);
 

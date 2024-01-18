@@ -20,7 +20,7 @@ public static class ActivityName
         int readTimes = 1) => SetName(tags, name, readTimes);
 
     public static IDisposable SetName(string name, string tagName, object? tagValue, int readTimes = 1) =>
-        SetName(new[] { new KeyValuePair<string, object?>(tagName, tagValue) }, name, readTimes);
+        SetName([new(tagName, tagValue)], name, readTimes);
 
     public static IDisposable SetName(IReadOnlyCollection<KeyValuePair<string, object?>> tags, int readTimes = 1) =>
         SetName(tags, null, readTimes);
