@@ -32,6 +32,6 @@ public class ActivityNameTest
         Assert.Equal(2, list.Count);
 
         Assert.Equal("TestName2." + nameof(_target.Method1), list[0].DisplayName);
-        Assert.Equal("HTTP GET", list[1].DisplayName);
+        Assert.Equal("GET", list[1].DisplayName);
     }
 }

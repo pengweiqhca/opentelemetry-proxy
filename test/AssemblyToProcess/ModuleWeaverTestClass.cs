@@ -40,7 +40,7 @@ public static class ModuleWeaverTestClass
     private static ActivityName InternalGetActivityName()
     {
         var field = typeof(ActivityAttribute).Assembly.GetType("OpenTelemetry.Proxy.ActivityName")
-            ?.GetField("Name", BindingFlags.Static | BindingFlags.NonPublic);
+            ?.GetField("Holder", BindingFlags.Static | BindingFlags.NonPublic);
 
         Assert.NotNull(field);
 

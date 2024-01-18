@@ -466,7 +466,7 @@ public static class StaticProxyEmitterTestClass
         [ActivityTag] int delay = 300)
     {
         var field = typeof(ActivityAttribute).Assembly.GetType("OpenTelemetry.Proxy.ActivityName")
-            ?.GetField("Name", BindingFlags.Static | BindingFlags.NonPublic);
+            ?.GetField("Holder", BindingFlags.Static | BindingFlags.NonPublic);
 
         Assert.NotNull(field);
 
