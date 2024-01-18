@@ -3,11 +3,11 @@
   <PropertyGroup>
     <Description>Automatically generate activity by define [Activity].</Description>
     <TargetFrameworks>net472;netstandard2.1</TargetFrameworks>
-    <Version>$(AssemblyVersion).2</Version>
+    <Version>$(AssemblyVersion).0</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="OpenTelemetry" Version="1.4.0" />
+    <PackageReference Include="OpenTelemetry" Version="1.7.0" />
   </ItemGroup>
 
 </Project>
