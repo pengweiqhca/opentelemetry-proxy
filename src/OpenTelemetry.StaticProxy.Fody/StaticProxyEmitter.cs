@@ -501,11 +501,11 @@ internal class StaticProxyEmitter(EmitContext context)
     }
 
     /// <returns>返回值变量索引，-1则表示是void</returns>
-    private static (int, Instruction?) ProcessReturn(MethodDefinition method, bool isVoid,
+    private static Tuple<int, Instruction?> ProcessReturn(MethodDefinition method, bool isVoid,
         bool hasAsyncStateMachineAttribute, Func<int, Instruction>? createLeave)
     {
         var (variableIndex, raw) = RetOrBr2LeaveS(method.Body, hasAsyncStateMachineAttribute, isVoid);
-        if (variableIndex < 0 || createLeave == null) return (variableIndex, null);
+        if (variableIndex < 0 || createLeave == null) return Tuple.Create<int, Instruction?>(variableIndex, null);
 
         var leave = createLeave(variableIndex);
         for (var index = method.Body.Instructions.Count - 2; index > 0; index--)
@@ -515,9 +515,9 @@ internal class StaticProxyEmitter(EmitContext context)
             if (instruction.Operand == raw && SupportedJump.Contains(instruction.OpCode)) instruction.Operand = leave;
         }
 
-        return (variableIndex, leave);
+        return Tuple.Create<int, Instruction?>(variableIndex, leave);
 
-        static (int, Instruction) RetOrBr2LeaveS(MethodBody body, bool hasAsyncStateMachineAttribute, bool isVoid)
+        static Tuple<int, Instruction> RetOrBr2LeaveS(MethodBody body, bool hasAsyncStateMachineAttribute, bool isVoid)
         {
             var checkLeaveS = body.ExceptionHandlers.Count < 1 ||
                 body.ExceptionHandlers[^1].HandlerEnd !=
@@ -526,7 +526,7 @@ internal class StaticProxyEmitter(EmitContext context)
             var ret = body.Instructions[^1];
             if (isVoid)
             {
-                if (hasAsyncStateMachineAttribute) return (-1, ret);
+                if (hasAsyncStateMachineAttribute) return Tuple.Create(-1, ret);
 
                 if (!SupportedJump.Contains(body.Instructions[^2].OpCode) && body.Instructions[^2].Operand != ret &&
                     checkLeaveS)
@@ -544,7 +544,7 @@ internal class StaticProxyEmitter(EmitContext context)
                         instruction.OpCode = OpCodes.Leave;
                 }
 
-                return (-1, ret);
+                return Tuple.Create(-1, ret);
             }
 
             var ldRet = body.Instructions[^2];
@@ -590,7 +590,7 @@ internal class StaticProxyEmitter(EmitContext context)
                 }
             }
 
-            return (variableIndex, ldRet);
+            return Tuple.Create(variableIndex, ldRet);
         }
     }
 

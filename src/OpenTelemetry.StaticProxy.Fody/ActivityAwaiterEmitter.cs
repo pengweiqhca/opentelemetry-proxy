@@ -121,7 +121,7 @@ IL_006c: ret*/
         return method;
     }
 
-    private ValueTuple<TypeDefinition, MethodDefinition, MethodDefinition, MethodDefinition>
+    private Tuple<TypeDefinition, MethodDefinition, MethodDefinition, MethodDefinition>
         CreateActivityAwaiter(TypeReference awaiterType, MethodReference getResult)
     {
         var type = new TypeDefinition("", "@ActivityAwaiter@" + _awaiterTypes.Count,
@@ -360,7 +360,7 @@ IL_006c: ret*/
         onCompleted.Body.OptimizeMacros();
         completed.Body.OptimizeMacros();
 
-        return (type, ctor, onCompleted, completed);
+        return Tuple.Create(type, ctor, onCompleted, completed);
     }
 
     private sealed class TypeReferenceComparer : IEqualityComparer<TypeReference>
