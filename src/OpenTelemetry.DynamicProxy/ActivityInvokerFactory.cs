@@ -122,8 +122,8 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
                 })), invocation).Compile();
     }
 
-    private static IReadOnlyList<KeyValuePair<string, Expression>> GetActivityTags(Type type, MethodInfo method,
-        ICollection<string>? tags, Expression invocation, out string? returnValueTagName)
+    private static List<KeyValuePair<string, Expression>> GetActivityTags(Type type, MethodInfo method,
+        List<string>? tags, Expression invocation, out string? returnValueTagName)
     {
         if (method.ReturnType != typeof(void) &&
             (!CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo) ||
@@ -166,7 +166,7 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
         return list;
     }
 
-    private static bool TryGetName(ICollection<string>? tags, ActivityTagAttribute? attr, string memberName,
+    private static bool TryGetName(List<string>? tags, ActivityTagAttribute? attr, string memberName,
         [NotNullWhen(true)] out string? name)
     {
         name = null;

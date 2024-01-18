@@ -2,6 +2,7 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
+using Mono.Collections.Generic;
 using OpenTelemetry.Proxy;
 using System.Diagnostics.CodeAnalysis;
 
@@ -596,7 +597,7 @@ internal class StaticProxyEmitter
         }
     }
 
-  private  static bool IsLdloc(Instruction instruction, IList<VariableDefinition> variables, out int variableIndex)
+  private  static bool IsLdloc(Instruction instruction, Collection<VariableDefinition> variables, out int variableIndex)
     {
         if (instruction.OpCode == OpCodes.Ldloc_0)
         {
@@ -748,7 +749,7 @@ internal class StaticProxyEmitter
         return returnValueTagName;
     }
 
-    private IReadOnlyList<IReadOnlyList<Instruction>> GetActivityTags(MethodDefinition method,
+    private List<IReadOnlyList<Instruction>> GetActivityTags(MethodDefinition method,
         ICollection<string>? tags, out string? returnValueTagName)
     {
         if (!method.ReturnType.HaveSameIdentity(Context.TargetModule.TypeSystem.Void) &&

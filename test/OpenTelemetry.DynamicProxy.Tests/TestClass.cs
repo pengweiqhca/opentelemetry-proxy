@@ -1,4 +1,5 @@
 ﻿using OpenTelemetry.Proxy;
+using System.Net.Http;
 
 namespace OpenTelemetry.DynamicProxy.Tests;
 
