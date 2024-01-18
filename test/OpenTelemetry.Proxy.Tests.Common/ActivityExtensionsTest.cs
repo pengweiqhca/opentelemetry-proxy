@@ -29,9 +29,9 @@ public class ActivityExtensionsTest
     }
 
     [Fact]
-    public void DictionaryType()
+    public void Dictionary()
     {
-        var activity = new Activity(nameof(DictionaryType));
+        var activity = new Activity(nameof(Dictionary));
 
         var key = Guid.NewGuid().ToString();
         var key1 = Guid.NewGuid().ToString();
@@ -52,7 +52,7 @@ public class ActivityExtensionsTest
     [Fact]
     public void EnumerableKeyValuePair()
     {
-        var activity = new Activity(nameof(DictionaryType));
+        var activity = new Activity(nameof(EnumerableKeyValuePair));
 
         var key = Guid.NewGuid().ToString();
         var key1 = Guid.NewGuid().ToString();
@@ -71,9 +71,9 @@ public class ActivityExtensionsTest
     }
 
     [Fact]
-    public void CollectionType()
+    public void Collection()
     {
-        var activity = new Activity(nameof(CollectionType));
+        var activity = new Activity(nameof(Collection));
 
         var key = Guid.NewGuid().ToString();
 
@@ -86,9 +86,24 @@ public class ActivityExtensionsTest
     }
 
     [Fact]
+    public void Tuple()
+    {
+        var activity = new Activity(nameof(Collection));
+
+        var key = Guid.NewGuid().ToString();
+
+        var value = (Guid.NewGuid().ToString(), Guid.NewGuid().ToString());
+
+        activity.SetTagEnumerable(key, value);
+
+        Assert.Equal(value.Item1, activity.GetTagItem($"{key}.Item1"));
+        Assert.Equal(value.Item2, activity.GetTagItem($"{key}.Item2"));
+    }
+
+    [Fact]
     public void Depth()
     {
-        var activity = new Activity(nameof(DictionaryType));
+        var activity = new Activity(nameof(Depth));
 
         var key = Guid.NewGuid().ToString();
         var key1 = Guid.NewGuid().ToString();
