@@ -5,11 +5,22 @@ using Microsoft.FSharp.Core;
 using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.Tests.Common;
 using OpenTelemetry.StaticProxy.Fody;
+using System.Reflection;
 
 namespace OpenTelemetry.StaticProxy.Tests;
 
 public class ModuleWeaverTest
 {
+    [Fact]
+    public void NoProxyHasGenerated()
+    {
+        var method = AssemblyEmit(typeof(NormalClass))?.GetMethod(nameof(NormalClass.NormalMethod));
+
+        Assert.NotNull(method?.DeclaringType);
+
+        Assert.Null(method?.DeclaringType?.GetCustomAttribute<ProxyHasGeneratedAttribute>());
+    }
+
     [Fact]
     public Task SuppressInstrumentationScope() => SuppressInstrumentationScopeTest(
         nameof(ModuleWeaverTestClass.SuppressInstrumentationScope), static instance => new((bool)instance));
@@ -222,10 +233,10 @@ public class ModuleWeaverTest
             Assert.Equal(kv.Value, activity!.GetTagItem(kv.Key));
     }
 
-    private static Type? AssemblyEmit() => new ModuleWeaver().ExecuteTestRun(
+    private static Type? AssemblyEmit(Type? type = null) => new ModuleWeaver().ExecuteTestRun(
             typeof(ModuleWeaverTestClass).Assembly.Location,
             assemblyName: "AssemblyToProcess", runPeVerify: false).Assembly
-        .GetType(typeof(ModuleWeaverTestClass).FullName!);
+        .GetType((type ?? typeof(ModuleWeaverTestClass)).FullName!);
 
     private static async ValueTask<T> Awaitable2ValueTask<T>(object awaitable) => await (TestAwaitable<T>)awaitable;
 }
