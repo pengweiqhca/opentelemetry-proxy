@@ -21,8 +21,6 @@ internal class StaticProxyEmitter(EmitContext context)
         {
             if (type.IsInterface || type.IsValueType) continue;
 
-            type.CustomAttributes.Add(new(type.Module.ImportReference(Context.ProxyHasGeneratedAttributeCtor)));
-
             var proxyType = ActivityInvokerHelper.GetActivityName(type, Context);
             if (proxyType.Methods.Count < 1) continue;
 
@@ -30,6 +28,8 @@ internal class StaticProxyEmitter(EmitContext context)
             var activitySourceName = string.IsNullOrWhiteSpace(proxyType.ActivitySourceName)
                 ? type.FullName
                 : proxyType.ActivitySourceName!;
+
+            var hasAddedAttribute = false;
 
             foreach (var method in proxyType.Methods)
             {
@@ -46,11 +46,19 @@ internal class StaticProxyEmitter(EmitContext context)
                             ? $"{type.FullName}.{method.Key.Name}"
                             : method.Value.Name, method.Value.MaxUsableTimes);
                 else if (method.Value.Settings == ActivitySettings.Activity)
+                {
                     EmitActivity(method.Key, isVoid,
                         activitySource ??= AddActivitySource(activitySourceName, version),
                         string.IsNullOrWhiteSpace(method.Value.Name)
                             ? $"{activitySourceName}.{method.Key.Name}"
                             : method.Value.Name!, method.Value.Kind);
+
+                    if (hasAddedAttribute) continue;
+
+                    type.CustomAttributes.Add(new(type.Module.ImportReference(Context.ProxyHasGeneratedAttributeCtor)));
+
+                    hasAddedAttribute = true;
+                }
             }
         }
     }
