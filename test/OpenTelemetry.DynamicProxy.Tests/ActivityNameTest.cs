@@ -21,7 +21,7 @@ public class ActivityNameTest
             .Callback<Activity>(list.Add);
 
         using var shutdownSignal = Sdk.CreateTracerProviderBuilder()
-            .AddProcessor(new ActivityNameProcessor())
+            .AddActivityNameProcessor()
             .AddProcessor(activityProcessor.Object)
             .SetSampler(new AlwaysOnSampler())
             .AddHttpClientInstrumentation()

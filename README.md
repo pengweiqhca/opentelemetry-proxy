@@ -23,7 +23,7 @@ Generate an activity to wrap the method, modify name of the inner activity or di
 If defined [NonActivity] on method, call method will not generate an activity. if `SuppressInstrumentation` is true, the inner activity will be discarded.
 
 ### [ActivityName]
-To modify the DisplayName of an inner activity, you must invoke `TracerProviderBuilder.AddProcessor(new ActivityNameProcessor())`. If a type is defined with the [ActivitySource] attribute or a method is defined with the [Activity] or [NonActivity] attribute, the [ActivityName] attribute will not take effect.
+To modify the DisplayName of an inner activity, you must invoke `TracerProviderBuilder.AddActivityNameProcessor()`. If a type is defined with the [ActivitySource] attribute or a method is defined with the [Activity] or [NonActivity] attribute, the [ActivityName] attribute will not take effect.
 
 ### [ActivityTag]
 
