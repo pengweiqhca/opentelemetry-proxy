@@ -17,6 +17,8 @@ internal class StaticProxyEmitter(EmitContext context)
     public void Emit()
     {
         var version = Context.TargetModule.Assembly.Name.Version?.ToString() ?? string.Empty;
+
+        var assemblyEmitted = false;
         foreach (var type in Context.TargetModule.Types.ToArray())
         {
             if (type.IsInterface || type.IsValueType) continue;
@@ -29,7 +31,7 @@ internal class StaticProxyEmitter(EmitContext context)
                 ? type.FullName
                 : proxyType.ActivitySourceName!;
 
-            var hasAddedAttribute = false;
+            var typeyEmitted = false;
 
             foreach (var method in proxyType.Methods)
             {
@@ -53,14 +55,18 @@ internal class StaticProxyEmitter(EmitContext context)
                             ? $"{activitySourceName}.{method.Key.Name}"
                             : method.Value.Name!, method.Value.Kind);
 
-                    if (hasAddedAttribute) continue;
+                    if (typeyEmitted) continue;
 
                     type.CustomAttributes.Add(new(type.Module.ImportReference(Context.ProxyHasGeneratedAttributeCtor)));
 
-                    hasAddedAttribute = true;
+                    assemblyEmitted = typeyEmitted = true;
                 }
             }
         }
+
+        if (assemblyEmitted)
+            Context.TargetModule.CustomAttributes.Add(
+                new(Context.TargetModule.ImportReference(Context.ProxyHasGeneratedAttributeCtor)));
     }
 
     public FieldReference AddActivitySource(string name, string version)
