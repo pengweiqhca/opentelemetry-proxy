@@ -2,13 +2,13 @@
 
 namespace OpenTelemetry.DynamicProxy.Tests;
 
-public class TryGetActivityNameTest
+public class GetActivityNameTest
 {
     [Fact]
     public void No_ActivityAttribute_No_ActivitySourceAttribute() =>
         Assert.Equal(ActivitySettings.NonActivity, ActivityInvokerHelper.GetActivityName(
-            new Action(new TryGetActivityNameTest().No_ActivityAttribute_No_ActivitySourceAttribute).Method,
-            typeof(TryGetActivityNameTest), out _, out _, out _));
+            new Action(new GetActivityNameTest().No_ActivityAttribute_No_ActivitySourceAttribute).Method,
+            typeof(GetActivityNameTest), out _, out _, out _));
 
     [Fact]
     public void No_ActivityAttribute_Has_ActivitySourceAttribute()
@@ -50,8 +50,8 @@ public class TryGetActivityNameTest
     public void ActivityNameAttribute()
     {
         Assert.Equal(ActivitySettings.ActivityNameOnly, ActivityInvokerHelper.GetActivityName(
-            new Action(new TryGetActivityNameTest().ActivityNameAttribute).Method,
-            typeof(TryGetActivityNameTest), out var activityName, out _, out var maxUsableTimes));
+            new Action(new GetActivityNameTest().ActivityNameAttribute).Method,
+            typeof(GetActivityNameTest), out var activityName, out _, out var maxUsableTimes));
 
         Assert.Null(activityName);
 
@@ -61,8 +61,8 @@ public class TryGetActivityNameTest
     [Fact, ActivityName(MaxUsableTimes = 0)]
     public void ActivityNameAttribute_MaxUsableTimes0() => Assert.Equal(ActivitySettings.NonActivity,
         ActivityInvokerHelper.GetActivityName(
-            new Action(new TryGetActivityNameTest().ActivityNameAttribute_MaxUsableTimes0).Method,
-            typeof(TryGetActivityNameTest), out _, out _, out _));
+            new Action(new GetActivityNameTest().ActivityNameAttribute_MaxUsableTimes0).Method,
+            typeof(GetActivityNameTest), out _, out _, out _));
 
     [Fact]
     public void Interface_Default_AsyncMethod()
