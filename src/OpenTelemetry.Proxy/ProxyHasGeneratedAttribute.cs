@@ -1,4 +1,4 @@
 namespace OpenTelemetry.Proxy;
 
-[AttributeUsage(AttributeTargets.Class)]
+[AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class)]
 public class ProxyHasGeneratedAttribute : Attribute { }
