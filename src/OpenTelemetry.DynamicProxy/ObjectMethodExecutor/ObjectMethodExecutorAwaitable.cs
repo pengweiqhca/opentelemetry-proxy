@@ -22,7 +22,7 @@ internal readonly struct ObjectMethodExecutorAwaitable(object customAwaitable,
         Func<object, bool> isCompletedMethod,
         Func<object, object> getResultMethod,
         Action<object, Action> onCompletedMethod,
-        Action<object, Action> unsafeOnCompletedMethod) : ICriticalNotifyCompletion
+        Action<object, Action>? unsafeOnCompletedMethod) : ICriticalNotifyCompletion
     {
         [DebuggerHidden]
         public bool IsCompleted => isCompletedMethod(customAwaiter);
