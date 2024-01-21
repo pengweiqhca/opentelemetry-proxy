@@ -37,12 +37,12 @@ public class ActivityInvoker(
             throw;
         }
 
+        setTags.Item2?.Invoke(invocation, activity);
+
         var func = ActivityInvokerHelper.Convert(invocation.Method.ReturnType);
         if (func == null)
         {
             if (returnValueTagName != null) activity.SetTagEnumerable(returnValueTagName, invocation.ReturnValue);
-
-            setTags.Item2?.Invoke(invocation, activity);
 
             activity.Dispose();
 
@@ -50,11 +50,9 @@ public class ActivityInvoker(
         }
 
         var awaiter = func(invocation.ReturnValue).GetAwaiter();
-        if (awaiter.IsCompleted)
-            ActivityAwaiter.OnCompleted(activity, awaiter, invocation, setTags.Item2, returnValueTagName);
-        else
-            awaiter.UnsafeOnCompleted(
-                new ActivityAwaiter(activity, awaiter, invocation, setTags.Item2, returnValueTagName).OnCompleted);
+
+        if (awaiter.IsCompleted) ActivityAwaiter.OnCompleted(activity, awaiter, returnValueTagName);
+        else awaiter.UnsafeOnCompleted(new ActivityAwaiter(activity, awaiter, returnValueTagName).OnCompleted);
     }
 
     private static void OnException(Activity activity, Exception ex) =>
@@ -63,20 +61,16 @@ public class ActivityInvoker(
     private sealed class ActivityAwaiter(
         Activity activity,
         ObjectMethodExecutorAwaitable.Awaiter awaiter,
-        IInvocation invocation,
-        Action<IInvocation, Activity>? setTags,
         string? returnValueTagName)
     {
-        public void OnCompleted() => OnCompleted(activity, awaiter, invocation, setTags, returnValueTagName);
+        public void OnCompleted() => OnCompleted(activity, awaiter, returnValueTagName);
 
         public static void OnCompleted(Activity activity, ObjectMethodExecutorAwaitable.Awaiter awaiter,
-            IInvocation invocation, Action<IInvocation, Activity>? setTags, string? returnValueTagName)
+            string? returnValueTagName)
         {
             try
             {
                 var result = awaiter.GetResult();
-
-                setTags?.Invoke(invocation, activity);
 
                 if (returnValueTagName != null) activity.SetTagEnumerable(returnValueTagName, result);
             }
