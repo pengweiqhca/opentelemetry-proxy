@@ -24,8 +24,8 @@ internal class ActivityAwaiterEmitter(EmitContext context)
         }
         else
             return !_awaiterTypes.TryGetValue(awaitableInfo.AwaiterType, out var awaiter)
-                ? (_awaiterTypes[awaitableInfo.AwaiterType] =
-                    CreateActivityAwaiter(awaitableInfo.AwaiterType, awaitableInfo))
+                ? _awaiterTypes[awaitableInfo.AwaiterType] =
+                    CreateActivityAwaiter(awaitableInfo.AwaiterType, awaitableInfo)
                 : awaiter;
     }
 
