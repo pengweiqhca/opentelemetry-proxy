@@ -64,7 +64,7 @@ internal class StaticProxyEmitter(EmitContext context)
         }
 
         if (assemblyEmitted)
-            Context.TargetModule.CustomAttributes.Add(
+            Context.TargetModule.Assembly.CustomAttributes.Add(
                 new(Context.TargetModule.ImportReference(Context.ProxyHasGeneratedAttributeCtor)));
     }
 
