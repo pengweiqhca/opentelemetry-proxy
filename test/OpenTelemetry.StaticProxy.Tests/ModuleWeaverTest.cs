@@ -206,6 +206,18 @@ public class ModuleWeaverTest
         Assert.Equal(result, activity.GetTagItem(ActivityTagAttribute.ReturnValueTagName));
     }
 
+    [Fact]
+    public void UsingTest()
+    {
+        var method = AssemblyEmit()?.GetMethod(nameof(ModuleWeaverTestClass.Using));
+
+        Assert.NotNull(method);
+
+        var result = ((ModuleWeaverTestClass.TestDelegate)method.CreateDelegate(typeof(ModuleWeaverTestClass.TestDelegate)))(out _);
+
+        Assert.True(result);
+    }
+
     private static async Task ActivityTest(string methodName, Func<object, ValueTask<Activity?>> func,
         Dictionary<string, object> tags)
     {

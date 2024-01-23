@@ -564,7 +564,7 @@ internal class StaticProxyEmitter(EmitContext context)
             }
 
             var ldRet = body.Instructions[^2];
-            if (!IsLdloc(body.Instructions[^2], body.Variables, out var variableIndex))
+            if (!IsLdloc(ldRet, body.Variables, out var variableIndex))
             {
                 variableIndex = body.Variables.Count;
 
@@ -572,7 +572,7 @@ internal class StaticProxyEmitter(EmitContext context)
 
                 var i = body.Instructions.Count - 1;
                 body.Instructions.Insert(i, ldRet = Ldloc(variableIndex, body.Variables));
-                if (!hasAsyncStateMachineAttribute && checkLeaveS)
+                if (!hasAsyncStateMachineAttribute)
                     body.Instructions.Insert(i, Instruction.Create(OpCodes.Leave, ldRet));
 
                 body.Instructions.Insert(i, Stloc(variableIndex, body.Variables));

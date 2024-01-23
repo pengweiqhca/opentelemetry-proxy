@@ -127,4 +127,17 @@ public static class ModuleWeaverTestClass
 
     [Activity(Tags = [ActivityTagAttribute.ReturnValueTagName])]
     public static Task<int> ReturnValue(int a) => Task.FromResult(a + 1);
+
+    [ActivityName]
+    public static bool Using(out DateTimeOffset now)
+    {
+        using (OpenTelemetry.Proxy.ActivityName.SetName("Using"))
+        {
+            now = DateTimeOffset.Now;
+        }
+
+        return true;
+    }
+
+    public delegate bool TestDelegate(out DateTimeOffset now);
 }
