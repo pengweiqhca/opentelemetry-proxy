@@ -43,14 +43,14 @@ public class StaticProxyEmitterTest(ITestOutputHelper output)
         AssertInstructions(startInstructions[2], """
                                                  IL_0000: ldstr "b"
                                                  IL_0000: ldarg.2
-                                                 IL_0000: ldind.ref
+                                                 IL_0000: ldind.i4
                                                  IL_0000: box System.Int32
                                                  """);
 
         AssertInstructions(startInstructions[3], """
                                                  IL_0000: ldstr "d"
                                                  IL_0000: ldarg.s d
-                                                 IL_0000: ldind.ref
+                                                 IL_0000: ldind.i4
                                                  IL_0000: box System.Int32
                                                  """);
 
@@ -63,14 +63,14 @@ public class StaticProxyEmitterTest(ITestOutputHelper output)
         AssertInstructions(endInstructions[0], """
                                                IL_0000: ldstr "c"
                                                IL_0000: ldarg.3
-                                               IL_0000: ldind.ref
+                                               IL_0000: ldobj System.DateTimeOffset
                                                IL_0000: box System.DateTimeOffset
                                                """);
 
         AssertInstructions(endInstructions[1], """
                                                IL_0000: ldstr "d$out"
                                                IL_0000: ldarg.s d
-                                               IL_0000: ldind.ref
+                                               IL_0000: ldind.i4
                                                IL_0000: box System.Int32
                                                """);
 
@@ -160,7 +160,7 @@ public class StaticProxyEmitterTest(ITestOutputHelper output)
 
         var type = assembly.GetTypes().Single(t => t.Name == "@ActivitySource@");
 
-        var field = type.GetField($"{name}@{version}", BindingFlags.Static | BindingFlags.Public)!;
+        var field = type.GetField($"{name}", BindingFlags.Static | BindingFlags.Public)!;
 
         Assert.NotNull(field);
 
