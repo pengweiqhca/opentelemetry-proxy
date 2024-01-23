@@ -43,10 +43,9 @@ internal class StaticProxyEmitter(EmitContext context)
                 if (method.Value.Settings == ActivitySettings.NonActivityAndSuppressInstrumentation)
                     EmitSuppressInstrumentationScope(method.Key, isVoid);
                 else if (method.Value.Settings == ActivitySettings.ActivityNameOnly)
-                    EmitActivityName(method.Key, isVoid,
-                        string.IsNullOrWhiteSpace(method.Value.Name)
-                            ? $"{type.FullName}.{method.Key.Name}"
-                            : method.Value.Name, method.Value.MaxUsableTimes);
+                    EmitActivityName(method.Key, isVoid, string.IsNullOrWhiteSpace(method.Value.Name)
+                        ? $"{type.FullName}.{method.Key.Name}"
+                        : method.Value.Name, method.Value.MaxUsableTimes);
                 else if (method.Value.Settings == ActivitySettings.Activity)
                 {
                     EmitActivity(method.Key, isVoid,
@@ -82,12 +81,10 @@ internal class StaticProxyEmitter(EmitContext context)
             Context.TargetModule.Types.Add(_activitySource);
         }
 
-        var fieldName = $"{name}@{version}";
-
-        var activitySource = _activitySource.Fields.FirstOrDefault(f => f.Name == fieldName);
+        var activitySource = _activitySource.Fields.FirstOrDefault(f => f.Name == name);
         if (activitySource != null) return activitySource;
 
-        activitySource = new(fieldName, FieldAttributes.InitOnly | FieldAttributes.Static | FieldAttributes.Public,
+        activitySource = new(name, FieldAttributes.InitOnly | FieldAttributes.Static | FieldAttributes.Public,
             Context.ActivitySource);
 
         _activitySource.Fields.Add(activitySource);
@@ -258,10 +255,9 @@ internal class StaticProxyEmitter(EmitContext context)
         method.Body.OptimizeMacros();
     }
 
-    public void EmitActivityName(MethodDefinition method, bool isVoid, string? activityName,
-        int maxUsableTimes)
+    public void EmitActivityName(MethodDefinition method, bool isVoid, string? activityName, int maxUsableTimes)
     {
-        if (maxUsableTimes != 0)
+        if (maxUsableTimes > 0)
             EmitDisposable(method, isVoid, () =>
             {
                 var index = 0;
@@ -310,7 +306,7 @@ internal class StaticProxyEmitter(EmitContext context)
 
         method.Body.Instructions.Insert(length++, Stloc(activityIndex, method.Body.Variables));
 
-        var returnValueTagName = SetActivityTags(method, activityIndex, ref length);
+        var setActivityTags = SetActivityTags(method, activityIndex, ref length, out var returnValueTagName);
 
         var index = method.Body.Instructions.Count - (isVoid ? 1 : 2);
 
@@ -346,13 +342,15 @@ internal class StaticProxyEmitter(EmitContext context)
                 method.Body.Variables));
 
             method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
+
+            SetActivityTags(method, ref index, setActivityTags);
+
             method.Body.Instructions.Insert(index++, returnValueTagName == null
                 ? Instruction.Create(OpCodes.Ldnull)
                 : Instruction.Create(OpCodes.Ldstr, returnValueTagName));
 
-            method.Body.Instructions.Insert(index,
-                Instruction.Create(OpCodes.Call,
-                    Context.ActivityAwaiterEmitter.GetActivityAwaiter(awaitableInfo.AwaitableInfo)));
+            method.Body.Instructions.Insert(index, Instruction.Create(OpCodes.Call,
+                Context.ActivityAwaiterEmitter.GetActivityAwaiter(awaitableInfo.AwaitableInfo)));
         }
         else
         {
@@ -398,8 +396,9 @@ internal class StaticProxyEmitter(EmitContext context)
                 method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
                 method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Ldstr, returnValueTagName));
                 method.Body.Instructions.Insert(index++, Ldloc(returnVariableIndex, method.Body.Variables));
-                if (method.ReturnType.IsValueType || method.ReturnType.IsGenericParameter)
-                    method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Box, method.ReturnType));
+
+                foreach (var instruction in LdindAndBox(method.ReturnType))
+                    method.Body.Instructions.Insert(index++, instruction);
 
                 method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Call, Context.ActivitySetTagEnumerable));
                 method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Pop));
@@ -421,6 +420,9 @@ internal class StaticProxyEmitter(EmitContext context)
             method.Body.Instructions.Insert(index++, finallyHandler.HandlerStart);
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse, endFinally));
             method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
+
+            SetActivityTags(method, ref index, setActivityTags);
+
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Call, Context.ActivityDispose));
             method.Body.Instructions.Insert(index, endFinally);
         }
@@ -701,7 +703,7 @@ internal class StaticProxyEmitter(EmitContext context)
     {
         var list = GetActivityTags(method, (method.GetCustomAttribute(Context.ActivityNameAttribute) ??
                 method.DeclaringType.GetCustomAttribute(Context.ActivityNameAttribute))?
-            .GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList(), out _);
+            .GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList(), out _).Item1;
 
         if (list.Count < 1) return false;
 
@@ -730,13 +732,15 @@ internal class StaticProxyEmitter(EmitContext context)
         return true;
     }
 
-    private string? SetActivityTags(MethodDefinition method, int activityIndex, ref int index)
+    private List<IReadOnlyList<Instruction>> SetActivityTags(MethodDefinition method, int activityIndex, ref int index,
+        out string? returnValueTagName)
     {
-        var list = GetActivityTags(method, method.GetCustomAttribute(Context.ActivityAttribute)?
+        var (startInstructions, endInstructions) = GetActivityTags(method,
+            method.GetCustomAttribute(Context.ActivityAttribute)?
                 .GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList(),
-            out var returnValueTagName);
+            out returnValueTagName);
 
-        if (list.Count < 1) return returnValueTagName;
+        if (startInstructions.Count < 1) return endInstructions;
 
         method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
         method.Body.Instructions.Insert(index, Instruction.Create(OpCodes.Brfalse,
@@ -744,24 +748,29 @@ internal class StaticProxyEmitter(EmitContext context)
 
         method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
 
+        SetActivityTags(method, ref index, startInstructions);
+
+        method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Pop));
+
+        return endInstructions;
+    }
+
+    private void SetActivityTags(MethodDefinition method, ref int index, List<IReadOnlyList<Instruction>> setActivityTags)
+    {
         /*IL_0550: Ldloc.0
           IL_0573: ldstr        "aaa"
           IL_0574: ldarg.0
           IL_0578: callvirt       instance void SetTag*/
-        foreach (var tag in list)
+        foreach (var tag in setActivityTags)
         {
             foreach (var instruction in tag) method.Body.Instructions.Insert(index++, instruction);
 
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Call, Context.ActivitySetTagEnumerable));
         }
-
-        method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Pop));
-
-        return returnValueTagName;
     }
 
-    private List<IReadOnlyList<Instruction>> GetActivityTags(MethodDefinition method,
-        ICollection<string>? tags, out string? returnValueTagName)
+    internal Tuple<List<IReadOnlyList<Instruction>>, List<IReadOnlyList<Instruction>>>
+        GetActivityTags(MethodDefinition method, ICollection<string>? tags, out string? returnValueTagName)
     {
         if (!method.ReturnType.HaveSameIdentity(Context.TargetModule.TypeSystem.Void) &&
             (!CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo) ||
@@ -771,7 +780,8 @@ internal class StaticProxyEmitter(EmitContext context)
                 "$returnvalue", out returnValueTagName);
         else returnValueTagName = null;
 
-        var list = new List<IReadOnlyList<Instruction>>();
+        var startInstructions = new List<IReadOnlyList<Instruction>>();
+        var endInstructions = new List<IReadOnlyList<Instruction>>();
 
         foreach (var field in method.DeclaringType.Fields)
             if ((!method.IsStatic || field.IsStatic) && TryGetName(tags,
@@ -790,10 +800,9 @@ internal class StaticProxyEmitter(EmitContext context)
 
                 instructions.Add(Instruction.Create(OpCodes.Ldfld, field));
 
-                if (field.FieldType.IsValueType || field.FieldType.IsGenericParameter)
-                    instructions.Add(Instruction.Create(OpCodes.Box, field.FieldType));
+                instructions.AddRange(LdindAndBox(field.FieldType));
 
-                list.Add(instructions);
+                startInstructions.Add(instructions);
             }
 
         foreach (var property in method.DeclaringType.Properties)
@@ -817,15 +826,17 @@ internal class StaticProxyEmitter(EmitContext context)
                         : OpCodes.Callvirt,
                     method.Module.ImportReference(property.GetMethod, method)));
 
-                if (property.PropertyType.IsValueType || property.PropertyType.IsGenericParameter)
-                    instructions.Add(Instruction.Create(OpCodes.Box, property.PropertyType));
+                instructions.AddRange(LdindAndBox(property.PropertyType));
 
-                list.Add(instructions);
+                startInstructions.Add(instructions);
             }
 
         for (var i = 0; i < method.Parameters.Count; i++)
-            if (TryGetName(tags, method.Parameters[i].GetCustomAttribute(Context.ActivityTagAttribute),
-                    method.Parameters[i].Name, out var name))
+        {
+            var parameter = method.Parameters[i];
+
+            if (TryGetName(tags, parameter.GetCustomAttribute(Context.ActivityTagAttribute), parameter.Name,
+                    out var name))
             {
                 /*IL_0558: ldstr        "123"
                   IL_055d: ldarg_0
@@ -836,14 +847,25 @@ internal class StaticProxyEmitter(EmitContext context)
                     Ldarg(i, method.IsStatic, method.Parameters)
                 };
 
-                if (method.Parameters[i].ParameterType.IsValueType ||
-                    method.Parameters[i].ParameterType.IsGenericParameter)
-                    instructions.Add(Instruction.Create(OpCodes.Box, method.Parameters[i].ParameterType));
+                instructions.AddRange(LdindAndBox(parameter.ParameterType));
 
-                list.Add(instructions);
+                if (parameter.IsOut) endInstructions.Add(instructions);
+                else if (parameter is { IsIn: false, ParameterType.IsByReference: true })
+                {
+                    startInstructions.Add(instructions);
+
+                    instructions = new(instructions)
+                    {
+                        [0] = Instruction.Create(OpCodes.Ldstr, name + "$out")
+                    };
+
+                    endInstructions.Add(instructions);
+                }
+                else startInstructions.Add(instructions);
             }
+        }
 
-        return list;
+        return Tuple.Create(startInstructions, endInstructions);
     }
 
     private bool TryGetName(ICollection<string>? tags, ICustomAttribute? attr, string memberName,
@@ -922,4 +944,33 @@ internal class StaticProxyEmitter(EmitContext context)
         <= sbyte.MaxValue and >= sbyte.MinValue => Instruction.Create(OpCodes.Ldc_I4_S, (sbyte)value),
         _ => Instruction.Create(OpCodes.Ldc_I4, value)
     };
+
+    private IEnumerable<Instruction> LdindAndBox(TypeReference type)
+    {
+        if (type.IsByReference)
+        {
+            type = type.GetElementType() ?? type;
+
+            var typeSystem = Context.TargetModule.TypeSystem;
+
+            Instruction? instruction = null;
+            OpCode code = default;
+            if (type == typeSystem.IntPtr || type == typeSystem.UIntPtr) code = OpCodes.Ldind_I;
+            else if (type == typeSystem.Byte) code = OpCodes.Ldind_U1;
+            else if (type == typeSystem.SByte) code = OpCodes.Ldind_I1;
+            else if (type == typeSystem.Int16) code = OpCodes.Ldind_I2;
+            else if (type == typeSystem.UInt16) code = OpCodes.Ldind_U2;
+            else if (type == typeSystem.Int32) code = OpCodes.Ldind_I4;
+            else if (type == typeSystem.UInt32) code = OpCodes.Ldind_U4;
+            else if (type == typeSystem.Int64 || type == typeSystem.UInt64) code = OpCodes.Ldind_I8;
+            else if (type == typeSystem.Single) code = OpCodes.Ldind_R4;
+            else if (type == typeSystem.Double) code = OpCodes.Ldind_R8;
+            else if (type.IsValueType) instruction = Instruction.Create(OpCodes.Ldobj, type);
+            else code = OpCodes.Ldind_Ref;
+
+            yield return instruction ?? Instruction.Create(code);
+        }
+
+        if (type.IsValueType || type.IsGenericParameter) yield return Instruction.Create(OpCodes.Box, type);
+    }
 }

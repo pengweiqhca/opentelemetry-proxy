@@ -1,6 +1,8 @@
-﻿using Microsoft.FSharp.Control;
+﻿using FluentAssertions;
+using Microsoft.FSharp.Control;
 using Microsoft.FSharp.Core;
 using Mono.Cecil;
+using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.Tests.Common;
@@ -11,6 +13,138 @@ namespace OpenTelemetry.StaticProxy.Fody.Tests;
 
 public class StaticProxyEmitterTest(ITestOutputHelper output)
 {
+    [Fact]
+    public void GetActivityTags()
+    {
+        List<string> tags = ["_now", "Now", "e", Guid.NewGuid().ToString("N")];
+
+        var emitter = CreateEmitter(typeof(TestClass3));
+
+        var (startInstructions, endInstructions) = emitter.GetActivityTags(
+            emitter.Context.TargetModule.GetType(typeof(TestClass3).FullName)
+                .GetMethods(nameof(TestClass3.StaticMethod)).Single(), tags, out var returnValueTagName);
+
+        Assert.Equal("ghi", returnValueTagName);
+        Assert.Equal(5, startInstructions.Count);
+        Assert.Equal(2, endInstructions.Count);
+
+        AssertInstructions(startInstructions[0], """
+                                                 IL_0000: ldstr "def"
+                                                 IL_0000: call System.DateTimeOffset OpenTelemetry.Proxy.Tests.Common.TestClass3::get_Now2()
+                                                 IL_0000: box System.DateTimeOffset
+                                                 """);
+
+        AssertInstructions(startInstructions[1], """
+                                                 IL_0000: ldstr "a2"
+                                                 IL_0000: ldarg.0
+                                                 IL_0000: box System.Int32
+                                                 """);
+
+        AssertInstructions(startInstructions[2], """
+                                                 IL_0000: ldstr "b"
+                                                 IL_0000: ldarg.2
+                                                 IL_0000: ldind.ref
+                                                 IL_0000: box System.Int32
+                                                 """);
+
+        AssertInstructions(startInstructions[3], """
+                                                 IL_0000: ldstr "d"
+                                                 IL_0000: ldarg.s d
+                                                 IL_0000: ldind.ref
+                                                 IL_0000: box System.Int32
+                                                 """);
+
+        AssertInstructions(startInstructions[4], """
+                                                 IL_0000: ldstr "e"
+                                                 IL_0000: ldarg.s e
+                                                 IL_0000: box System.Int32
+                                                 """);
+
+        AssertInstructions(endInstructions[0], """
+                                               IL_0000: ldstr "c"
+                                               IL_0000: ldarg.3
+                                               IL_0000: ldind.ref
+                                               IL_0000: box System.DateTimeOffset
+                                               """);
+
+        AssertInstructions(endInstructions[1], """
+                                               IL_0000: ldstr "d$out"
+                                               IL_0000: ldarg.s d
+                                               IL_0000: ldind.ref
+                                               IL_0000: box System.Int32
+                                               """);
+
+        static void AssertInstructions(IEnumerable<Instruction> instructions, string il) =>
+            Assert.Equal(il, string.Join(Environment.NewLine, instructions));
+    }
+
+    [Fact]
+    public void FullTags()
+    {
+        var activity = new Activity("test").Start();
+
+        var emitter = CreateEmitter(typeof(TestClass3));
+
+        var name = Guid.NewGuid().ToString("N");
+        var activityName = Guid.NewGuid().ToString("N");
+        var version = DateTime.Now.ToString("HH.mm.ss.fff");
+
+        emitter.EmitActivity(emitter.Context.TargetModule.GetType(typeof(TestClass3).FullName)
+                .GetMethods(nameof(TestClass3.StaticMethod)).Single(), false,
+            emitter.AddActivitySource(name, version), activityName, (int)ActivityKind.Client);
+
+        var assembly = SaveAndLoad(emitter, output);
+
+        var list = new List<Activity>();
+
+        using var activityListener = new ActivityListener
+        {
+            ShouldListenTo = activitySource => activitySource.Name == name && activitySource.Version == version,
+            Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStarted = list.Add
+        };
+
+        ActivitySource.AddActivityListener(activityListener);
+
+        var type = assembly.GetType(typeof(TestClass3).FullName!);
+
+        Assert.NotNull(type);
+
+        var method = type.GetMethod(nameof(TestClass3.StaticMethod))?.CreateDelegate<TestClass3.TestDelegate>();
+
+        Assert.NotNull(method);
+
+        var random = Random.Shared;
+
+        var now = DateTime.Now.AddDays(-1);
+        var now2 = DateTime.Now.AddDays(1);
+
+        var a = random.Next();
+        var a2 = random.Next();
+        var b = random.Next();
+        var d = random.Next();
+        var d2 = d;
+        var e = random.Next();
+
+        var result = method(a, a2, b, out var c, ref d, e);
+
+        Assert.Equal(a2, result);
+
+        activity = Assert.Single(list);
+
+        AssertTag(activity, "def", type.GetProperty(nameof(TestClass3.Now2))!.GetValue(null));
+        AssertTag(activity, "a2", a);
+        AssertTag(activity, "b", b);
+        AssertTag(activity, "c", c);
+        AssertTag(activity, "d", d2);
+        AssertTag(activity, "d$out", d);
+        AssertTag(activity, "e", e);
+        AssertTag(activity, "ghi", a2);
+
+        static void AssertTag(Activity activity, string key, object? value) => activity.GetTagItem(key).Should()
+            .Be(value, "Activity tag `{0}` should be equal", key);
+    }
+
     [Fact]
     public void AddActivitySourceTest()
     {
@@ -435,8 +569,8 @@ public class StaticProxyEmitterTest(ITestOutputHelper output)
         ];
     }
 
-    private static StaticProxyEmitter CreateEmitter() => new(new(
-        AssemblyDefinition.ReadAssembly(typeof(StaticProxyEmitterTest).Assembly.Location).MainModule,
+    private static StaticProxyEmitter CreateEmitter(Type? type = null) => new(new(
+        AssemblyDefinition.ReadAssembly((type ?? typeof(StaticProxyEmitterTest)).Assembly.Location).MainModule,
         AssemblyDefinition.ReadAssembly(typeof(Activity).Assembly.Location).MainModule,
         AssemblyDefinition.ReadAssembly(typeof(SuppressInstrumentationScope).Assembly.Location).MainModule,
         AssemblyDefinition.ReadAssembly(typeof(BaseProvider).Assembly.Location).MainModule,
