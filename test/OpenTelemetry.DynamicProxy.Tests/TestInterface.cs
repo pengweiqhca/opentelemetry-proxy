@@ -99,7 +99,7 @@ public class TestExceptionAwaitable<T>
     }
 }
 
-public interface ITestInterface2 : ITestInterface, IDisposable { }
+public interface ITestInterface2 : ITestInterface, IDisposable;
 
 public class TestInterface2 : TestInterface1, ITestInterface2
 {

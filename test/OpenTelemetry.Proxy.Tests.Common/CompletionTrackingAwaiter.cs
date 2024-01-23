@@ -13,10 +13,10 @@ public class TestAwaitableWithoutICriticalNotifyCompletion
 }
 
 public class TestAwaiterWithICriticalNotifyCompletion
-    : CompletionTrackingAwaiterBase, ICriticalNotifyCompletion { }
+    : CompletionTrackingAwaiterBase, ICriticalNotifyCompletion;
 
 public class TestAwaiterWithoutICriticalNotifyCompletion
-    : CompletionTrackingAwaiterBase, INotifyCompletion { }
+    : CompletionTrackingAwaiterBase, INotifyCompletion;
 
 public class CompletionTrackingAwaiterBase
 {
