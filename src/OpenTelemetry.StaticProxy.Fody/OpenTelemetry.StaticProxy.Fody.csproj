@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <AssemblyVersion>$(AssemblyVersion).4.1</AssemblyVersion>
+    <AssemblyVersion>$(AssemblyVersion).4.2</AssemblyVersion>
     <IsPackable>false</IsPackable>
     <DebugType>embedded</DebugType>
     <TargetFramework>netstandard2.0</TargetFramework>

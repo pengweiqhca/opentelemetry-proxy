@@ -277,6 +277,8 @@ internal class StaticProxyEmitter(EmitContext context)
     {
         var hasAsyncStateMachineAttribute = method.GetCustomAttribute(Context.AsyncStateMachineAttribute) != null;
 
+        if (method.Name == "OnChangeAuth") Debugger.Launch();
+
         if (!hasAsyncStateMachineAttribute) ReplaceBody(method, isVoid);
 
         method.Body.InitLocals = true;
@@ -438,6 +440,9 @@ internal class StaticProxyEmitter(EmitContext context)
 
         method.DeclaringType.Methods.Add(newMethod);
 
+        if (!method.IsStatic)
+            method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
+
         for (var i = 0; i < method.Parameters.Count; i++)
             method.Body.Instructions.Add(Ldarg(i, method.IsStatic, method.Parameters));
 
@@ -460,7 +465,7 @@ internal class StaticProxyEmitter(EmitContext context)
         }
 
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Call, mr));
-
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Nop));
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
     }
 
