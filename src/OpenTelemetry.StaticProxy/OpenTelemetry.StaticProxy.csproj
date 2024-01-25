@@ -6,7 +6,7 @@
     <NoWarn>$(NoWarn);NU5100</NoWarn>
     <PackageTags>$(PackageTags), ILWeaving, Fody, Cecil, AOP</PackageTags>
     <TargetFrameworks>net472;netstandard2.1</TargetFrameworks>
-    <Version>$(AssemblyVersion).4.2</Version>
+    <Version>$(AssemblyVersion).4.3</Version>
     <!-- https://github.com/Fody/Home/blob/master/pages/addin-packaging.md -->
     <WeaverDirPath>..\OpenTelemetry.StaticProxy.Fody\bin\$(Configuration)</WeaverDirPath>
     <WeaverFile>$(WeaverDirPath)\netstandard2.0\OpenTelemetry.StaticProxy.Fody.dll</WeaverFile>

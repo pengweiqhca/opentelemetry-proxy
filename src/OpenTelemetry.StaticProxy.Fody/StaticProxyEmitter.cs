@@ -277,8 +277,6 @@ internal class StaticProxyEmitter(EmitContext context)
     {
         var hasAsyncStateMachineAttribute = method.GetCustomAttribute(Context.AsyncStateMachineAttribute) != null;
 
-        if (method.Name == "OnChangeAuth") Debugger.Launch();
-
         if (!hasAsyncStateMachineAttribute) ReplaceBody(method, isVoid);
 
         method.Body.InitLocals = true;
