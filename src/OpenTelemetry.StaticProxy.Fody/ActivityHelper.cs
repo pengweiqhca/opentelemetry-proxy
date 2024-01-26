@@ -53,8 +53,8 @@ internal static class ActivityInvokerHelper
     {
         if (method.GetCustomAttribute(context.NonActivityAttribute) is { } naa)
             return new(naa.GetValue<bool>("", method.Module.TypeSystem.Boolean)
-                ? ActivitySettings.NonActivityAndSuppressInstrumentation
-                : ActivitySettings.NonActivity);
+                ? ActivitySettings.SuppressInstrumentation
+                : ActivitySettings.None);
 
         if (method.GetCustomAttribute(context.ActivityAttribute) is { } attr)
             return new(ActivitySettings.Activity,
@@ -63,14 +63,17 @@ internal static class ActivityInvokerHelper
 
         if (method.GetCustomAttribute(context.ActivityNameAttribute) is not { } ana)
         {
+            if (!method.IsPublic || method.GetCustomAttribute(context.CompilerGeneratedAttribute) != null)
+                return new(ActivitySettings.None);
+
             if (maxUsableTimes is null)
-                return kind < 0 || !method.IsPublic
-                    ? new(ActivitySettings.NonActivity)
+                return kind < 0
+                    ? new(ActivitySettings.None)
                     : new(includeNonAsyncStateMachineMethod ||
                         method.GetCustomAttribute(context.AsyncStateMachineAttribute) != null &&
                         CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out _)
                             ? ActivitySettings.Activity
-                            : ActivitySettings.NonActivity, Kind: kind);
+                            : ActivitySettings.None, Kind: kind);
 
             if (!string.IsNullOrWhiteSpace(activityName))
                 activityName = $"{activityName}.{method.Name}";
@@ -82,6 +85,6 @@ internal static class ActivityInvokerHelper
             maxUsableTimes = ana.GetValue("MaxUsableTimes", method.Module.TypeSystem.Int32, 1);
         }
 
-        return new(ActivitySettings.ActivityNameOnly, activityName, MaxUsableTimes: (int)maxUsableTimes);
+        return new(ActivitySettings.ActivityName, activityName, MaxUsableTimes: (int)maxUsableTimes);
     }
 }
