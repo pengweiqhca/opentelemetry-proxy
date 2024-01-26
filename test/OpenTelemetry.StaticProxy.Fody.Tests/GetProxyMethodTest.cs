@@ -5,7 +5,7 @@ using System.Reflection;
 
 namespace OpenTelemetry.StaticProxy.Fody.Tests;
 
-public class GetActivityNameTest
+public class GetProxyMethodTest
 {
     private static readonly EmitContext EmitContext = GetEmitContext();
 
@@ -16,12 +16,12 @@ public class GetActivityNameTest
             true,
             Guid.NewGuid().ToString("N"), 3);
 
-        Assert.Equal(ActivitySettings.NonActivity, settings);
+        Assert.Equal(ActivitySettings.None, settings);
 
         (settings, _, _, _) = ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(x => x.Test2()), EmitContext, 2, true,
             Guid.NewGuid().ToString("N"), 3);
 
-        Assert.Equal(ActivitySettings.NonActivityAndSuppressInstrumentation, settings);
+        Assert.Equal(ActivitySettings.SuppressInstrumentation, settings);
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public class GetActivityNameTest
         var (settings, activityName, _, maxUsableTimes) =
             ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(x => x.Test4()), EmitContext, -1, true, null, 0);
 
-        Assert.Equal(ActivitySettings.ActivityNameOnly, settings);
+        Assert.Equal(ActivitySettings.ActivityName, settings);
         Assert.Equal("test", activityName);
         Assert.Equal(5, maxUsableTimes);
     }
@@ -62,45 +62,47 @@ public class GetActivityNameTest
             Load<TestClass>(typeof(TestClass).GetMethod("PrivateMethod",
                 BindingFlags.Instance | BindingFlags.NonPublic)!), EmitContext, -1, true, null, null);
 
-        Assert.Equal(ActivitySettings.NonActivity, settings);
+        Assert.Equal(ActivitySettings.None, settings);
     }
 
     [Fact]
     public void DefaultActivitySourceTest()
     {
         var (settings, _, _, _) =
-            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(new Action(TestClass.DefaultSync).Method), EmitContext, 0, true, null, null);
+            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(TestClass.DefaultSync), EmitContext, 0, true, null, null);
 
         Assert.Equal(ActivitySettings.Activity, settings);
 
         (settings, _, _, _) =
-            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(new Action(TestClass.DefaultSync).Method), EmitContext, 0, false, null, null);
+            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(TestClass.DefaultSync), EmitContext, 0, false, null, null);
 
-        Assert.Equal(ActivitySettings.NonActivity, settings);
+        Assert.Equal(ActivitySettings.None, settings);
 
         (settings, _, _, _) =
-            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(new Func<Task>(TestClass.DefaultAsync).Method), EmitContext, 0, true, null, null);
+            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(TestClass.DefaultAsync), EmitContext, 0, true, null, null);
 
         Assert.Equal(ActivitySettings.Activity, settings);
 
         (settings, _, _, _) =
-            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(new Func<Task>(TestClass.DefaultAsync).Method), EmitContext, 0, false, null, null);
+            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(TestClass.DefaultAsync), EmitContext, 0, false, null, null);
 
-        Assert.Equal(ActivitySettings.NonActivity, settings);
+        Assert.Equal(ActivitySettings.None, settings);
 
         (settings, _, _, _) =
-            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(new Func<Task>(TestClass.DefaultAsyncWithStateMachine).Method), EmitContext, 0, true, null, null);
+            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(TestClass.DefaultAsyncWithStateMachine), EmitContext, 0, true, null, null);
 
         Assert.Equal(ActivitySettings.Activity, settings);
 
         (settings, _, _, _) =
-            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(new Func<Task>(TestClass.DefaultAsyncWithStateMachine).Method), EmitContext, 0, false, null, null);
+            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(TestClass.DefaultAsyncWithStateMachine), EmitContext, 0, false, null, null);
 
         Assert.Equal(ActivitySettings.Activity, settings);
     }
 
     private static MethodDefinition Load<T>(Expression<Action<T>> expression) =>
         Load<T>(((MethodCallExpression)expression.Body).Method);
+
+    private static MethodDefinition Load<T>(Delegate @delegate) => Load<T>(@delegate.Method);
 
     private static MethodDefinition Load<T>(MethodBase method) => AssemblyDefinition
         .ReadAssembly(typeof(T).Assembly.Location).MainModule

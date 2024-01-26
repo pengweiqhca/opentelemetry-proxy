@@ -21,8 +21,8 @@ internal static class ActivityInvokerHelper
 
         if (method.GetCustomAttribute<NonActivityAttribute>(true) is { } naa)
             return naa.SuppressInstrumentation
-                ? ActivitySettings.NonActivityAndSuppressInstrumentation
-                : ActivitySettings.NonActivity;
+                ? ActivitySettings.SuppressInstrumentation
+                : ActivitySettings.None;
 
         if (method.GetCustomAttribute<ActivityAttribute>(true) is { } attr)
         {
@@ -43,12 +43,12 @@ internal static class ActivityInvokerHelper
                     (type.IsInterface || method.IsDefined(typeof(AsyncStateMachineAttribute), false)) &&
                     CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out _)
                         ? ActivitySettings.Activity
-                        : ActivitySettings.NonActivity;
+                        : ActivitySettings.None;
             }
 
             ana = type.GetCustomAttribute<ActivityNameAttribute>(true);
 
-            if (ana == null || ana.MaxUsableTimes < 1) return ActivitySettings.NonActivity;
+            if (ana == null || ana.MaxUsableTimes < 1) return ActivitySettings.None;
 
             if (!string.IsNullOrWhiteSpace(ana.ActivityName))
                 activityName = $"{ana.ActivityName}.{method.Name}";
@@ -57,7 +57,7 @@ internal static class ActivityInvokerHelper
 
         maxUsableTimes = ana.MaxUsableTimes;
 
-        return maxUsableTimes == 0 ? ActivitySettings.NonActivity : ActivitySettings.ActivityNameOnly;
+        return maxUsableTimes == 0 ? ActivitySettings.None : ActivitySettings.ActivityName;
     }
 
     public static Func<object, ObjectMethodExecutorAwaitable>? Convert(Type returnType) =>

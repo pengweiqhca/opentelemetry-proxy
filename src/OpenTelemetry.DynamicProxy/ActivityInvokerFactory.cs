@@ -59,9 +59,9 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
         {
             ActivitySettings.Activity => new ActivityInvoker(GetActivitySource(type), activityName!, kind,
                 SetActivityTags(invocation.TargetType, invocation.Method, out activityName), activityName),
-            ActivitySettings.ActivityNameOnly => new ActivityNameInvoker(activityName!,
+            ActivitySettings.ActivityName => new ActivityNameInvoker(activityName!,
                 maxUsableTimes, CreateActivityTags(invocation.TargetType, invocation.Method)),
-            ActivitySettings.NonActivityAndSuppressInstrumentation => new ActivityNameInvoker(),
+            ActivitySettings.SuppressInstrumentation => new ActivityNameInvoker(),
             _ => activityType switch
             {
                 ActivityType.ImplicitActivity => new ActivityInvoker(GetActivitySource(type), activityName!, ActivityKind.Internal,

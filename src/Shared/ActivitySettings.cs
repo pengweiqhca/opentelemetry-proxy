@@ -2,8 +2,8 @@
 
 internal enum ActivitySettings
 {
-    NonActivity = 0,
-    NonActivityAndSuppressInstrumentation = 1,
+    None = 0,
+    SuppressInstrumentation = 1,
     Activity = 2,
-    ActivityNameOnly = 3
+    ActivityName = 3
 }

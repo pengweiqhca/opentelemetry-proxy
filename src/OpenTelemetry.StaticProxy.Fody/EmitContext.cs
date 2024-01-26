@@ -62,6 +62,8 @@ internal class EmitContext
 
     public TypeReference AsyncStateMachineAttribute { get; }
 
+    public TypeReference CompilerGeneratedAttribute { get; }
+
     public MethodReference CompilerGeneratedAttributeCtor { get; }
 
     public TypeReference KeyValuePair { get; }
@@ -149,8 +151,10 @@ internal class EmitContext
 
         AsyncStateMachineAttribute = targetModule.GetCoreType<AsyncStateMachineAttribute>();
 
+        CompilerGeneratedAttribute = targetModule.GetCoreType<CompilerGeneratedAttribute>();
+
         CompilerGeneratedAttributeCtor = new(".ctor", targetModule.TypeSystem.Void,
-            targetModule.GetCoreType<CompilerGeneratedAttribute>()) { HasThis = true };
+            CompilerGeneratedAttribute) { HasThis = true };
 
         KeyValuePair = new GenericInstanceType(targetModule.GetCoreType(typeof(KeyValuePair<,>)))
             { GenericArguments = { targetModule.TypeSystem.String, targetModule.TypeSystem.Object } };

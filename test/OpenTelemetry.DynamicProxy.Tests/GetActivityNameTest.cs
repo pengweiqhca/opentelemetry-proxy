@@ -6,18 +6,18 @@ public class GetActivityNameTest
 {
     [Fact]
     public void No_ActivityAttribute_No_ActivitySourceAttribute() =>
-        Assert.Equal(ActivitySettings.NonActivity, ActivityInvokerHelper.GetActivityName(
+        Assert.Equal(ActivitySettings.None, ActivityInvokerHelper.GetActivityName(
             new Action(new GetActivityNameTest().No_ActivityAttribute_No_ActivitySourceAttribute).Method,
             typeof(GetActivityNameTest), out _, out _, out _));
 
     [Fact]
     public void No_ActivityAttribute_Has_ActivitySourceAttribute()
     {
-        Assert.Equal(ActivitySettings.NonActivity,
+        Assert.Equal(ActivitySettings.None,
             ActivityInvokerHelper.GetActivityName(new Action(new TestClass1().Method1).Method,
                 typeof(TestClass1), out var activityName, out var kind, out _));
 
-        Assert.Equal(ActivitySettings.NonActivity,
+        Assert.Equal(ActivitySettings.None,
             ActivityInvokerHelper.GetActivityName(new Func<Task>(new TestClass1().MethodAsync1).Method,
                 typeof(TestClass1), out activityName, out kind, out _));
 
@@ -42,14 +42,14 @@ public class GetActivityNameTest
 
     [Fact]
     public void NoActivityAttribute() =>
-        Assert.Equal(ActivitySettings.NonActivityAndSuppressInstrumentation,
+        Assert.Equal(ActivitySettings.SuppressInstrumentation,
             ActivityInvokerHelper.GetActivityName(new Action(new TestClass1().Method3).Method,
                 typeof(TestClass1), out _, out _, out _));
 
     [Fact, ActivityName(MaxUsableTimes = 3)]
     public void ActivityNameAttribute()
     {
-        Assert.Equal(ActivitySettings.ActivityNameOnly, ActivityInvokerHelper.GetActivityName(
+        Assert.Equal(ActivitySettings.ActivityName, ActivityInvokerHelper.GetActivityName(
             new Action(new GetActivityNameTest().ActivityNameAttribute).Method,
             typeof(GetActivityNameTest), out var activityName, out _, out var maxUsableTimes));
 
@@ -59,7 +59,7 @@ public class GetActivityNameTest
     }
 
     [Fact, ActivityName(MaxUsableTimes = 0)]
-    public void ActivityNameAttribute_MaxUsableTimes0() => Assert.Equal(ActivitySettings.NonActivity,
+    public void ActivityNameAttribute_MaxUsableTimes0() => Assert.Equal(ActivitySettings.None,
         ActivityInvokerHelper.GetActivityName(
             new Action(new GetActivityNameTest().ActivityNameAttribute_MaxUsableTimes0).Method,
             typeof(GetActivityNameTest), out _, out _, out _));
@@ -67,7 +67,7 @@ public class GetActivityNameTest
     [Fact]
     public void Interface_Default_AsyncMethod()
     {
-        Assert.Equal(ActivitySettings.NonActivity, ActivityInvokerHelper.GetActivityName(
+        Assert.Equal(ActivitySettings.None, ActivityInvokerHelper.GetActivityName(
             typeof(ITestInterface2).GetMethod(nameof(ITestInterface2.SyncMethod))!,
             typeof(ITestInterface2), out _, out _, out _));
 

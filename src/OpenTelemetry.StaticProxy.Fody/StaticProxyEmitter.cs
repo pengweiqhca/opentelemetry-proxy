@@ -19,9 +19,10 @@ internal class StaticProxyEmitter(EmitContext context)
         var version = Context.TargetModule.Assembly.Name.Version?.ToString() ?? string.Empty;
 
         var assemblyEmitted = false;
-        foreach (var type in Context.TargetModule.Types.ToArray())
+        foreach (var type in Context.TargetModule.Types.SelectMany(GetTypes).ToArray())
         {
-            if (type.IsInterface || type.IsValueType) continue;
+            if (type.IsInterface || type.IsValueType ||
+                type.GetCustomAttribute(Context.CompilerGeneratedAttribute) != null) continue;
 
             var proxyType = ActivityInvokerHelper.GetProxyType(type, Context);
             if (proxyType.Methods.Count < 1) continue;
@@ -40,9 +41,9 @@ internal class StaticProxyEmitter(EmitContext context)
                 if (isVoid && method.Key.Body.Instructions.Count < 2 ||
                     method.Key.Body.Instructions[^1].OpCode != OpCodes.Ret) continue;
 
-                if (method.Value.Settings == ActivitySettings.NonActivityAndSuppressInstrumentation)
+                if (method.Value.Settings == ActivitySettings.SuppressInstrumentation)
                     EmitSuppressInstrumentationScope(method.Key, isVoid);
-                else if (method.Value.Settings == ActivitySettings.ActivityNameOnly)
+                else if (method.Value.Settings == ActivitySettings.ActivityName)
                     EmitActivityName(method.Key, isVoid, string.IsNullOrWhiteSpace(method.Value.Name)
                         ? $"{type.FullName}.{method.Key.Name}"
                         : method.Value.Name, method.Value.MaxUsableTimes);
@@ -66,6 +67,14 @@ internal class StaticProxyEmitter(EmitContext context)
         if (assemblyEmitted)
             Context.TargetModule.Assembly.CustomAttributes.Add(
                 new(Context.TargetModule.ImportReference(Context.ProxyHasGeneratedAttributeCtor)));
+
+        static IEnumerable<TypeDefinition> GetTypes(TypeDefinition type)
+        {
+            yield return type;
+
+            foreach (var nestedNestedType in type.NestedTypes.SelectMany(GetTypes))
+                yield return nestedNestedType;
+        }
     }
 
     public FieldReference AddActivitySource(string name, string version)

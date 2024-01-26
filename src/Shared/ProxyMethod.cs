@@ -16,6 +16,6 @@ internal record ProxyType<T> where T : notnull
 
     public void AddMethod(T key, ProxyMethod method)
     {
-        if (method.Settings != ActivitySettings.NonActivity) _methods[key] = method;
+        if (method.Settings != ActivitySettings.None) _methods[key] = method;
     }
 }
