@@ -25,9 +25,11 @@ If defined [NonActivity] on method, call method will not generate an activity. i
 ### [ActivityName]
 To modify the DisplayName of an inner activity, you must invoke `TracerProviderBuilder.AddActivityNameProcessor()`. If a type is defined with the [ActivitySource] attribute or a method is defined with the [Activity] or [NonActivity] attribute, the [ActivityName] attribute will not take effect.
 
+> Priority: [NonActivity] > [Activity] > [ActivityName] (method) > [ActivitySource] > [ActivityName] (class)
+
 ### [ActivityTag]
 
-> Priority: [NonActivity] > [Activity] > [ActivitySource] > [ActivityName]
+To add tags to activity.
 
 ## About DynamicProxy and StaticProxy
 
