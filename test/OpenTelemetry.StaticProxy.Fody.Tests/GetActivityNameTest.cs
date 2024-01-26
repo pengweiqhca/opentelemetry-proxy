@@ -12,13 +12,13 @@ public class GetActivityNameTest
     [Fact]
     public void NoActivityTest()
     {
-        var (settings, _, _, _) = ActivityInvokerHelper.GetActivityName(Load<TestClass>(x => x.Test0()), EmitContext, 2,
+        var (settings, _, _, _) = ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(x => x.Test0()), EmitContext, 2,
             true,
             Guid.NewGuid().ToString("N"), 3);
 
         Assert.Equal(ActivitySettings.NonActivity, settings);
 
-        (settings, _, _, _) = ActivityInvokerHelper.GetActivityName(Load<TestClass>(x => x.Test2()), EmitContext, 2, true,
+        (settings, _, _, _) = ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(x => x.Test2()), EmitContext, 2, true,
             Guid.NewGuid().ToString("N"), 3);
 
         Assert.Equal(ActivitySettings.NonActivityAndSuppressInstrumentation, settings);
@@ -27,7 +27,7 @@ public class GetActivityNameTest
     [Fact]
     public void ActivityTest()
     {
-        var (settings, activityName, kind, _) = ActivityInvokerHelper.GetActivityName(Load<TestClass>(x => x.Test3()),
+        var (settings, activityName, kind, _) = ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(x => x.Test3()),
             EmitContext, 2, true, Guid.NewGuid().ToString("N"), 3);
 
         Assert.Equal(ActivitySettings.Activity, settings);
@@ -38,7 +38,7 @@ public class GetActivityNameTest
     [Fact]
     public void ActivityBaseTest()
     {
-        var (settings, _, _, _) = ActivityInvokerHelper.GetActivityName(Load<TestClass>(x => x.TestBase()),
+        var (settings, _, _, _) = ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(x => x.TestBase()),
             EmitContext, 2, true, Guid.NewGuid().ToString("N"), 3);
 
         Assert.Equal(ActivitySettings.Activity, settings);
@@ -48,7 +48,7 @@ public class GetActivityNameTest
     public void ActivityNameTest()
     {
         var (settings, activityName, _, maxUsableTimes) =
-            ActivityInvokerHelper.GetActivityName(Load<TestClass>(x => x.Test4()), EmitContext, -1, true, null, 0);
+            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(x => x.Test4()), EmitContext, -1, true, null, 0);
 
         Assert.Equal(ActivitySettings.ActivityNameOnly, settings);
         Assert.Equal("test", activityName);
@@ -58,7 +58,7 @@ public class GetActivityNameTest
     [Fact]
     public void DefaultIgnorePrivateMethod()
     {
-        var (settings, _, _, _) = ActivityInvokerHelper.GetActivityName(
+        var (settings, _, _, _) = ActivityInvokerHelper.GetProxyMethod(
             Load<TestClass>(typeof(TestClass).GetMethod("PrivateMethod",
                 BindingFlags.Instance | BindingFlags.NonPublic)!), EmitContext, -1, true, null, null);
 
@@ -69,32 +69,32 @@ public class GetActivityNameTest
     public void DefaultActivitySourceTest()
     {
         var (settings, _, _, _) =
-            ActivityInvokerHelper.GetActivityName(Load<TestClass>(new Action(TestClass.DefaultSync).Method), EmitContext, 0, true, null, null);
+            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(new Action(TestClass.DefaultSync).Method), EmitContext, 0, true, null, null);
 
         Assert.Equal(ActivitySettings.Activity, settings);
 
         (settings, _, _, _) =
-            ActivityInvokerHelper.GetActivityName(Load<TestClass>(new Action(TestClass.DefaultSync).Method), EmitContext, 0, false, null, null);
+            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(new Action(TestClass.DefaultSync).Method), EmitContext, 0, false, null, null);
 
         Assert.Equal(ActivitySettings.NonActivity, settings);
 
         (settings, _, _, _) =
-            ActivityInvokerHelper.GetActivityName(Load<TestClass>(new Func<Task>(TestClass.DefaultAsync).Method), EmitContext, 0, true, null, null);
+            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(new Func<Task>(TestClass.DefaultAsync).Method), EmitContext, 0, true, null, null);
 
         Assert.Equal(ActivitySettings.Activity, settings);
 
         (settings, _, _, _) =
-            ActivityInvokerHelper.GetActivityName(Load<TestClass>(new Func<Task>(TestClass.DefaultAsync).Method), EmitContext, 0, false, null, null);
+            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(new Func<Task>(TestClass.DefaultAsync).Method), EmitContext, 0, false, null, null);
 
         Assert.Equal(ActivitySettings.NonActivity, settings);
 
         (settings, _, _, _) =
-            ActivityInvokerHelper.GetActivityName(Load<TestClass>(new Func<Task>(TestClass.DefaultAsyncWithStateMachine).Method), EmitContext, 0, true, null, null);
+            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(new Func<Task>(TestClass.DefaultAsyncWithStateMachine).Method), EmitContext, 0, true, null, null);
 
         Assert.Equal(ActivitySettings.Activity, settings);
 
         (settings, _, _, _) =
-            ActivityInvokerHelper.GetActivityName(Load<TestClass>(new Func<Task>(TestClass.DefaultAsyncWithStateMachine).Method), EmitContext, 0, false, null, null);
+            ActivityInvokerHelper.GetProxyMethod(Load<TestClass>(new Func<Task>(TestClass.DefaultAsyncWithStateMachine).Method), EmitContext, 0, false, null, null);
 
         Assert.Equal(ActivitySettings.Activity, settings);
     }
