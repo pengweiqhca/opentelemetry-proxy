@@ -123,7 +123,7 @@ internal static class Utilities
         var reference = new MethodReference(
             self.Name,
             self.ReturnType,
-            self.DeclaringType.MakeGenericInstanceType(git.GenericArguments.ToArray()))
+            self.DeclaringType.MakeGenericInstanceType([.. git.GenericArguments]))
         {
             HasThis = self.HasThis,
             ExplicitThis = self.ExplicitThis,

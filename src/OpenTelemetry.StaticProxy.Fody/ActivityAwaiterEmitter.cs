@@ -20,7 +20,7 @@ internal class ActivityAwaiterEmitter(EmitContext context)
                 _awaiterTypes[git.ElementType] = awaiter = CreateActivityAwaiter(git.ElementType, awaitableInfo);
 
             return awaiter.MakeHostInstanceGeneric(
-                awaiter.DeclaringType.MakeGenericInstanceType(git.GenericArguments.ToArray()));
+                awaiter.DeclaringType.MakeGenericInstanceType([.. git.GenericArguments]));
         }
         else
             return !_awaiterTypes.TryGetValue(awaitableInfo.AwaiterType, out var awaiter)
@@ -47,7 +47,7 @@ internal class ActivityAwaiterEmitter(EmitContext context)
         type.Methods.Add(method);
 
         if (awaiterType.HasGenericParameters)
-            awaiterType = awaiterType.MakeGenericInstanceType(awaiterType.GenericParameters.ToArray<TypeReference>());
+            awaiterType = awaiterType.MakeGenericInstanceType([.. awaiterType.GenericParameters]);
 
         /*IL_0021: ldarga.s 1
         IL_0023: call instance bool valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<int32>::get_IsCompleted()*/
@@ -55,17 +55,12 @@ internal class ActivityAwaiterEmitter(EmitContext context)
             ? Instruction.Create(OpCodes.Ldarga_S, method.Parameters[0])
             : Instruction.Create(OpCodes.Ldarg_0));
 
-        method.Body.Instructions.Add(Instruction.Create(
-            awaitableInfo.AwaiterType.IsValueType ||
-            awaitableInfo.AwaiterIsCompletedPropertyGetMethod.IsFinal
-                ? OpCodes.Call
-                : OpCodes.Callvirt,
+        method.Body.Instructions.Add(Instruction.Create(awaitableInfo.AwaiterType.IsValueType ||
+            awaitableInfo.AwaiterIsCompletedPropertyGetMethod.IsFinal ? OpCodes.Call : OpCodes.Callvirt,
             method.Module.ImportReference(awaitableInfo.AwaiterIsCompletedPropertyGetMethod)
                 .MakeHostInstanceGeneric(completed.Parameters[0].ParameterType)));
 
-        var brfalse = awaiterType.IsValueType
-            ? Instruction.Create(OpCodes.Ldarga_S, method.Parameters[0])
-            : Instruction.Create(OpCodes.Ldarg_0);
+        var brfalse = awaiterType.IsValueType ? Instruction.Create(OpCodes.Ldarga_S, method.Parameters[0]) : Instruction.Create(OpCodes.Ldarg_0);
 
         /*IL_0047: brfalse.s IL_0052
 
@@ -138,7 +133,7 @@ IL_006c: ret*/
         foreach (var genericParameter in awaiterType.GenericParameters) type.GenericParameters.Add(genericParameter);
 
         if (awaiterType.HasGenericParameters)
-            awaiterType = awaiterType.MakeGenericInstanceType(awaiterType.GenericParameters.ToArray<TypeReference>());
+            awaiterType = awaiterType.MakeGenericInstanceType([.. awaiterType.GenericParameters]);
 
         #region field and method
 
@@ -152,7 +147,7 @@ IL_006c: ret*/
 
         var type2 = context.TargetModule.ImportReference(type);
         if (type.HasGenericParameters)
-            type2 = type.MakeGenericInstanceType(type.GenericParameters.ToArray<TypeReference>());
+            type2 = type.MakeGenericInstanceType([.. type.GenericParameters]);
 
         var activity = new FieldReference("_activity", context.Activity, type2);
         var returnValueTagName = new FieldReference("_returnValueTagName", context.TargetModule.TypeSystem.String, type2);
