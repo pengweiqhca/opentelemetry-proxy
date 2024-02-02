@@ -317,7 +317,7 @@ internal class StaticProxyEmitter(EmitContext context)
 
         method.Body.Instructions.Insert(length++, Stloc(activityIndex, method.Body.Variables));
 
-        var setActivityTags = SetActivityTags(method, activityIndex, ref length, out var returnValueTagName);
+        var setActivityTags = SetActivityTags(method, activityIndex, ref length, out var returnValueTagName, out var isVoid2);
 
         var index = method.Body.Instructions.Count - (isVoid ? 1 : 2);
 
@@ -356,12 +356,13 @@ internal class StaticProxyEmitter(EmitContext context)
 
             SetActivityTags(method, ref index, setActivityTags);
 
-            method.Body.Instructions.Insert(index++, returnValueTagName == null
-                ? Instruction.Create(OpCodes.Ldnull)
-                : Instruction.Create(OpCodes.Ldstr, returnValueTagName));
+            if (!isVoid2)
+                method.Body.Instructions.Insert(index++, returnValueTagName == null
+                    ? Instruction.Create(OpCodes.Ldnull)
+                    : Instruction.Create(OpCodes.Ldstr, returnValueTagName));
 
             method.Body.Instructions.Insert(index, Instruction.Create(OpCodes.Call,
-                Context.ActivityAwaiterEmitter.GetActivityAwaiter(awaitableInfo.AwaitableInfo)));
+                Context.ActivityAwaiterEmitter.GetActivityAwaiter(awaitableInfo.AwaitableInfo, isVoid2)));
         }
         else
         {
@@ -717,7 +718,7 @@ internal class StaticProxyEmitter(EmitContext context)
     {
         var list = GetActivityTags(method, (method.GetCustomAttribute(Context.ActivityNameAttribute) ??
                 method.DeclaringType.GetCustomAttribute(Context.ActivityNameAttribute))?
-            .GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList(), out _).Item1;
+            .GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList(), out _, out _).Item1;
 
         if (list.Count < 1) return false;
 
@@ -747,12 +748,12 @@ internal class StaticProxyEmitter(EmitContext context)
     }
 
     private List<IReadOnlyList<Instruction>> SetActivityTags(MethodDefinition method, int activityIndex, ref int index,
-        out string? returnValueTagName)
+        out string? returnValueTagName, out bool isVoid)
     {
         var (startInstructions, endInstructions) = GetActivityTags(method,
             method.GetCustomAttribute(Context.ActivityAttribute)?
                 .GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList(),
-            out returnValueTagName);
+            out returnValueTagName, out isVoid);
 
         if (startInstructions.Count < 1) return endInstructions;
 
@@ -784,15 +785,17 @@ internal class StaticProxyEmitter(EmitContext context)
     }
 
     internal Tuple<List<IReadOnlyList<Instruction>>, List<IReadOnlyList<Instruction>>>
-        GetActivityTags(MethodDefinition method, ICollection<string>? tags, out string? returnValueTagName)
+        GetActivityTags(MethodDefinition method, ICollection<string>? tags, out string? returnValueTagName, out bool isVoid)
     {
-        if (!method.ReturnType.HaveSameIdentity(Context.TargetModule.TypeSystem.Void) &&
-            (!CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo) ||
-                !awaitableInfo.AwaitableInfo.AwaiterGetResultMethod.ReturnType.HaveSameIdentity(Context.TargetModule
-                    .TypeSystem.Void)))
+        isVoid = method.ReturnType.HaveSameIdentity(Context.TargetModule.TypeSystem.Void) ||
+            CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo) &&
+            awaitableInfo.AwaitableInfo.AwaiterGetResultMethod.ReturnType
+                .HaveSameIdentity(Context.TargetModule.TypeSystem.Void);
+
+        if (isVoid) returnValueTagName = null;
+        else
             TryGetName(tags, method.MethodReturnType.GetCustomAttribute(Context.ActivityTagAttribute),
                 "$returnvalue", out returnValueTagName);
-        else returnValueTagName = null;
 
         var startInstructions = new List<IReadOnlyList<Instruction>>();
         var endInstructions = new List<IReadOnlyList<Instruction>>();

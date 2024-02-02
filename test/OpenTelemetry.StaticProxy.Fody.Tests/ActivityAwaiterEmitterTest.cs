@@ -30,7 +30,11 @@ public class ActivityAwaiterEmitterTest(ITestOutputHelper output)
 
         awaiterType = getAwaiter.ReturnType;
 
-        context.ActivityAwaiterEmitter.GetActivityAwaiter(coercedAwaitableInfo.AwaitableInfo);
+        var isVoid = coercedAwaitableInfo.AwaitableInfo.AwaiterGetResultMethod.ReturnType
+            .HaveSameIdentity(context.TargetModule.TypeSystem.Void);
+
+        context.ActivityAwaiterEmitter.GetActivityAwaiter(coercedAwaitableInfo.AwaitableInfo, isVoid
+        );
 
         var awaitable = func.Method.Invoke(func.Target, null);
 
@@ -51,7 +55,7 @@ public class ActivityAwaiterEmitterTest(ITestOutputHelper output)
             .Callback(tcs.SetResult);
 
         type.GetMethod(nameof(TaskAwaiter.OnCompleted), BindingFlags.Public | BindingFlags.Static)!
-            .Invoke(null, [awaiter, mock.Object, null]);
+            .Invoke(null, isVoid ? [awaiter, mock.Object] : [awaiter, mock.Object, null]);
 
         if (await Task.WhenAny(tcs.Task, Task.Delay(5000)).ConfigureAwait(false) != tcs.Task)
             Assert.Fail("Timeout");

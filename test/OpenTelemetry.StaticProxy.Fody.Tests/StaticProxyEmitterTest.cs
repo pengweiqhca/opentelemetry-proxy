@@ -22,11 +22,12 @@ public class StaticProxyEmitterTest(ITestOutputHelper output)
 
         var (startInstructions, endInstructions) = emitter.GetActivityTags(
             emitter.Context.TargetModule.GetType(typeof(TestClass3).FullName)
-                .GetMethods(nameof(TestClass3.StaticMethod)).Single(), tags, out var returnValueTagName);
+                .GetMethods(nameof(TestClass3.StaticMethod)).Single(), tags, out var returnValueTagName, out var isVoid);
 
         Assert.Equal("ghi", returnValueTagName);
         Assert.Equal(5, startInstructions.Count);
         Assert.Equal(2, endInstructions.Count);
+        Assert.False(isVoid);
 
         AssertInstructions(startInstructions[0], """
                                                  IL_0000: ldstr "def"
