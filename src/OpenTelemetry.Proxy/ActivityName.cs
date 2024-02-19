@@ -2,18 +2,27 @@
 
 public static class ActivityName
 {
-    private static readonly AsyncLocal<ValueHolder?> Holder = new();
+    private static readonly AsyncLocal<ActivityOnEndHolder?> Holder = new();
 
-    internal static (string? Name, IEnumerable<KeyValuePair<string, object?>>? Tags) GetName()
+    internal static void OnEnd(Activity activity)
     {
-        if (Holder.Value is not { } holder || holder.AvailableTimes == 0) return default;
+        if (Holder.Value is not { } holder) return;
 
-        if (holder.AvailableTimes < 0 || Interlocked.Decrement(ref holder.AvailableTimes) >= 0)
-            return (holder.Name, holder.Tags);
+        var availableTimes = Interlocked.Read(ref holder.AvailableTimes);
 
-        holder.Clear();
+        if (availableTimes == 0) return;
 
-        return default;
+        if (availableTimes < 0) holder.OnEnd(activity);
+
+        availableTimes = Interlocked.Decrement(ref holder.AvailableTimes);
+
+        if (availableTimes < 0) Interlocked.Exchange(ref holder.AvailableTimes, 0);
+        else
+        {
+            holder.OnEnd(activity);
+
+            if (availableTimes == 0) holder.Clear();
+        }
     }
 
     public static IDisposable SetName(string name, IReadOnlyCollection<KeyValuePair<string, object?>>? tags = null,
@@ -28,43 +37,85 @@ public static class ActivityName
     public static IDisposable SetName(IReadOnlyCollection<KeyValuePair<string, object?>>? tags, string? name,
         int readTimes = 1)
     {
-        var holder = Holder.Value;
-
-        if (holder != null)
+        if (Holder.Value is { } holder)
         {
             // If the current holder hava no name, and the new holder only have name, then merge them.
-            if (tags == null && name != null && holder.Name == null) tags = holder.Tags;
+            if (holder is ActivityNameHolder nameHolder && tags == null && name != null && nameHolder.Name == null)
+                tags = nameHolder.Tags;
 
             holder.Clear();
         }
 
         Holder.Value = (tags != null || name != null) && readTimes != 0
-            ? new() { Name = name, Tags = tags, AvailableTimes = readTimes }
+            ? new ActivityNameHolder { Name = name, Tags = tags, AvailableTimes = readTimes }
             : null;
 
         return Disposable.Instance;
     }
 
-    private sealed class ValueHolder
+    public static IDisposable OnEnd(Action<Activity> onEnd, int readTimes = 1)
+    {
+        Holder.Value?.Clear();
+
+        Holder.Value = onEnd != default! && readTimes != 0
+            ? new ActivityCallbackHolder { Callback = onEnd, AvailableTimes = readTimes }
+            : null;
+
+        return Disposable.Instance;
+    }
+
+    private abstract class ActivityOnEndHolder
+    {
+        public long AvailableTimes;
+
+        public abstract void Clear();
+
+        public abstract void OnEnd(Activity data);
+    }
+
+    private sealed class ActivityNameHolder : ActivityOnEndHolder
     {
         public string? Name;
 
         public IReadOnlyCollection<KeyValuePair<string, object?>>? Tags;
 
-        public int AvailableTimes;
-
-        public void Clear()
+        public override void Clear()
         {
             Name = null;
             Tags = null;
             AvailableTimes = 0;
         }
+
+        public override void OnEnd(Activity data)
+        {
+            if (Name != null) data.DisplayName = Name;
+
+            if (Tags != null) data.SetTag(Tags);
+        }
+    }
+
+    private sealed class ActivityCallbackHolder: ActivityOnEndHolder
+    {
+        public Action<Activity>? Callback;
+
+        public override void Clear()
+        {
+            Callback = null;
+            AvailableTimes = 0;
+        }
+
+        public override void OnEnd(Activity data) => Callback?.Invoke(data);
     }
 
     private sealed class Disposable : IDisposable
     {
         public static IDisposable Instance { get; } = new Disposable();
 
-        public void Dispose() => SetName(tags: null, null, 0);
+        public void Dispose()
+        {
+            Holder.Value?.Clear();
+
+            Holder.Value = null;
+        }
     }
 }
