@@ -298,9 +298,8 @@ internal class StaticProxyEmitter(EmitContext context)
         var activityIndex = method.Body.Variables.Count;
         method.Body.Variables.Add(new(Context.Activity));
 
-        var (returnVariableIndex, leave) = ProcessReturn(method, isVoid, hasAsyncStateMachineAttribute, isTypeAwaitable
-            ? _ => Ldloc(activityIndex, method.Body.Variables)
-            : null);
+        var (returnVariableIndex, leave) = ProcessReturn(method, isVoid, hasAsyncStateMachineAttribute,
+            isTypeAwaitable ? _ => Ldloc(activityIndex, method.Body.Variables) : null);
 
         /*IL_0000: ldsfld class [System.Diagnostics.DiagnosticSource]System.Diagnostics.ActivitySource OpenTelemetry.StaticProxy.Fody.TestClass::ActivitySource
         IL_0005: ldstr "Test.Activity"
