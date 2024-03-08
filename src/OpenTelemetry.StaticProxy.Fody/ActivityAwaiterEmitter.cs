@@ -73,7 +73,8 @@ internal class ActivityAwaiterEmitter(EmitContext context)
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Call,
             type.HasGenericParameters ? completed.MakeHostInstanceGeneric(awaiterType) : completed));
 
-        method.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
+        var br = Instruction.Create(OpCodes.Ldarg_1);
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Br_S, br));
 
         /*IL_0052: ldloca.s 2
 IL_0054: ldloc.0
@@ -105,7 +106,17 @@ IL_006c: ret*/
             context.TargetModule.ImportReference(awaiterOnCompleted)
                 .MakeHostInstanceGeneric(method.Parameters[0].ParameterType)));
 
-        method.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
+        /*IL_001c: ldarg.1
+        IL_001d: callvirt instance class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity::get_Parent()
+        IL_0022: call void [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity::set_Current(class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity)
+
+        IL_0027: ret*/
+        var ret = Instruction.Create(OpCodes.Ret);
+
+        method.Body.Instructions.Add(br);
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, context.ActivityGetParent));
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Call, context.ActivitySetCurrent));
+        method.Body.Instructions.Add(ret);
 
         method.Body.OptimizeMacros();
 
@@ -195,7 +206,9 @@ IL_006c: ret*/
     IL_0008: stfld class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity class OpenTelemetry.StaticProxy.Fody.Tests.TestClass/ActivityAwaiter`1<!T>::_activity
     IL_000d: ldarg.0
     IL_000e: ldarg.2
-    IL_000f: stfld valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<!0> class OpenTelemetry.StaticProxy.Fody.Tests.TestClass/ActivityAwaiter`1<!T>::_awaiter*/
+    IL_000f: stfld valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<!0> class OpenTelemetry.StaticProxy.Fody.Tests.TestClass/ActivityAwaiter`1<!T>::_awaiter
+
+    IL_0027: ret*/
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Call, context.ObjectCtor));
 
@@ -212,26 +225,7 @@ IL_006c: ret*/
             ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stfld, returnValueTagName));
         }
 
-        /*IL_0014: ldarg.1
-        IL_0015: callvirt instance class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity::get_Parent()
-        IL_001a: brfalse.s IL_0027
-
-        IL_001c: ldarg.1
-        IL_001d: callvirt instance class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity::get_Parent()
-        IL_0022: call void [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity::set_Current(class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity)
-
-        IL_0027: ret*/
-        var ret = Instruction.Create(OpCodes.Ret);
-
-        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
-        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, context.ActivityGetParent));
-        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Brfalse, ret));
-
-        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
-        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, context.ActivityGetParent));
-        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Call, context.ActivitySetCurrent));
-
-        ctor.Body.Instructions.Add(ret);
+        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
 
         #endregion
 
@@ -266,7 +260,7 @@ IL_006c: ret*/
 
         #endregion
 
-        #region static OnCompleted
+        #region static Completed
 
         completed.Body.InitLocals = true;
         completed.Body.Variables.Add(new(context.Exception));
