@@ -6,6 +6,9 @@ using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.Tests.Common;
 using OpenTelemetry.StaticProxy.Fody;
 using System.Reflection;
+using ActivityName =
+    System.Tuple<string?, System.Collections.Generic.IReadOnlyCollection<
+        System.Collections.Generic.KeyValuePair<string, object?>>?, long>;
 
 namespace OpenTelemetry.StaticProxy.Tests;
 
@@ -48,23 +51,18 @@ public class ModuleWeaverTest
 
     [Fact]
     public Task GetActivityName() => ActivityNameTest(nameof(ModuleWeaverTestClass.GetActivityName),
-        static instance => new((Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int>)instance),
-        new() { { "delay", 200 } });
+        static instance => new((ActivityName)instance), new() { { "delay", 200 } });
 
     [Fact]
     public Task GetActivityNameAsync() => ActivityNameTest(nameof(ModuleWeaverTestClass.GetActivityNameAsync),
-        static instance =>
-            (ValueTask<Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int>>)instance,
-        new() { { "delay", 200 } });
+        static instance => (ValueTask<ActivityName>)instance, new() { { "delay", 200 } });
 
     [Fact]
     public Task GetActivityNameAwaitable() => ActivityNameTest(nameof(ModuleWeaverTestClass.GetActivityNameAwaitable),
-        Awaitable2ValueTask<Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int>>,
-        new() { { "Now", new DateTime(2024, 1, 1) } });
+        Awaitable2ValueTask<ActivityName>, new() { { "Now", new DateTime(2024, 1, 1) } });
 
     private static async Task ActivityNameTest(string methodName,
-        Func<object, ValueTask<Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int>>> func,
-        Dictionary<string, object?> tags)
+        Func<object, ValueTask<ActivityName>> func, Dictionary<string, object?> tags)
     {
         var method = AssemblyEmit()?.GetMethod(methodName);
 

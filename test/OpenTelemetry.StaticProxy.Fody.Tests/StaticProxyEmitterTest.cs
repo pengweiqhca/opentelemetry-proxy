@@ -211,7 +211,7 @@ public class StaticProxyEmitterTest(ITestOutputHelper output)
         emitter.EmitActivityName(emitter.Context.TargetModule
                 .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
                 .Single(static m => m.Name == nameof(StaticProxyEmitterTestClass.ActivityName)),
-            false, activityName, availableTimes);
+            false, activityName, (int)availableTimes);
 
         var assembly = SaveAndLoad(emitter, output);
 
@@ -220,7 +220,7 @@ public class StaticProxyEmitterTest(ITestOutputHelper output)
 
         Assert.NotNull(method);
 
-        var tuple = Assert.IsType<Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int>>(
+        var tuple = Assert.IsType<Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, long>>(
             method.Invoke(null, [123]));
 
         Assert.Equal(activityName, tuple.Item1);
@@ -593,7 +593,7 @@ public static class StaticProxyEmitterTestClass
 {
     public static bool SuppressInstrumentationScope() => Sdk.SuppressInstrumentation;
 
-    public static Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int> GetActivityName(
+    public static Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, long> GetActivityName(
         [ActivityTag] int delay = 300)
     {
         var field = typeof(ActivityAttribute).Assembly.GetType("OpenTelemetry.Proxy.ActivityName")
@@ -612,10 +612,10 @@ public static class StaticProxyEmitterTestClass
             : new(nameHolder.GetType().GetField("Name")?.GetValue(nameHolder) as string,
                 nameHolder.GetType().GetField("Tags")?.GetValue(nameHolder) as
                     IReadOnlyCollection<KeyValuePair<string, object?>>,
-                Assert.IsType<int>(nameHolder.GetType().GetField("AvailableTimes")?.GetValue(nameHolder)));
+                Assert.IsType<long>(nameHolder.GetType().GetField("AvailableTimes")?.GetValue(nameHolder)));
     }
 
-    public static Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, int> ActivityName(
+    public static Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, long> ActivityName(
         [ActivityTag] int delay = 300) => GetActivityName(delay);
 
     public static Activity? GetCurrentActivity() => Activity.Current;

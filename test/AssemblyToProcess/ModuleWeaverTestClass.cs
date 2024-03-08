@@ -5,7 +5,7 @@ using OpenTelemetry.Proxy.Tests.Common;
 using System.Reflection;
 using ActivityName =
     System.Tuple<string?, System.Collections.Generic.IReadOnlyCollection<
-        System.Collections.Generic.KeyValuePair<string, object?>>?, int>;
+        System.Collections.Generic.KeyValuePair<string, object?>>?, long>;
 
 namespace AssemblyToProcess;
 
@@ -55,7 +55,7 @@ public static class ModuleWeaverTestClass
             : new(nameHolder.GetType().GetField("Name")?.GetValue(nameHolder) as string,
                 nameHolder.GetType().GetField("Tags")?.GetValue(nameHolder) as
                     IReadOnlyCollection<KeyValuePair<string, object?>>,
-                Assert.IsType<int>(nameHolder.GetType().GetField("AvailableTimes")?.GetValue(nameHolder)));
+                Assert.IsType<long>(nameHolder.GetType().GetField("AvailableTimes")?.GetValue(nameHolder)));
     }
 
     [ActivityName(Tags = [nameof(delay)])]
