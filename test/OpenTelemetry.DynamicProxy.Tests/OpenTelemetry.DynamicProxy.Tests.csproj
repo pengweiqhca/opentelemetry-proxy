@@ -12,7 +12,7 @@
     <PackageReference Include="FluentAssertions" Version="6.*" />
     <PackageReference Include="FSharp.Core" Version="8.*" />
     <PackageReference Include="Moq" Version="4.*" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="*-*" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="$(OpenTelemetryVersion)" />
     <PackageReference Include="System.Linq.Async" Version="6.*" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.*" PrivateAssets="None" />
 
