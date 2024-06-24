@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -41,7 +42,7 @@ builder.Services.AddSingleton<IConfigureOptions<OpenTelemetryLoggerOptions>>(pro
 
 var app = builder.Build();
 
-app.Map("/", static context =>
+app.Map("/", static async context =>
 {
     if (Activity.Current is { } activity)
     {
@@ -52,7 +53,7 @@ app.Map("/", static context =>
             activity.AddLink(new(activityContext, new() { { "abc", "def" }, { "now", DateTime.Now } }));
     }
 
-    return context.RequestServices.GetRequiredService<DemoClass>().Demo(DateTime.Now.Second);
+    await context.Response.WriteAsJsonAsync(await context.RequestServices.GetRequiredService<DemoClass>().Demo(DateTime.Now.Second).ConfigureAwait(false)).ConfigureAwait(false);
 });
 
 app.Services.GetRequiredService<MeterProvider>();
