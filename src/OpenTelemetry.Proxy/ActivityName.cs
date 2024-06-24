@@ -2,7 +2,14 @@
 
 public static class ActivityName
 {
-    private static readonly AsyncLocal<ActivityOnEndHolder?> Holder = new();
+    private static readonly AsyncLocal<ActivityHolder?> Holder = new();
+
+    internal static void OnStart(Activity activity)
+    {
+        if (Holder.Value is not { } holder) return;
+
+        if (Interlocked.Read(ref holder.AvailableTimes) != 0) holder.OnStart(activity);
+    }
 
     internal static void OnEnd(Activity activity)
     {
@@ -53,27 +60,45 @@ public static class ActivityName
         return Disposable.Instance;
     }
 
-    public static IDisposable OnEnd(Action<Activity> onEnd, int readTimes = 1)
+    public static IDisposable OnEnd(Action<Activity> onEnd, int onEndTimes = 1)
     {
         Holder.Value?.Clear();
 
-        Holder.Value = onEnd != default! && readTimes != 0
-            ? new ActivityCallbackHolder { Callback = onEnd, AvailableTimes = readTimes }
+        Holder.Value = onEnd != default! && onEndTimes != 0
+            ? new ActivityCallbackHolder { OnEndCallback = onEnd, AvailableTimes = onEndTimes }
             : null;
 
         return Disposable.Instance;
     }
 
-    private abstract class ActivityOnEndHolder
+    public static IDisposable On(Action<Activity> onStart, Action<Activity> onEnd, int onEndTimes = 1)
+    {
+        Holder.Value?.Clear();
+
+        Holder.Value = (onStart != default! || onEnd != default!) && onEndTimes != 0
+            ? new ActivityCallbackHolder
+            {
+                OnStartCallback = onStart,
+                OnEndCallback = onEnd,
+                AvailableTimes = onEndTimes
+            }
+            : null;
+
+        return Disposable.Instance;
+    }
+
+    private abstract class ActivityHolder
     {
         public long AvailableTimes;
 
         public abstract void Clear();
 
+        public virtual void OnStart(Activity data) { }
+
         public abstract void OnEnd(Activity data);
     }
 
-    private sealed class ActivityNameHolder : ActivityOnEndHolder
+    private sealed class ActivityNameHolder : ActivityHolder
     {
         public string? Name;
 
@@ -94,17 +119,20 @@ public static class ActivityName
         }
     }
 
-    private sealed class ActivityCallbackHolder: ActivityOnEndHolder
+    private sealed class ActivityCallbackHolder : ActivityHolder
     {
-        public Action<Activity>? Callback;
+        public Action<Activity>? OnStartCallback;
+        public Action<Activity>? OnEndCallback;
 
         public override void Clear()
         {
-            Callback = null;
+            OnEndCallback = null;
             AvailableTimes = 0;
         }
 
-        public override void OnEnd(Activity data) => Callback?.Invoke(data);
+        public override void OnStart(Activity data) => OnStartCallback?.Invoke(data);
+
+        public override void OnEnd(Activity data) => OnEndCallback?.Invoke(data);
     }
 
     private sealed class Disposable : IDisposable
