@@ -25,8 +25,6 @@ public class ActivityInvoker(
         try
         {
             invocation.Proceed();
-
-            Activity.Current = activity.Parent;
         }
         catch (Exception ex)
         {
@@ -52,7 +50,12 @@ public class ActivityInvoker(
         var awaiter = func(invocation.ReturnValue).GetAwaiter();
 
         if (awaiter.IsCompleted) ActivityAwaiter.OnCompleted(activity, awaiter, returnValueTagName);
-        else awaiter.UnsafeOnCompleted(new ActivityAwaiter(activity, awaiter, returnValueTagName).OnCompleted);
+        else
+        {
+            Activity.Current = activity.Parent;
+
+            awaiter.UnsafeOnCompleted(new ActivityAwaiter(activity, awaiter, returnValueTagName).OnCompleted);
+        }
     }
 
     private static void OnException(Activity activity, Exception ex) =>
