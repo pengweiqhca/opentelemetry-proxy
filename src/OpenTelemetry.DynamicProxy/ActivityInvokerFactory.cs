@@ -33,7 +33,7 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
 
         if (!activityInvokers.TryGetValue(invocation.Method, out var invoker))
         {
-            invoker = CreateActivityInvoker(invocation, activityType);
+            invoker = CreateActivityInvoker(invocation, context);
 
             try
             {
