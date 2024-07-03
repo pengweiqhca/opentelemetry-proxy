@@ -56,27 +56,37 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
         var settings = ActivityInvokerHelper.GetActivityName(invocation.Method, type, out var activityName,
             out var kind, out var maxUsableTimes);
 
-        if (string.IsNullOrWhiteSpace(activityName))
-            activityName = $"{invocation.TargetType.FullName}.{invocation.Method.Name}";
-
         return settings switch
         {
-            ActivitySettings.Activity => new ActivityInvoker(GetActivitySource(type), activityName!, kind,
+            ActivitySettings.Activity => new ActivityInvoker(GetActivitySource(type),
+                GetActivityName(invocation, activityName), kind,
                 SetActivityTags(invocation.TargetType, invocation.Method, out activityName), activityName),
-            ActivitySettings.ActivityName => new ActivityNameInvoker(activityName!,
+            ActivitySettings.ActivityName => new ActivityNameInvoker(GetActivityName(invocation, activityName),
                 maxUsableTimes, CreateActivityTags(invocation.TargetType, invocation.Method)),
             ActivitySettings.SuppressInstrumentation => new ActivityNameInvoker(),
             _ => context.ActivityType switch
             {
                 ActivityType.ImplicitActivity => new ActivityInvoker(
-                    GetActivitySource(type, context.ImplicitActivitySourceName), activityName!,
+                    GetActivitySource(type, context.ImplicitActivitySourceName),
+                    GetActivityName(invocation, activityName, context.ImplicitActivitySourceName),
                     context.ImplicitActivityKind,
                     SetActivityTags(invocation.TargetType, invocation.Method, out activityName), activityName),
-                ActivityType.ImplicitActivityName => new ActivityNameInvoker(
-                    activityName!, 1, CreateActivityTags(invocation.TargetType, invocation.Method)),
+                ActivityType.ImplicitActivityName => new ActivityNameInvoker(GetActivityName(invocation, activityName),
+                    1, CreateActivityTags(invocation.TargetType, invocation.Method)),
                 _ => ActivityInvokerHelper.Noop
             }
         };
+    }
+
+    private static string GetActivityName(IInvocation invocation, string? activityName,
+        string? implicitActivitySourceName = null)
+    {
+        if (!string.IsNullOrWhiteSpace(activityName)) return activityName!;
+
+        if (string.IsNullOrWhiteSpace(implicitActivitySourceName))
+            implicitActivitySourceName = invocation.TargetType.FullName ?? invocation.TargetType.ToString();
+
+        return $"{implicitActivitySourceName}.{invocation.Method.Name}";
     }
 
     private ActivitySource GetActivitySource(Type type, string? implicitActivitySourceName = null) =>
