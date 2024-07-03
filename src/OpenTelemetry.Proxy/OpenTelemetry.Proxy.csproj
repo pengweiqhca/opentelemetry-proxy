@@ -4,6 +4,8 @@
     <Description>Automatically generate activity by define [Activity].</Description>
     <TargetFrameworks>net472;netstandard2.1</TargetFrameworks>
     <Version>$(AssemblyVersion).4</Version>
+
+    <PolySharpIncludeGeneratedTypes>System.Diagnostics.StackTraceHiddenAttribute</PolySharpIncludeGeneratedTypes>
   </PropertyGroup>
 
   <ItemGroup>

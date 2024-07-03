@@ -4,6 +4,7 @@ public static class ActivityName
 {
     private static readonly AsyncLocal<ActivityHolder?> Holder = new();
 
+    [StackTraceHidden]
     internal static void OnStart(Activity activity)
     {
         if (Holder.Value is not { } holder) return;
@@ -11,6 +12,7 @@ public static class ActivityName
         if (Interlocked.Read(ref holder.AvailableTimes) != 0) holder.OnStart(activity);
     }
 
+    [StackTraceHidden]
     internal static void OnEnd(Activity activity)
     {
         if (Holder.Value is not { } holder) return;
@@ -130,8 +132,10 @@ public static class ActivityName
             AvailableTimes = 0;
         }
 
+        [StackTraceHidden]
         public override void OnStart(Activity data) => OnStartCallback?.Invoke(data);
 
+        [StackTraceHidden]
         public override void OnEnd(Activity data) => OnEndCallback?.Invoke(data);
     }
 
