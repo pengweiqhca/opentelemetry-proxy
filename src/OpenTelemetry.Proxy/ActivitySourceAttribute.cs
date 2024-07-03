@@ -18,10 +18,16 @@ public class ActivitySourceAttribute : Attribute
     /// <summary>DynamicProxy: default include all async method of interface or async return type and define [AsyncStateMachine] public or protected virtual method of class. If true, will include all method of interface and all public or protected virtual method of class.<br />StaticProxy: default include async return type and define [AsyncStateMachine] public method. If true, will include all method of class.</summary>
     public bool IncludeNonAsyncStateMachineMethod { get; set; }
 
-    public static string GetActivitySourceName(Type type)
+    public static string GetActivitySourceName(Type type) => GetActivitySourceName(type, null);
+
+    internal static string GetActivitySourceName(Type type, string? implicitActivitySourceName)
     {
         var name = type.GetCustomAttribute<ActivitySourceAttribute>()?.ActivitySourceName;
 
-        return string.IsNullOrWhiteSpace(name) ? type.FullName ?? type.ToString() : name!;
+        return string.IsNullOrWhiteSpace(name)
+            ? string.IsNullOrWhiteSpace(implicitActivitySourceName)
+                ? type.FullName ?? type.ToString()
+                : implicitActivitySourceName!
+            : name!;
     }
 }

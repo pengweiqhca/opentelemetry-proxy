@@ -2,5 +2,5 @@
 
 public interface IActivityInvokerFactory
 {
-    void Invoke(IInvocation invocation, ActivityType activityType);
+    void Invoke(IInvocation invocation, InvokeContext context);
 }

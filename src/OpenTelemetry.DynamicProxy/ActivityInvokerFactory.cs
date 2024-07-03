@@ -3,7 +3,9 @@ using OpenTelemetry.Proxy;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq.Expressions;
-using GetTags = System.Func<Castle.DynamicProxy.IInvocation, System.Collections.Generic.IReadOnlyCollection<System.Collections.Generic.KeyValuePair<string, object?>>?>;
+using GetTags =
+    System.Func<Castle.DynamicProxy.IInvocation, System.Collections.Generic.IReadOnlyCollection<
+        System.Collections.Generic.KeyValuePair<string, object?>>?>;
 
 namespace OpenTelemetry.DynamicProxy;
 
@@ -13,16 +15,18 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
     private static readonly ConstructorInfo KeyValuePairCtor =
         typeof(KeyValuePair<string, object?>).GetConstructors().Single();
 
-    private static readonly MethodInfo SetTagEnumerable = typeof(ActivityExtensions).GetMethod(nameof(ActivityExtensions.SetTagEnumerable))!;
+    private static readonly MethodInfo SetTagEnumerable =
+        typeof(ActivityExtensions).GetMethod(nameof(ActivityExtensions.SetTagEnumerable))!;
 
     private static readonly MethodInfo GetArgumentValue =
         typeof(IInvocation).GetMethod(nameof(IInvocation.GetArgumentValue))!;
 
-    private readonly Dictionary<Type, Dictionary<MethodInfo, IActivityInvoker>> _activityInvokers = [];
+    private readonly ConcurrentDictionary<Type, ConcurrentDictionary<MethodInfo, IActivityInvoker>> _activityInvokers =
+        [];
 
     private readonly ConcurrentDictionary<Type, ActivitySource> _activitySources = [];
 
-    public void Invoke(IInvocation invocation, ActivityType activityType)
+    public void Invoke(IInvocation invocation, InvokeContext context)
     {
         if (!_activityInvokers.TryGetValue(invocation.TargetType, out var activityInvokers))
             _activityInvokers[invocation.TargetType] = activityInvokers = [];
@@ -41,11 +45,11 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
         invoker.Invoke(invocation);
     }
 
-    private IActivityInvoker CreateActivityInvoker(IInvocation invocation, ActivityType activityType)
+    private IActivityInvoker CreateActivityInvoker(IInvocation invocation, InvokeContext context)
     {
         var type = invocation.Method.ReflectedType ?? invocation.Method.DeclaringType ?? invocation.TargetType;
 
-        // If has processed by fody, invoke directly.
+        // If it has been processed by fody, invoke directly.
         if (type.Assembly.IsDefined(typeof(ProxyHasGeneratedAttribute)) ||
             type.IsDefined(typeof(ProxyHasGeneratedAttribute))) return ActivityInvokerHelper.Noop;
 
@@ -62,9 +66,11 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
             ActivitySettings.ActivityName => new ActivityNameInvoker(activityName!,
                 maxUsableTimes, CreateActivityTags(invocation.TargetType, invocation.Method)),
             ActivitySettings.SuppressInstrumentation => new ActivityNameInvoker(),
-            _ => activityType switch
+            _ => context.ActivityType switch
             {
-                ActivityType.ImplicitActivity => new ActivityInvoker(GetActivitySource(type), activityName!, ActivityKind.Internal,
+                ActivityType.ImplicitActivity => new ActivityInvoker(
+                    GetActivitySource(type, context.ImplicitActivitySourceName), activityName!,
+                    context.ImplicitActivityKind,
                     SetActivityTags(invocation.TargetType, invocation.Method, out activityName), activityName),
                 ActivityType.ImplicitActivityName => new ActivityNameInvoker(
                     activityName!, 1, CreateActivityTags(invocation.TargetType, invocation.Method)),
@@ -73,10 +79,13 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
         };
     }
 
-    private ActivitySource GetActivitySource(Type type) => _activitySources.GetOrAdd(type, static type =>
-        new(ActivitySourceAttribute.GetActivitySourceName(type), type.Assembly.GetName().Version?.ToString() ?? ""));
+    private ActivitySource GetActivitySource(Type type, string? implicitActivitySourceName = null) =>
+        _activitySources.GetOrAdd(type, static (type, name) =>
+            new(ActivitySourceAttribute.GetActivitySourceName(type, name),
+                type.Assembly.GetName().Version?.ToString() ?? ""), implicitActivitySourceName);
 
-    private static Tuple<Action<IInvocation, Activity>?, Action<IInvocation, Activity>?> SetActivityTags(Type type, MethodInfo method, out string? returnValueTagName)
+    private static Tuple<Action<IInvocation, Activity>?, Action<IInvocation, Activity>?> SetActivityTags(Type type,
+        MethodInfo method, out string? returnValueTagName)
     {
         var invocation = Expression.Parameter(typeof(IInvocation), "invocation");
         var activity = Expression.Parameter(typeof(Activity), "activity");
