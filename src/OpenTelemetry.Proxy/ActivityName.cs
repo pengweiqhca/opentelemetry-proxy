@@ -1,19 +1,14 @@
-﻿namespace OpenTelemetry.Proxy;
+﻿using System.Runtime.CompilerServices;
+
+namespace OpenTelemetry.Proxy;
 
 public static class ActivityName
 {
     private static readonly AsyncLocal<ActivityHolder?> Holder = new();
+    private static readonly ConditionalWeakTable<Activity, ActivityHolder> ActivityTable = new();
 
     [StackTraceHidden]
     internal static void OnStart(Activity activity)
-    {
-        if (Holder.Value is not { } holder) return;
-
-        if (Interlocked.Read(ref holder.AvailableTimes) != 0) holder.OnStart(activity);
-    }
-
-    [StackTraceHidden]
-    internal static void OnEnd(Activity activity)
     {
         if (Holder.Value is not { } holder) return;
 
@@ -21,17 +16,39 @@ public static class ActivityName
 
         if (availableTimes == 0) return;
 
-        if (availableTimes < 0) holder.OnEnd(activity);
+        if (availableTimes < 0)
+        {
+            holder.OnStart(activity);
+
+            if (holder.HasOnEnd()) ActivityTable.Add(activity, holder);
+        }
 
         availableTimes = Interlocked.Decrement(ref holder.AvailableTimes);
 
         if (availableTimes < 0) Interlocked.Exchange(ref holder.AvailableTimes, 0);
         else
         {
-            holder.OnEnd(activity);
+            holder.OnStart(activity);
 
-            if (availableTimes == 0) holder.Clear();
+            if (holder.HasOnEnd())
+            {
+                ActivityTable.Add(activity, holder);
+
+                if (Interlocked.Read(ref holder.Waitings) >= 0)
+                    Interlocked.Increment(ref holder.Waitings);
+            }
+            else if (availableTimes == 0) holder.Clear();
         }
+    }
+
+    [StackTraceHidden]
+    internal static void OnEnd(Activity activity)
+    {
+        if (!ActivityTable.TryGetValue(activity, out var holder)) return;
+
+        holder.OnEnd(activity);
+
+        if (Interlocked.Decrement(ref holder.Waitings) == 0) holder.Clear();
     }
 
     public static IDisposable SetName(string name, IReadOnlyCollection<KeyValuePair<string, object?>>? tags = null,
@@ -56,7 +73,13 @@ public static class ActivityName
         }
 
         Holder.Value = (tags != null || name != null) && readTimes != 0
-            ? new ActivityNameHolder { Name = name, Tags = tags, AvailableTimes = readTimes }
+            ? new ActivityNameHolder
+            {
+                Name = name,
+                Tags = tags,
+                AvailableTimes = readTimes,
+                Waitings = readTimes < 0 ? -1 : 0
+            }
             : null;
 
         return Disposable.Instance;
@@ -67,22 +90,28 @@ public static class ActivityName
         Holder.Value?.Clear();
 
         Holder.Value = onEnd != default! && onEndTimes != 0
-            ? new ActivityCallbackHolder { OnEndCallback = onEnd, AvailableTimes = onEndTimes }
+            ? new ActivityCallbackHolder
+            {
+                OnEndCallback = onEnd,
+                AvailableTimes = onEndTimes,
+                Waitings = onEndTimes < 0 ? -1 : 0
+            }
             : null;
 
         return Disposable.Instance;
     }
 
-    public static IDisposable On(Action<Activity> onStart, Action<Activity> onEnd, int onEndTimes = 1)
+    public static IDisposable On(Action<Activity> onStart, Action<Activity> onEnd, int onStartTimes = 1)
     {
         Holder.Value?.Clear();
 
-        Holder.Value = (onStart != default! || onEnd != default!) && onEndTimes != 0
+        Holder.Value = (onStart != default! || onEnd != default!) && onStartTimes != 0
             ? new ActivityCallbackHolder
             {
                 OnStartCallback = onStart,
                 OnEndCallback = onEnd,
-                AvailableTimes = onEndTimes
+                AvailableTimes = onStartTimes,
+                Waitings = onStartTimes < 0 ? -1 : 0
             }
             : null;
 
@@ -92,6 +121,10 @@ public static class ActivityName
     private abstract class ActivityHolder
     {
         public long AvailableTimes;
+
+        public long Waitings = -1;
+
+        public virtual bool HasOnEnd() => true;
 
         public abstract void Clear();
 
@@ -126,8 +159,11 @@ public static class ActivityName
         public Action<Activity>? OnStartCallback;
         public Action<Activity>? OnEndCallback;
 
+        public override bool HasOnEnd() => OnEndCallback != null;
+
         public override void Clear()
         {
+            OnStartCallback = null;
             OnEndCallback = null;
             AvailableTimes = 0;
         }
