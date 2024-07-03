@@ -7,7 +7,7 @@ namespace OpenTelemetry.StaticProxy.Fody;
 
 internal static class ActivityInvokerHelper
 {
-    /// <returns>0: Not a activity</returns>
+    /// <returns>0: Not an activity</returns>
     public static ProxyType<MethodDefinition> GetProxyType(TypeDefinition type, EmitContext context)
     {
         string? activitySourceName = null, name = null;
@@ -32,16 +32,8 @@ internal static class ActivityInvokerHelper
 
         var proxyType = new ProxyType<MethodDefinition> { ActivitySourceName = activitySourceName };
 
-        var propertyMethods = new HashSet<MethodDefinition>();
-
-        foreach (var property in type.Properties)
-        {
-            if (property.GetMethod != null) propertyMethods.Add(property.GetMethod);
-            if (property.SetMethod != null) propertyMethods.Add(property.SetMethod);
-        }
-
         foreach (var method in type.GetMethods())
-            if (!propertyMethods.Contains(method))
+            if (!method.IsSpecialName)
                 proxyType.AddMethod(method, GetProxyMethod(method, context, kind,
                     includeNonAsyncStateMachineMethod, name, maxUsableTimes));
 

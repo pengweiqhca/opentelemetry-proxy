@@ -28,18 +28,24 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
 
     public void Invoke(IInvocation invocation, InvokeContext context)
     {
-        if (!_activityInvokers.TryGetValue(invocation.TargetType, out var activityInvokers))
-            _activityInvokers[invocation.TargetType] = activityInvokers = [];
+        IActivityInvoker invoker;
 
-        if (!activityInvokers.TryGetValue(invocation.Method, out var invoker))
+        if (invocation.Method.IsSpecialName) invoker = ActivityInvokerHelper.Noop;
+        else
         {
-            invoker = CreateActivityInvoker(invocation, context);
+            if (!_activityInvokers.TryGetValue(invocation.TargetType, out var activityInvokers))
+                _activityInvokers[invocation.TargetType] = activityInvokers = [];
 
-            try
+            if (!activityInvokers.TryGetValue(invocation.Method, out invoker))
             {
-                activityInvokers[invocation.Method] = invoker;
+                invoker = CreateActivityInvoker(invocation, context);
+
+                try
+                {
+                    activityInvokers[invocation.Method] = invoker;
+                }
+                catch (NullReferenceException) { }
             }
-            catch (NullReferenceException) { }
         }
 
         invoker.Invoke(invocation);
@@ -47,6 +53,8 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
 
     private IActivityInvoker CreateActivityInvoker(IInvocation invocation, InvokeContext context)
     {
+        if (invocation.Method.IsSpecialName) return ActivityInvokerHelper.Noop;
+
         var type = invocation.Method.ReflectedType ?? invocation.Method.DeclaringType ?? invocation.TargetType;
 
         // If it has been processed by fody, invoke directly.
