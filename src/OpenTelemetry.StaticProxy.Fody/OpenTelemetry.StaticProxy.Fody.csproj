@@ -11,7 +11,7 @@
     <Compile Include="../Shared/ActivitySettings.cs" />
     <Compile Include="../Shared/ProxyMethod.cs" />
 
-    <InternalsVisibleTo Include="OpenTelemetry.StaticProxy.Fody.Tests" Key="$(PublicKey)" />
+    <InternalsVisibleTo Include="OpenTelemetry.StaticProxy.Fody.Tests" />
 
     <PackageReference Include="FodyHelpers" Version="$(FodyVersion)" />
   </ItemGroup>
