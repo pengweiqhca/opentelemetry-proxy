@@ -353,6 +353,41 @@ public class StaticProxyEmitterTest(ITestOutputHelper output)
         method.Invoke(null, []);
     }
 
+    [Fact]
+    public void DifferentTypesTest()
+    {
+#if DEBUG
+        Assert.Fail("Please run this test in release mode.");
+#else
+        Test(nameof(StaticProxyEmitterTestClass.DifferentTypes));
+        Test(nameof(StaticProxyEmitterTestClass.DifferentTypes2));
+        Test(nameof(StaticProxyEmitterTestClass.DifferentTypes3));
+        Test(nameof(StaticProxyEmitterTestClass.DifferentTypes4));
+        Test(nameof(StaticProxyEmitterTestClass.DifferentTypes5));
+
+        void Test(string methodName)
+        {
+            var emitter = CreateEmitter();
+
+            emitter.EmitSuppressInstrumentationScope(emitter.Context.TargetModule
+                .GetType(typeof(StaticProxyEmitterTestClass).FullName).GetMethods()
+                .Single(m => m.Name == methodName), false);
+
+            var assembly = SaveAndLoad(emitter, output);
+
+            var method = assembly.GetType(typeof(StaticProxyEmitterTestClass).FullName!)!.GetMethod(methodName);
+
+            Assert.NotNull(method);
+
+            var result = method.Invoke(null, []);
+
+            Assert.NotNull(result);
+
+            Assert.Equal(123, Assert.IsType<int>(result));
+        }
+#endif
+    }
+
     [Theory]
     [MemberData(nameof(AsyncMethods))]
     public async Task SuppressInstrumentationScopeAsync(string methodName, Func<object, Task> func)
@@ -658,6 +693,81 @@ public static class StaticProxyEmitterTestClass
             Console.WriteLine(DateTime.Now);
         }
     }
+
+    #region DifferentTypes
+
+    public static object DifferentTypes()
+    {
+        var a = Get();
+
+        if (a != null) return a;
+
+        Console.WriteLine("123");
+
+        return 456;
+    }
+
+    public static object DifferentTypes2()
+    {
+        using var activity = new Activity("3");
+
+        var a = Get();
+
+        if (a != null) return a;
+
+        var b = Get2();
+
+        Set(b);
+
+        return b;
+    }
+
+    public static object DifferentTypes3()
+    {
+        object? a = Get();
+
+        if (a != null) return a;
+
+        using var activity = new Activity("3");
+
+        var b = Get2();
+
+        Set(b);
+
+        return b;
+    }
+
+    public static int DifferentTypes4()
+    {
+        var a = Get();
+
+        if (a != null) return (int)a;
+
+        using var activity = new Activity("3");
+
+        var b = Get2();
+
+        Set(b);
+
+        return b;
+    }
+
+    public static object DifferentTypes5()
+    {
+        if (DateTime.Now.Second > -1) return 123;
+
+        Console.WriteLine("456");
+
+        return 456;
+    }
+
+    private static ValueType? Get() => 123;
+
+    private static int Get2() => 456;
+
+    private static void Set(int _) { }
+
+    #endregion
 
     public static async Task<int> TaskTMethod()
     {

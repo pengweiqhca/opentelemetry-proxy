@@ -534,6 +534,8 @@ internal class StaticProxyEmitter(EmitContext context)
     private static Tuple<int, Instruction?> ProcessReturn(MethodDefinition method, bool isVoid,
         bool hasAsyncStateMachineAttribute, Func<int, Instruction>? createLeave)
     {
+        ProcessMultipleReturn(method, isVoid);
+
         var (variableIndex, raw) = RetOrBr2LeaveS(method.Body, hasAsyncStateMachineAttribute, isVoid);
         if (variableIndex < 0 || createLeave == null) return Tuple.Create<int, Instruction?>(variableIndex, null);
 
@@ -546,6 +548,37 @@ internal class StaticProxyEmitter(EmitContext context)
         }
 
         return Tuple.Create<int, Instruction?>(variableIndex, leave);
+
+        static void ProcessMultipleReturn(MethodDefinition method, bool isVoid)
+        {
+            if (isVoid || method.ReturnType.IsValueType) return;
+
+            var list = new List<(int Index, int VariableIndex)>();
+
+            for (var index = method.Body.Instructions.Count - 1; index > 0; index--)
+                if (method.Body.Instructions[index].OpCode == OpCodes.Ret)
+                    list.Add((index - 1,
+                        IsLdloc(method.Body.Instructions[index - 1], method.Body.Variables, out var variableIndex)
+                            ? variableIndex
+                            : -1));
+
+            if (list.Count < 2 || list.Select(x => x.VariableIndex).Distinct().Count() < 2) return;
+
+            var returnVariable = list.Select(x => x.VariableIndex)
+                .Where(variableIndex => variableIndex >= 0 &&
+                    method.ReturnType.HaveSameIdentity(method.Body.Variables[variableIndex].VariableType))
+                .Select(variableIndex => method.Body.Variables[variableIndex]).FirstOrDefault();
+
+            if (returnVariable == null) method.Body.Variables.Add(returnVariable = new(method.ReturnType));
+
+            foreach (var (index, variableIndex) in list)
+            {
+                if (variableIndex >= 0 && method.Body.Variables[variableIndex] == returnVariable) continue;
+
+                method.Body.Instructions.Insert(index + 1, Ldloc(returnVariable.Index, method.Body.Variables));
+                method.Body.Instructions.Insert(index + 1, Stloc(returnVariable.Index, method.Body.Variables));
+            }
+        }
 
         static Tuple<int, Instruction> RetOrBr2LeaveS(MethodBody body, bool hasAsyncStateMachineAttribute, bool isVoid)
         {

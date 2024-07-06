@@ -8,7 +8,7 @@
     <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
 
     <AssemblyVersion>2.4</AssemblyVersion>
-    <StaticProxyVersion>$(AssemblyVersion).0</StaticProxyVersion>
+    <StaticProxyVersion>$(AssemblyVersion).1</StaticProxyVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
