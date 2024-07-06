@@ -3,7 +3,7 @@ using Mono.Cecil;
 
 namespace OpenTelemetry.StaticProxy.Fody;
 
-// https://github.com/vescon/MethodBoundaryAspect.Fody
+// https://github.com/vescon/MethodBoundaryAspect.Fody/blob/master/src/MethodBoundaryAspect.Fody/ModuleWeaver.cs
 public class ModuleWeaver : BaseModuleWeaver
 {
     public override void Execute()
