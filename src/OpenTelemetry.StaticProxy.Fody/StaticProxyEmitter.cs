@@ -68,13 +68,8 @@ internal class StaticProxyEmitter(EmitContext context)
             Context.TargetModule.Assembly.CustomAttributes.Add(
                 new(Context.TargetModule.ImportReference(Context.ProxyHasGeneratedAttributeCtor)));
 
-        static IEnumerable<TypeDefinition> GetTypes(TypeDefinition type)
-        {
-            yield return type;
-
-            foreach (var nestedNestedType in type.NestedTypes.SelectMany(GetTypes))
-                yield return nestedNestedType;
-        }
+        static IEnumerable<TypeDefinition> GetTypes(TypeDefinition type) =>
+            type.NestedTypes.SelectMany(GetTypes).Prepend(type);
     }
 
     public FieldReference AddActivitySource(string name, string version)
