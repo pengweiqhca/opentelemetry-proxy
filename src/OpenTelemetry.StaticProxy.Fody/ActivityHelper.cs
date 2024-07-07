@@ -10,38 +10,33 @@ internal static class ActivityInvokerHelper
     /// <returns>0: Not an activity</returns>
     public static ProxyType<MethodDefinition> GetProxyType(TypeDefinition type, EmitContext context)
     {
-        string? activitySourceName = null, name = null;
-        var kind = -1;
-        var includeNonAsyncStateMachineMethod = false;
-        int? maxUsableTimes = null;
+        string? activitySourceName = null;
+        Tuple<int, bool>? tuple1 = null;
+        Tuple<string?, int>? tuple2 = null;
 
         if (type.GetCustomAttribute(context.ActivitySourceAttribute) is { } activitySource)
         {
             activitySourceName = activitySource.GetValue<string>("", type.Module.TypeSystem.String);
 
-            kind = activitySource.GetValue<int>("Kind", type.Module.TypeSystem.Int32);
-            includeNonAsyncStateMachineMethod = activitySource.GetValue<bool>("IncludeNonAsyncStateMachineMethod",
-                type.Module.TypeSystem.Boolean);
+            tuple1 = new(activitySource.GetValue<int>("Kind", type.Module.TypeSystem.Int32),
+                activitySource.GetValue<bool>("IncludeNonAsyncStateMachineMethod",
+                    type.Module.TypeSystem.Boolean));
         }
         else if (type.GetCustomAttribute(context.ActivityNameAttribute) is { } activityName)
-        {
-            name = activityName.GetValue<string>("", type.Module.TypeSystem.String);
-
-            maxUsableTimes = activityName.GetValue("MaxUsableTimes", type.Module.TypeSystem.Int32, 1);
-        }
+            tuple2 = new(activityName.GetValue<string>("", type.Module.TypeSystem.String),
+                activityName.GetValue("MaxUsableTimes", type.Module.TypeSystem.Int32, 1));
 
         var proxyType = new ProxyType<MethodDefinition> { ActivitySourceName = activitySourceName };
 
         foreach (var method in type.GetMethods())
             if (!method.IsSpecialName)
-                proxyType.AddMethod(method, GetProxyMethod(method, context, kind,
-                    includeNonAsyncStateMachineMethod, name, maxUsableTimes));
+                proxyType.AddMethod(method, GetProxyMethod(method, context, tuple1, tuple2));
 
         return proxyType;
     }
 
-    public static ProxyMethod GetProxyMethod(MethodDefinition method, EmitContext context, int kind,
-        bool includeNonAsyncStateMachineMethod, string? activityName, int? maxUsableTimes)
+    public static ProxyMethod GetProxyMethod(MethodDefinition method, EmitContext context,
+        Tuple<int, bool>? activitySource, Tuple<string?, int>? activityName)
     {
         if (method.GetCustomAttribute(context.NonActivityAttribute) is { } naa)
             return new(naa.GetValue<bool>("", method.Module.TypeSystem.Boolean)
@@ -56,27 +51,23 @@ internal static class ActivityInvokerHelper
         if (method.GetCustomAttribute(context.ActivityNameAttribute) is not { } ana)
         {
             if (!method.IsPublic || method.GetCustomAttribute(context.CompilerGeneratedAttribute) != null)
-                return new(ActivitySettings.None);
+                return default;
 
-            if (maxUsableTimes is null)
-                return kind < 0
-                    ? new(ActivitySettings.None)
-                    : new(includeNonAsyncStateMachineMethod ||
-                        method.GetCustomAttribute(context.AsyncStateMachineAttribute) != null &&
-                        CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out _)
-                            ? ActivitySettings.Activity
-                            : ActivitySettings.None, Kind: kind);
+            if (activitySource != null)
+                return activitySource.Item2 || method.GetCustomAttribute(context.AsyncStateMachineAttribute) != null &&
+                    CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out _)
+                        ? new(ActivitySettings.Activity, Kind: activitySource.Item1)
+                        : default;
 
-            if (!string.IsNullOrWhiteSpace(activityName))
-                activityName = $"{activityName}.{method.Name}";
+            if (activityName == null) return default;
+
+            if (!string.IsNullOrWhiteSpace(activityName.Item1))
+                activityName = new($"{activityName.Item1}.{method.Name}", activityName.Item2);
         }
         else
-        {
-            activityName = ana.GetValue<string>("", method.Module.TypeSystem.String);
+            activityName = new(ana.GetValue<string>("", method.Module.TypeSystem.String),
+                ana.GetValue("MaxUsableTimes", method.Module.TypeSystem.Int32, 1));
 
-            maxUsableTimes = ana.GetValue("MaxUsableTimes", method.Module.TypeSystem.Int32, 1);
-        }
-
-        return new(ActivitySettings.ActivityName, activityName, MaxUsableTimes: (int)maxUsableTimes);
+        return new(ActivitySettings.ActivityName, activityName.Item1, MaxUsableTimes: activityName.Item2);
     }
 }
