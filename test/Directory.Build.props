@@ -5,6 +5,7 @@
   <PropertyGroup>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);xUnit1030</NoWarn>
+    <RollForward>Major</RollForward>
   </PropertyGroup>
 
   <ItemGroup>
