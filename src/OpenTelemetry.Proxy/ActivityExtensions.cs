@@ -1,14 +1,10 @@
 ﻿using System.Collections;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace OpenTelemetry.Proxy;
 
 public static class ActivityExtensions
 {
-    private static readonly ConcurrentDictionary<Type, Action<Activity, string, object>?> CacheDictionary = [];
-    private static readonly MethodInfo EnumerateMethod = typeof(ActivityExtensions).GetMethod(nameof(Enumerate), BindingFlags.Static | BindingFlags.NonPublic)!;
-
     public static Activity SetTag(this Activity activity, IEnumerable<KeyValuePair<string, object?>> tags)
     {
         foreach (var kv in tags) activity.SetTagEnumerable(kv.Key, kv.Value);
@@ -18,16 +14,6 @@ public static class ActivityExtensions
 
     public static Activity SetTagEnumerable(this Activity activity, string key, object? value)
     {
-        if (value is string || value is not IEnumerable enumerable)
-        {
-            if (value is not ITuple tuple) return activity.SetTag(key, value);
-
-            for (var index = 0; index < tuple.Length; index++)
-                activity.SetTagEnumerable($"{key}.Item{index + 1}", tuple[index]);
-
-            return activity;
-        }
-
         if (value is IDictionary dictionary)
         {
             foreach (DictionaryEntry kv in dictionary)
@@ -36,27 +22,11 @@ public static class ActivityExtensions
             return activity;
         }
 
-        var action = CacheDictionary.GetOrAdd(value.GetType(), static type => (from i in type.GetInterfaces()
-            where i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>)
-            select i.GetGenericArguments()[0] into argument
-            where argument.IsGenericType && argument.GetGenericTypeDefinition() == typeof(KeyValuePair<,>)
-            select (Action<Activity, string, object>)EnumerateMethod.MakeGenericMethod(argument.GetGenericArguments())
-                .CreateDelegate(typeof(Action<Activity, string, object>))).FirstOrDefault());
+        if (value is not ITuple tuple) return activity.SetTag(key, value);
 
-        if (action != null) action(activity, key, value);
-        else
-        {
-            var index = 0;
-            foreach (var v in enumerable)
-                activity.SetTagEnumerable($"{key}.{index++}", v);
-        }
+        for (var index = 0; index < tuple.Length; index++)
+            activity.SetTagEnumerable($"{key}.Item{index + 1}", tuple[index]);
 
         return activity;
-    }
-
-    private static void Enumerate<TKey, TValue>(Activity activity, string key, object dictionary)
-    {
-        foreach (var kv in (IEnumerable<KeyValuePair<TKey, TValue>>)dictionary)
-            activity.SetTagEnumerable($"{key}.{kv.Key}", kv.Value);
     }
 }
