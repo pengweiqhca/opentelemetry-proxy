@@ -73,8 +73,7 @@ internal class ActivityAwaiterEmitter(EmitContext context)
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Call,
             type.HasGenericParameters ? completed.MakeHostInstanceGeneric(awaiterType) : completed));
 
-        var br = Instruction.Create(OpCodes.Ldarg_1);
-        method.Body.Instructions.Add(Instruction.Create(OpCodes.Br_S, br));
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
 
         /*IL_0052: ldloca.s 2
 IL_0054: ldloc.0
@@ -106,17 +105,7 @@ IL_006c: ret*/
             context.TargetModule.ImportReference(awaiterOnCompleted)
                 .MakeHostInstanceGeneric(method.Parameters[0].ParameterType)));
 
-        /*IL_001c: ldarg.1
-        IL_001d: callvirt instance class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity::get_Parent()
-        IL_0022: call void [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity::set_Current(class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity)
-
-        IL_0027: ret*/
-        var ret = Instruction.Create(OpCodes.Ret);
-
-        method.Body.Instructions.Add(br);
-        method.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, context.ActivityGetParent));
-        method.Body.Instructions.Add(Instruction.Create(OpCodes.Call, context.ActivitySetCurrent));
-        method.Body.Instructions.Add(ret);
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
 
         method.Body.OptimizeMacros();
 
@@ -225,6 +214,14 @@ IL_006c: ret*/
             ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Stfld, returnValueTagName));
         }
 
+        /*IL_001c: ldarg.2
+        IL_001d: callvirt instance class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity::get_Parent()
+        IL_0022: call void [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity::set_Current(class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity)
+
+        IL_0027: ret*/
+        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_2));
+        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Callvirt, context.ActivityGetParent));
+        ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Call, context.ActivitySetCurrent));
         ctor.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
 
         #endregion
