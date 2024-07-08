@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="OpenTelemetry.DynamicProxy" />
+    <InternalsVisibleTo Include="OpenTelemetry.StaticProxy.Fody.Tests" />
 
     <PackageReference Include="OpenTelemetry" Version="$(OpenTelemetryVersion)" />
   </ItemGroup>

@@ -1,4 +1,5 @@
-﻿using FluentAssertions;
+﻿using Fasterflect;
+using FluentAssertions;
 using Microsoft.FSharp.Control;
 using Microsoft.FSharp.Core;
 using Mono.Cecil;
@@ -631,23 +632,16 @@ public static class StaticProxyEmitterTestClass
     public static Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, long> GetActivityName(
         [ActivityTag] int delay = 300)
     {
-        var field = typeof(ActivityAttribute).Assembly.GetType("OpenTelemetry.Proxy.ActivityName")
-            ?.GetField("Holder", BindingFlags.Static | BindingFlags.NonPublic);
+        var holder = InnerActivityAccessor.Activity;
+        if (holder == null) return new(null, default, 0);
 
-        Assert.NotNull(field);
+        var nameHolder = Assert.IsAssignableFrom<Delegate>(holder.OnStart).Target;
 
-        var name = field.GetValue(null);
+        Assert.NotNull(nameHolder);
 
-        Assert.NotNull(name);
-
-        var nameHolder = name.GetType().GetProperty("Value")?.GetValue(name);
-
-        return nameHolder == null
-            ? new(null, default, 0)
-            : new(nameHolder.GetType().GetField("Name")?.GetValue(nameHolder) as string,
-                nameHolder.GetType().GetField("Tags")?.GetValue(nameHolder) as
-                    IReadOnlyCollection<KeyValuePair<string, object?>>,
-                Assert.IsType<long>(nameHolder.GetType().GetField("AvailableTimes")?.GetValue(nameHolder)));
+        return new(nameHolder.GetPropertyValue("Name") as string,
+            nameHolder.GetPropertyValue("Tags") as IReadOnlyCollection<KeyValuePair<string, object?>>,
+            Assert.IsType<long>(nameHolder.GetFieldValue("<availableTimes>P", Flags.NonPublic | Flags.Instance)));
     }
 
     public static Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, long> ActivityName(

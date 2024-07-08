@@ -6,6 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="fasterflect" Version="3.*" />
+
     <ProjectReference Include="..\..\src\OpenTelemetry.StaticProxy\OpenTelemetry.StaticProxy.csproj" />
     <ProjectReference Include="..\OpenTelemetry.Proxy.Tests.Common\OpenTelemetry.Proxy.Tests.Common.csproj" />
   </ItemGroup>

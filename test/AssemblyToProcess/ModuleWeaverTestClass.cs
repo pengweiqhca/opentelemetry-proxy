@@ -1,4 +1,5 @@
-﻿using Microsoft.FSharp.Control;
+﻿using Fasterflect;
+using Microsoft.FSharp.Control;
 using OpenTelemetry;
 using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.Tests.Common;
@@ -39,23 +40,17 @@ public static class ModuleWeaverTestClass
 
     private static ActivityName InternalGetActivityName()
     {
-        var field = typeof(ActivityAttribute).Assembly.GetType("OpenTelemetry.Proxy.ActivityName")
-            ?.GetField("Holder", BindingFlags.Static | BindingFlags.NonPublic);
+        var holder = typeof(InnerActivityAccessor).GetProperty("Activity", BindingFlags.NonPublic | BindingFlags.Static)
+            ?.GetValue(null);
+        if (holder == null) return new(null, default, 0);
 
-        Assert.NotNull(field);
+        var nameHolder = Assert.IsAssignableFrom<Delegate>(holder.GetPropertyValue("OnStart")).Target;
 
-        var name = field.GetValue(null);
+        Assert.NotNull(nameHolder);
 
-        Assert.NotNull(name);
-
-        var nameHolder = name.GetType().GetProperty("Value")?.GetValue(name);
-
-        return nameHolder == null
-            ? new(null, default, 0)
-            : new(nameHolder.GetType().GetField("Name")?.GetValue(nameHolder) as string,
-                nameHolder.GetType().GetField("Tags")?.GetValue(nameHolder) as
-                    IReadOnlyCollection<KeyValuePair<string, object?>>,
-                Assert.IsType<long>(nameHolder.GetType().GetField("AvailableTimes")?.GetValue(nameHolder)));
+        return new(nameHolder.GetPropertyValue("Name") as string,
+            nameHolder.GetPropertyValue("Tags") as IReadOnlyCollection<KeyValuePair<string, object?>>,
+            Assert.IsType<long>(nameHolder.GetFieldValue("<availableTimes>P", Flags.NonPublic | Flags.Instance)));
     }
 
     [ActivityName(Tags = [nameof(delay)])]

@@ -5,5 +5,5 @@ namespace OpenTelemetry.Proxy;
 public static class TracerProviderBuilderExtensions
 {
     public static TracerProviderBuilder AddActivityNameProcessor(this TracerProviderBuilder builder) =>
-        builder.AddProcessor(new ActivityNameProcessor());
+        builder.AddProcessor(new ActivityProcessor());
 }
