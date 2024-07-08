@@ -1,11 +1,9 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using OpenTelemetry.Exporter;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Proxy;
@@ -19,15 +17,11 @@ builder.Services
     .AddDemoClass()
     .AddLogging(static lb => lb.AddOpenTelemetry())
     .AddOpenTelemetry()
-    .WithMetrics(static builder => ConfigureOtlp.ConfigureResource(builder)
-        .AddOtlpExporter())
+    .WithMetrics(static builder => ConfigureOtlp.ConfigureResource(builder).AddOtlpExporter())
     .WithTracing(static builder => ConfigureOtlp.ConfigureResource(builder)
         .AddAspNetCoreInstrumentation()
         .AddSource(ActivitySourceAttribute.GetActivitySourceName(typeof(DemoClass)))
         .AddOtlpExporter());
-
-builder.Services.AddSingleton<IConfigureOptions<OtlpExporterOptions>>(provider =>
-    new ConfigureOptions<OtlpExporterOptions>(new ConfigureOtlp(provider).ConfigureOtlpExporterOptions));
 
 builder.Services.AddSingleton<IConfigureOptions<OpenTelemetryLoggerOptions>>(provider =>
     new ConfigureOptions<OpenTelemetryLoggerOptions>(options =>
@@ -37,7 +31,7 @@ builder.Services.AddSingleton<IConfigureOptions<OpenTelemetryLoggerOptions>>(pro
 
         options.IncludeFormattedMessage = true;
 
-        options.AddOtlpExporter(new ConfigureOtlp(provider).ConfigureOtlpExporterOptions);
+        options.AddOtlpExporter();
     }));
 
 var app = builder.Build();
@@ -85,12 +79,4 @@ record ConfigureOtlp(IServiceProvider Services)
 
     private void ConfigureResource(ResourceBuilder builder) =>
         builder.AddService(Services.GetRequiredService<IHostEnvironment>().ApplicationName);
-
-    public void ConfigureOtlpExporterOptions(OtlpExporterOptions options)
-    {
-        var configuration = Services.GetRequiredService<IConfiguration>();
-
-        options.Endpoint = new(configuration["otlp:endpoint"]!);
-        options.Headers = new(configuration["otlp:headers"]!);
-    }
 }
