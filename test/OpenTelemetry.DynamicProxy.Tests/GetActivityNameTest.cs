@@ -76,6 +76,12 @@ public class GetActivityNameTest
             typeof(ITestInterface2), out _, out _, out _));
     }
 
+    [Fact]
+    public void SuppressInstrumentationTest() =>
+        Assert.Equal(ActivitySettings.ActivityAndSuppressInstrumentation, ActivityInvokerHelper.GetActivityName(
+            typeof(ITestInterface).GetMethod(nameof(ITestInterface.Method7))!,
+            typeof(ITestInterface), out _, out _, out _));
+
     [ActivitySource]
     private interface ITestInterface2
     {

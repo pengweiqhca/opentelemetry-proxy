@@ -1,6 +1,5 @@
 ﻿using Castle.DynamicProxy;
 using FluentAssertions;
-using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.Tests.Common;
 using System.Linq.Expressions;
@@ -260,6 +259,16 @@ public class ActivityInterceptorTest : IDisposable
         if (getTags != null)
             foreach (var kv in getTags())
                 child.GetTagItem(kv.Key).Should().Be(kv.Value, "Activity tag `{0}` should be equal", kv.Key);
+    }
+
+    [Fact]
+    public void SuppressInstrumentationTest()
+    {
+        Assert.False(Sdk.SuppressInstrumentation);
+
+        Assert.True(_target.Method7());
+
+        Assert.False(Sdk.SuppressInstrumentation);
     }
 
     public void Dispose() => _listener.Dispose();

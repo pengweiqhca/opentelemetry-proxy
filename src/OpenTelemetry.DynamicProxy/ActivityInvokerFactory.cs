@@ -66,8 +66,9 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
 
         return settings switch
         {
-            ActivitySettings.Activity => new ActivityInvoker(GetActivitySource(type),
-                GetActivityName(invocation, activityName), kind,
+            ActivitySettings.Activity or ActivitySettings.ActivityAndSuppressInstrumentation => new ActivityInvoker(
+                GetActivitySource(type), GetActivityName(invocation, activityName), kind,
+                settings == ActivitySettings.ActivityAndSuppressInstrumentation,
                 SetActivityTags(invocation.TargetType, invocation.Method, out activityName), activityName),
             ActivitySettings.ActivityName => new ActivityNameInvoker(GetActivityName(invocation, activityName),
                 maxUsableTimes, CreateActivityTags(invocation.TargetType, invocation.Method)),
@@ -77,7 +78,7 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
                 ActivityType.ImplicitActivity => new ActivityInvoker(
                     GetActivitySource(type, context.ImplicitActivitySourceName),
                     GetActivityName(invocation, activityName, context.ImplicitActivitySourceName),
-                    context.ImplicitActivityKind,
+                    context.ImplicitActivityKind, context.SuppressInstrumentation,
                     SetActivityTags(invocation.TargetType, invocation.Method, out activityName), activityName),
                 ActivityType.ImplicitActivityName => new ActivityNameInvoker(GetActivityName(invocation, activityName),
                     1, CreateActivityTags(invocation.TargetType, invocation.Method)),

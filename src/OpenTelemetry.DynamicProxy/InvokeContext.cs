@@ -8,10 +8,13 @@ public readonly struct InvokeContext(ActivityType activityType)
 
     public ActivityKind ImplicitActivityKind { get; }
 
-    public InvokeContext(string? implicitActivitySourceName, ActivityKind implicitActivityKind)
+    public bool SuppressInstrumentation { get; }
+
+    public InvokeContext(string? implicitActivitySourceName, ActivityKind implicitActivityKind, bool suppressInstrumentation = false)
         : this(ActivityType.ImplicitActivity)
     {
         ImplicitActivitySourceName = implicitActivitySourceName;
         ImplicitActivityKind = implicitActivityKind;
+        SuppressInstrumentation = suppressInstrumentation;
     }
 }

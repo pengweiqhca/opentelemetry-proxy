@@ -14,4 +14,6 @@ public class ActivityAttribute : Attribute
 
     /// <summary>Set activity tag, value from parameter name, property name and field name.</summary>
     public string[]? Tags { get; set; }
+
+    public bool SuppressInstrumentation { get; set; }
 }

@@ -8,19 +8,23 @@ public class ActivityInvoker(
     ActivitySource activitySource,
     string activityName,
     ActivityKind kind,
+    bool suppressInstrumentation,
     Tuple<Action<IInvocation, Activity>?, Action<IInvocation, Activity>?> setTags,
-    string? returnValueTagName) : IActivityInvoker
+    string? returnValueTagName) : ActivityNameInvoker
 {
-    public void Invoke(IInvocation invocation)
+    public override void Invoke(IInvocation invocation)
     {
         if (activitySource.StartActivity(activityName, kind) is not { } activity)
         {
-            invocation.Proceed();
+            if (suppressInstrumentation) base.Invoke(invocation);
+            else invocation.Proceed();
 
             return;
         }
 
         setTags.Item1?.Invoke(invocation, activity);
+
+        var disposable = suppressInstrumentation ? SuppressInstrumentationScope.Begin() : null;
 
         try
         {
@@ -49,12 +53,12 @@ public class ActivityInvoker(
 
         var awaiter = func(invocation.ReturnValue).GetAwaiter();
 
-        if (awaiter.IsCompleted) ActivityAwaiter.OnCompleted(activity, awaiter, returnValueTagName);
+        if (awaiter.IsCompleted) ActivityAwaiter.OnCompleted(activity, awaiter, disposable, returnValueTagName);
         else
         {
             Activity.Current = activity.Parent;
 
-            awaiter.UnsafeOnCompleted(new ActivityAwaiter(activity, awaiter, returnValueTagName).OnCompleted);
+            awaiter.UnsafeOnCompleted(new ActivityAwaiter(activity, awaiter, disposable, returnValueTagName).OnCompleted);
         }
     }
 
@@ -64,12 +68,13 @@ public class ActivityInvoker(
     private sealed class ActivityAwaiter(
         Activity activity,
         ObjectMethodExecutorAwaitable.Awaiter awaiter,
+        IDisposable? disposable,
         string? returnValueTagName)
     {
-        public void OnCompleted() => OnCompleted(activity, awaiter, returnValueTagName);
+        public void OnCompleted() => OnCompleted(activity, awaiter, disposable, returnValueTagName);
 
         public static void OnCompleted(Activity activity, ObjectMethodExecutorAwaitable.Awaiter awaiter,
-            string? returnValueTagName)
+            IDisposable? disposable, string? returnValueTagName)
         {
             try
             {
@@ -83,6 +88,7 @@ public class ActivityInvoker(
             }
             finally
             {
+                disposable?.Dispose();
                 activity.Dispose();
             }
         }

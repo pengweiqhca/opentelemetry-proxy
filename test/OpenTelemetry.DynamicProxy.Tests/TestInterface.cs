@@ -24,6 +24,9 @@ public interface ITestInterface
 
     [Activity(Tags = [nameof(Now)])]
     TestExceptionAwaitable<int> Method6([ActivityTag] int delay);
+
+    [Activity(SuppressInstrumentation = true)]
+    bool Method7();
 }
 
 public class TestInterface1 : ITestInterface
@@ -62,6 +65,8 @@ public class TestInterface1 : ITestInterface
     }
 
     public TestExceptionAwaitable<int> Method6(int delay) => new(delay);
+
+    public bool Method7() => Sdk.SuppressInstrumentation;
 }
 
 public class TestExceptionAwaitable<T>

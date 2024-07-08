@@ -30,7 +30,9 @@ internal static class ActivityInvokerHelper
 
             kind = attr.Kind;
 
-            return ActivitySettings.Activity;
+            return attr.SuppressInstrumentation
+                ? ActivitySettings.ActivityAndSuppressInstrumentation
+                : ActivitySettings.Activity;
         }
 
         if (method.GetCustomAttribute<ActivityNameAttribute>(true) is not { } ana || ana.MaxUsableTimes < 1)
@@ -42,7 +44,9 @@ internal static class ActivityInvokerHelper
                 return asa.IncludeNonAsyncStateMachineMethod ||
                     (type.IsInterface || method.IsDefined(typeof(AsyncStateMachineAttribute), false)) &&
                     CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out _)
-                        ? ActivitySettings.Activity
+                        ? asa.SuppressInstrumentation
+                            ? ActivitySettings.ActivityAndSuppressInstrumentation
+                            : ActivitySettings.Activity
                         : ActivitySettings.None;
             }
 

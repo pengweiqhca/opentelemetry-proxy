@@ -18,7 +18,7 @@ public class ActivityNameInvoker : IActivityInvoker
         _getTags = getTags;
     }
 
-    public void Invoke(IInvocation invocation)
+    public virtual void Invoke(IInvocation invocation)
     {
         var disposable = _activityName == null
             ? SuppressInstrumentationScope.Begin()
