@@ -3,7 +3,9 @@ using Microsoft.FSharp.Control;
 using OpenTelemetry;
 using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.Tests.Common;
+using OpenTelemetry.Trace;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using ActivityName =
     System.Tuple<string?, System.Collections.Generic.IReadOnlyCollection<
         System.Collections.Generic.KeyValuePair<string, object?>>?, long>;
@@ -16,6 +18,9 @@ public static class ModuleWeaverTestClass
     [NonActivity(true)]
     public static bool SuppressInstrumentationScope() => Sdk.SuppressInstrumentation;
 
+    [Activity(SuppressInstrumentation = true)]
+    public static bool SuppressInstrumentationScope2() => Sdk.SuppressInstrumentation;
+
     [NonActivity(true)]
     public static async Task<bool> SuppressInstrumentationScopeAsync()
     {
@@ -26,6 +31,14 @@ public static class ModuleWeaverTestClass
 
     [NonActivity(true)]
     public static async ValueTask<bool> SuppressInstrumentationScope2Async()
+    {
+        await Task.Delay(100).ConfigureAwait(false);
+
+        return Sdk.SuppressInstrumentation;
+    }
+
+    [Activity(SuppressInstrumentation = true)]
+    public static async Task<bool> SuppressInstrumentationScope3Async()
     {
         await Task.Delay(100).ConfigureAwait(false);
 
@@ -91,7 +104,7 @@ public static class ModuleWeaverTestClass
     }
 
     [Activity]
-    public static async Task<Activity?> AWaitGetCurrentActivityAsync([ActivityTag] int delay) =>
+    public static async Task<Activity?> AwaitGetCurrentActivityAsync([ActivityTag] int delay) =>
         delay < 10 ? Activity.Current : await CurrentActivityAsync(delay).ConfigureAwait(false);
 
     public static DateTime Now { get; } = new(2024, 1, 1);
@@ -106,6 +119,75 @@ public static class ModuleWeaverTestClass
 
     [Activity]
     public static Task Exception() => Task.FromException(new());
+
+    private static ActivitySource ActivitySource { get; } = new("ModuleWeaverTestClass");
+
+    [NonActivity]
+    public static Task Exception2()
+    {
+        var activity = ActivitySource.StartActivity("ModuleWeaverTestClass.Exception");
+        var disposable = OpenTelemetry.SuppressInstrumentationScope.Begin();
+
+        Task task;
+        try
+        {
+            task = Task.FromException(new Exception());
+        }
+        catch (Exception ex)
+        {
+            disposable?.Dispose();
+
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message).RecordException(ex);
+
+            throw;
+        }
+
+        if (activity != null) ActivityAwaiter2.OnCompleted(task.GetAwaiter(), activity, disposable);
+
+        return task;
+    }
+
+    private sealed class ActivityAwaiter2
+    {
+        private readonly TaskAwaiter _awaiter;
+
+        private readonly Activity _activity;
+        private readonly IDisposable _disposable;
+
+        private ActivityAwaiter2(TaskAwaiter awaiter, Activity activity, IDisposable disposable)
+        {
+            _awaiter = awaiter;
+            _activity = activity;
+            _disposable = disposable;
+
+            Activity.Current = activity.Parent;
+        }
+
+        private void OnCompleted() => Completed(_awaiter, _activity, _disposable);
+
+        private static void Completed(TaskAwaiter awaiter, Activity activity, IDisposable disposable)
+        {
+            try
+            {
+                awaiter.GetResult();
+            }
+            catch (Exception ex)
+            {
+                activity.SetStatus(ActivityStatusCode.Error, ex.Message).RecordException(ex);
+            }
+            finally
+            {
+                disposable?.Dispose();
+                activity.Dispose();
+            }
+        }
+
+        public static void OnCompleted(TaskAwaiter awaiter, Activity activity, IDisposable disposable)
+        {
+            if (awaiter.IsCompleted) Completed(awaiter, activity, disposable);
+            else awaiter.UnsafeOnCompleted(new ActivityAwaiter2(awaiter, activity, disposable).OnCompleted);
+        }
+    }
 
     [return: ActivityTag("def")]
     public static int OutMethod(in int a, out int b, ref int c, int d, int e, [ActivityTag] int f)

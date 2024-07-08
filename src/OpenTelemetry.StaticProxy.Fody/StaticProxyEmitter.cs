@@ -47,13 +47,12 @@ internal class StaticProxyEmitter(EmitContext context)
                     EmitActivityName(method.Key, isVoid, string.IsNullOrWhiteSpace(method.Value.Name)
                         ? $"{type.FullName}.{method.Key.Name}"
                         : method.Value.Name, method.Value.MaxUsableTimes);
-                else if (method.Value.Settings == ActivitySettings.Activity)
+                else if (method.Value.Settings is ActivitySettings.Activity or ActivitySettings.ActivityAndSuppressInstrumentation)
                 {
-                    EmitActivity(method.Key, isVoid,
-                        activitySource ??= AddActivitySource(activitySourceName, version),
+                    EmitActivity(method.Key, isVoid, activitySource ??= AddActivitySource(activitySourceName, version),
                         string.IsNullOrWhiteSpace(method.Value.Name)
                             ? $"{activitySourceName}.{method.Key.Name}"
-                            : method.Value.Name!, method.Value.Kind);
+                            : method.Value.Name!, method.Value.Kind, method.Value.Settings == ActivitySettings.ActivityAndSuppressInstrumentation);
 
                     if (typeEmitted) continue;
 
@@ -130,7 +129,7 @@ internal class StaticProxyEmitter(EmitContext context)
     {
         var hasAsyncStateMachineAttribute = method.GetCustomAttribute(Context.AsyncStateMachineAttribute) != null;
 
-        if (!hasAsyncStateMachineAttribute) ReplaceBody(method, isVoid);
+        if (!hasAsyncStateMachineAttribute && ShouldGenerateMethod(method.Body)) ReplaceBody(method);
 
         method.Body.InitLocals = true;
 
@@ -161,7 +160,7 @@ internal class StaticProxyEmitter(EmitContext context)
                     HandlerEnd = leave
                 };
 
-                ProcessHandler(method, isVoid, length, catchHandler);
+                ProcessHandler(method, length, catchHandler);
 
                 /*IL_0010: pop
                 IL_0011: ldloc.0
@@ -178,15 +177,15 @@ internal class StaticProxyEmitter(EmitContext context)
             method.Body.Variables.Add(
                 new(method.Module.ImportReference(awaitableInfo.AwaitableInfo.AwaiterType, method)));
 
-            GetAwaiter(method, ref index, awaitableInfo, leave);
+            method.Body.Instructions.Insert(index++, leave);
+            GetAwaiter(method, ref index, awaitableInfo);
 
             method.Body.Instructions.Insert(index++, Stloc(awaiterVariableIndex, method.Body.Variables));
 
             /*IL_0021: ldloca.s 2
               IL_0023: call instance bool valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<int32>::get_IsCompleted()*/
-            method.Body.Instructions.Insert(index++,
-                Ldloca(awaiterVariableIndex, awaitableInfo.AwaitableInfo.AwaiterType.IsValueType,
-                    method.Body.Variables));
+            method.Body.Instructions.Insert(index++, Ldloca(awaiterVariableIndex,
+                awaitableInfo.AwaitableInfo.AwaiterType.IsValueType, method.Body.Variables));
 
             method.Body.Instructions.Insert(index++, Instruction.Create(
                 awaitableInfo.AwaitableInfo.AwaiterType.IsValueType ||
@@ -237,10 +236,10 @@ internal class StaticProxyEmitter(EmitContext context)
             var finallyHandler = new ExceptionHandler(ExceptionHandlerType.Finally)
             {
                 HandlerStart = Ldloc(disposeVariableIndex, method.Body.Variables),
-                HandlerEnd = method.Body.Instructions[isVoid ? ^1 : ^2]
+                HandlerEnd = method.Body.Instructions[index]
             };
 
-            ProcessHandler(method, isVoid, length, finallyHandler);
+            ProcessHandler(method, length, finallyHandler);
 
             /*IL_0042: ldloc.0
             IL_0043: brfalse.s IL_004b
@@ -279,11 +278,11 @@ internal class StaticProxyEmitter(EmitContext context)
     }
 
     public void EmitActivity(MethodDefinition method, bool isVoid,
-        FieldReference activitySource, string? activityName, int activityKind)
+        FieldReference activitySource, string? activityName, int activityKind, bool suppressInstrumentation = true)
     {
         var hasAsyncStateMachineAttribute = method.GetCustomAttribute(Context.AsyncStateMachineAttribute) != null;
 
-        if (!hasAsyncStateMachineAttribute) ReplaceBody(method, isVoid);
+        if (!hasAsyncStateMachineAttribute && ShouldGenerateMethod(method.Body)) ReplaceBody(method);
 
         method.Body.InitLocals = true;
 
@@ -311,6 +310,17 @@ internal class StaticProxyEmitter(EmitContext context)
 
         method.Body.Instructions.Insert(length++, Stloc(activityIndex, method.Body.Variables));
 
+        var disposableIndex = -1;
+        if (suppressInstrumentation)
+        {
+            disposableIndex = method.Body.Variables.Count;
+            method.Body.Variables.Add(new(Context.Disposable));
+
+            method.Body.Instructions.Insert(length++, LdI4(1));
+            method.Body.Instructions.Insert(length++, Instruction.Create(OpCodes.Call, Context.Begin));
+            method.Body.Instructions.Insert(length++, Stloc(disposableIndex, method.Body.Variables));
+        }
+
         var setActivityTags = SetActivityTags(method, activityIndex, ref length, out var returnValueTagName, out var isVoid2);
 
         var index = method.Body.Instructions.Count - (isVoid ? 1 : 2);
@@ -329,26 +339,46 @@ internal class StaticProxyEmitter(EmitContext context)
                     HandlerEnd = leave
                 };
 
-                ProcessHandler(method, isVoid, length, catchHandler);
+                ProcessHandler(method, length, catchHandler);
 
-                EmitActivityCatch(method, ref index, catchHandler, activityIndex, exceptionIndex);
+                EmitActivityCatch(method, ref index, catchHandler, activityIndex, disposableIndex, exceptionIndex);
             }
 
-            /*IL_0033: ldloc.0
-            IL_0034: brfalse.s IL_006b*/
+            /*IL_004d: ldloc.0
+              IL_004e: brtrue.s IL_0053
+
+              IL_0050: ldloc.1
+              IL_0051: brfalse.s IL_0060
+
+              IL_0053: ldloc.2
+              IL_0054: callvirt instance valuetype [mscorlib]System.Runtime.CompilerServices.TaskAwaiter [mscorlib]System.Threading.Tasks.Task::GetAwaiter()
+              IL_0059: ldloc.0
+              IL_005a: ldloc.1
+              IL_005b: call void AssemblyToProcess.ModuleWeaverTestClass/ActivityAwaiter2::OnCompleted(valuetype [mscorlib]System.Runtime.CompilerServices.TaskAwaiter, class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity, class [mscorlib]System.IDisposable)*/
             method.Body.Instructions.Insert(index++, leave);
 
             leave = method.Body.Instructions[^2];
+            var brTrue = Ldloca(returnVariableIndex, awaitableInfo.AwaitableInfo.AwaitableType.IsValueType,
+                method.Body.Variables);
+
+            if (suppressInstrumentation)
+            {
+                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brtrue, brTrue));
+                method.Body.Instructions.Insert(index++, Ldloc(disposableIndex, method.Body.Variables));
+            }
 
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse, leave));
 
-            GetAwaiter(method, ref index, awaitableInfo, Ldloca(
-                returnVariableIndex, awaitableInfo.AwaitableInfo.AwaitableType.IsValueType,
-                method.Body.Variables));
+            method.Body.Instructions.Insert(index++, brTrue);
+            GetAwaiter(method, ref index, awaitableInfo);
 
             method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
 
             SetActivityTags(method, ref index, setActivityTags);
+
+            method.Body.Instructions.Insert(index++, suppressInstrumentation
+                ? Ldloc(disposableIndex, method.Body.Variables)
+                : Instruction.Create(OpCodes.Ldnull));
 
             if (!isVoid2)
                 method.Body.Instructions.Insert(index++, returnValueTagName == null
@@ -365,7 +395,7 @@ internal class StaticProxyEmitter(EmitContext context)
 
             var finallyHandler = new ExceptionHandler(ExceptionHandlerType.Finally)
             {
-                HandlerStart = Ldloc(activityIndex, method.Body.Variables),
+                HandlerStart = Ldloc(suppressInstrumentation ? disposableIndex : activityIndex, method.Body.Variables),
                 HandlerEnd = method.Body.Instructions[isVoid ? ^1 : ^2]
             };
 
@@ -378,7 +408,7 @@ internal class StaticProxyEmitter(EmitContext context)
                 HandlerEnd = finallyHandler.HandlerStart
             };
 
-            ProcessHandler(method, isVoid, length, catchHandler);
+            ProcessHandler(method, length, catchHandler);
 
             finallyHandler.TryStart = catchHandler.TryStart;
 
@@ -412,7 +442,7 @@ internal class StaticProxyEmitter(EmitContext context)
                 index++;
             }
 
-            EmitActivityCatch(method, ref index, catchHandler, activityIndex, exceptionIndex);
+            EmitActivityCatch(method, ref index, catchHandler, activityIndex, disposableIndex, exceptionIndex);
 
             /*IL_0042: ldloc.0
             IL_0043: brfalse.s IL_004b
@@ -421,9 +451,21 @@ internal class StaticProxyEmitter(EmitContext context)
             IL_0046: call instance void [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity::Dispose()
 
             IL_004b: endfinally*/
+            method.Body.Instructions.Insert(index++, finallyHandler.HandlerStart);
+
+            if (suppressInstrumentation)
+            {
+                var ldActivity = Ldloc(activityIndex, method.Body.Variables);
+
+                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse, ldActivity));
+                method.Body.Instructions.Insert(index++, Ldloc(disposableIndex, method.Body.Variables));
+                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Callvirt, Context.Dispose));
+
+                method.Body.Instructions.Insert(index++, ldActivity);
+            }
+
             var endFinally = Instruction.Create(OpCodes.Endfinally);
 
-            method.Body.Instructions.Insert(index++, finallyHandler.HandlerStart);
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse, endFinally));
             method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
 
@@ -436,13 +478,13 @@ internal class StaticProxyEmitter(EmitContext context)
         method.Body.OptimizeMacros();
     }
 
-    private static void ReplaceBody(MethodDefinition method, bool isVoid)
+    private static void ReplaceBody(MethodDefinition method)
     {
-        if (!ShouldGenerateMethod(method.Body.Instructions, isVoid)) return;
-
-        var newMethod = method.CreateCopyAndCleanBody(method.Name + "@");
+        var newMethod = method.CreateCopy(method.Name + "@raw");
 
         method.DeclaringType.Methods.Add(newMethod);
+
+        method.Clean();
 
         if (!method.IsStatic)
             method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
@@ -450,68 +492,56 @@ internal class StaticProxyEmitter(EmitContext context)
         for (var i = 0; i < method.Parameters.Count; i++)
             method.Body.Instructions.Add(Ldarg(i, method.IsStatic, method.Parameters));
 
-        MethodReference mr = newMethod;
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Call,
+            Utilities.FixMethodReference(Utilities.FixTypeReference(method.DeclaringType), newMethod)));
 
-        if (method.DeclaringType.HasGenericParameters)
-        {
-            var t = new GenericInstanceType(method.DeclaringType);
-
-            foreach (var p in method.DeclaringType.GenericParameters) t.GenericArguments.Add(p);
-
-            mr = new GenericInstanceMethod(mr.MakeHostInstanceGeneric(t));
-        }
-
-        if (newMethod.HasGenericParameters)
-        {
-            if (mr is not GenericInstanceMethod m) mr = m = new(newMethod);
-
-            foreach (var p in method.GenericParameters) m.GenericArguments.Add(p);
-        }
-
-        method.Body.Instructions.Add(Instruction.Create(OpCodes.Call, mr));
-        method.Body.Instructions.Add(Instruction.Create(OpCodes.Nop));
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
     }
 
     private static readonly IReadOnlyList<OpCode> SupportedJump = [OpCodes.Br_S, OpCodes.Leave_S, OpCodes.Br, OpCodes.Leave];
 
-    private static bool ShouldGenerateMethod(IList<Instruction> instructions, bool isVoid)
-    {
-        var list = new List<Instruction>(2) { instructions[^1] };
-
-        if (!isVoid && IsLdloc(instructions[^2])) list.Add(instructions[^2]);
-
-        for (var index = instructions.Count - 2; index > 0; index--)
-        {
-            var instruction = instructions[index];
-
-            // Unsupported jump
-            if (list.Contains(instruction.Operand) && !SupportedJump.Contains(instruction.OpCode)) return true;
-        }
-
-        return false;
-    }
+    private static bool ShouldGenerateMethod(MethodBody body) =>
+        body.HasExceptionHandlers ||
+        body.Instructions.Count < 1 ||
+        body.Instructions[^1].OpCode != OpCodes.Ret ||
+        body.Instructions.Count(i => i.OpCode == OpCodes.Ret) != 1;
 
     private void EmitActivityCatch(MethodDefinition method, ref int index, ExceptionHandler catchHandler,
-        int activityIndex, int exceptionIndex)
+        int activityIndex, int disposableIndex, int exceptionIndex)
     {
-        /*IL_004c: stloc.3
-        IL_004d: ldloc.0
-        IL_004e: brfalse.s IL_0063
+        /*IL_0025: stloc.3
+        IL_0026: ldloc.1
+        IL_0027: brfalse.s IL_002f
 
-        IL_0050: ldloc.0
-        IL_0051: ldc.i4.2
-        IL_0052: ldloc.3
-        IL_0053: callvirt instance string [netstandard]System.Exception::get_Message()
-        IL_0058: call instance class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity::SetStatus(valuetype [System.Diagnostics.DiagnosticSource]System.Diagnostics.ActivityStatusCode, string)
-        IL_005d: ldloc.3
-        IL_005e: call void [OpenTelemetry.Api]OpenTelemetry.Trace.ActivityExtensions::RecordException(class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity, class [netstandard]System.Exception)
+        IL_0029: ldloc.1
+        IL_002a: callvirt instance void [mscorlib]System.IDisposable::Dispose()
 
-        IL_0063: rethrow*/
+        IL_002f: ldloc.0
+        IL_0030: brfalse.s IL_0045
+
+        IL_0032: ldloc.0
+        IL_0033: ldc.i4.2
+        IL_0034: ldloc.3
+        IL_0035: callvirt instance string [mscorlib]System.Exception::get_Message()
+        IL_003a: call instance class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity::SetStatus(valuetype [System.Diagnostics.DiagnosticSource]System.Diagnostics.ActivityStatusCode, string)
+        IL_003f: ldloc.3
+        IL_0040: call void [OpenTelemetry.Api]OpenTelemetry.Trace.ActivityExtensions::RecordException(class [System.Diagnostics.DiagnosticSource]System.Diagnostics.Activity, class [mscorlib]System.Exception)
+
+        IL_0045: rethrow*/
         var catchEnd = Instruction.Create(OpCodes.Rethrow);
+        var ldActivity = Ldloc(activityIndex, method.Body.Variables);
 
         method.Body.Instructions.Insert(index++, catchHandler.HandlerStart);
-        method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
+
+        if (disposableIndex >= 0)
+        {
+            method.Body.Instructions.Insert(index++, Ldloc(disposableIndex, method.Body.Variables));
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse, ldActivity));
+            method.Body.Instructions.Insert(index++, Ldloc(disposableIndex, method.Body.Variables));
+            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Callvirt, Context.Dispose));
+        }
+
+        method.Body.Instructions.Insert(index++, ldActivity);
         method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse, catchEnd));
 
         method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
@@ -529,9 +559,8 @@ internal class StaticProxyEmitter(EmitContext context)
     private static Tuple<int, Instruction?> ProcessReturn(MethodDefinition method, bool isVoid,
         bool hasAsyncStateMachineAttribute, Func<int, Instruction>? createLeave)
     {
-        ProcessMultipleReturn(method, isVoid);
-
         var (variableIndex, raw) = RetOrBr2LeaveS(method.Body, hasAsyncStateMachineAttribute, isVoid);
+
         if (variableIndex < 0 || createLeave == null) return Tuple.Create<int, Instruction?>(variableIndex, null);
 
         var leave = createLeave(variableIndex);
@@ -544,61 +573,21 @@ internal class StaticProxyEmitter(EmitContext context)
 
         return Tuple.Create<int, Instruction?>(variableIndex, leave);
 
-        static void ProcessMultipleReturn(MethodDefinition method, bool isVoid)
-        {
-            if (isVoid || method.ReturnType.IsValueType) return;
-
-            var list = new List<(int Index, int VariableIndex)>();
-
-            for (var index = method.Body.Instructions.Count - 1; index > 0; index--)
-                if (method.Body.Instructions[index].OpCode == OpCodes.Ret)
-                    list.Add((index - 1,
-                        IsLdloc(method.Body.Instructions[index - 1], method.Body.Variables, out var variableIndex)
-                            ? variableIndex
-                            : -1));
-
-            if (list.Count < 2 || list.Select(x => x.VariableIndex).Distinct().Count() < 2) return;
-
-            var returnVariable = list.Select(x => x.VariableIndex)
-                .Where(variableIndex => variableIndex >= 0 &&
-                    method.ReturnType.HaveSameIdentity(method.Body.Variables[variableIndex].VariableType))
-                .Select(variableIndex => method.Body.Variables[variableIndex]).FirstOrDefault();
-
-            if (returnVariable == null) method.Body.Variables.Add(returnVariable = new(method.ReturnType));
-
-            foreach (var (index, variableIndex) in list)
-            {
-                if (variableIndex >= 0 && method.Body.Variables[variableIndex] == returnVariable) continue;
-
-                method.Body.Instructions.Insert(index + 1, Ldloc(returnVariable.Index, method.Body.Variables));
-                method.Body.Instructions.Insert(index + 1, Stloc(returnVariable.Index, method.Body.Variables));
-            }
-        }
-
         static Tuple<int, Instruction> RetOrBr2LeaveS(MethodBody body, bool hasAsyncStateMachineAttribute, bool isVoid)
         {
-            var checkLeaveS = body.ExceptionHandlers.Count < 1 ||
-                body.ExceptionHandlers[^1].HandlerEnd !=
-                body.Instructions[isVoid ? ^1 : ^2];
-
             var ret = body.Instructions[^1];
             if (isVoid)
             {
                 if (hasAsyncStateMachineAttribute) return Tuple.Create(-1, ret);
 
-                if (!SupportedJump.Contains(body.Instructions[^2].OpCode) && body.Instructions[^2].Operand != ret &&
-                    checkLeaveS)
+                if (!SupportedJump.Contains(body.Instructions[^2].OpCode) && body.Instructions[^2].Operand != ret)
                     body.Instructions.Insert(body.Instructions.Count - 1, Instruction.Create(OpCodes.Leave, ret));
 
                 for (var index = body.Instructions.Count - 2; index > 0; index--)
                 {
                     var instruction = body.Instructions[index];
-                    if (instruction.OpCode == OpCodes.Ret)
-                    {
-                        instruction.OpCode = OpCodes.Leave;
-                        instruction.Operand = ret;
-                    }
-                    else if (SupportedJump.Contains(instruction.OpCode) && instruction.Operand == ret)
+
+                    if (SupportedJump.Contains(instruction.OpCode) && instruction.Operand == ret)
                         instruction.OpCode = OpCodes.Leave;
                 }
 
@@ -608,25 +597,40 @@ internal class StaticProxyEmitter(EmitContext context)
             var ldRet = body.Instructions[^2];
             if (!IsLdloc(ldRet, body.Variables, out var variableIndex))
             {
-                variableIndex = body.Variables.Count;
+                for (var index = 0; index < body.Variables.Count; index++)
+                    if (body.Method.ReturnType.HaveSameIdentity(body.Variables[index].VariableType))
+                    {
+                        variableIndex = index;
+                        break;
+                    }
 
-                body.Variables.Add(new(body.Method.ReturnType));
+                if (variableIndex < 0)
+                {
+                    variableIndex = body.Variables.Count;
+
+                    body.Variables.Add(new(body.Method.ReturnType));
+                }
 
                 var i = body.Instructions.Count - 1;
+
                 body.Instructions.Insert(i, ldRet = Ldloc(variableIndex, body.Variables));
+
                 if (!hasAsyncStateMachineAttribute)
                     body.Instructions.Insert(i, Instruction.Create(OpCodes.Leave, ldRet));
 
                 body.Instructions.Insert(i, Stloc(variableIndex, body.Variables));
             }
-            else if (!SupportedJump.Contains(body.Instructions[^3].OpCode) && body.Instructions[^3].Operand != ldRet &&
-                     checkLeaveS)
-                body.Instructions.Insert(body.Instructions.Count - 2, Instruction.Create(OpCodes.Leave, ldRet));
+            else if (!SupportedJump.Contains(body.Instructions[^3].OpCode) && body.Instructions[^3].Operand != ldRet)
+                body.Instructions.Insert(body.Instructions.Count - 2, Instruction.Create(OpCodes.Leave_S, ldRet));
 
             for (var index = body.Instructions.Count - 3; index > 0; index--)
             {
                 var instruction = body.Instructions[index];
-                if (instruction.OpCode == OpCodes.Ret)
+
+                if (!SupportedJump.Contains(instruction.OpCode)) continue;
+
+                if (instruction.Operand == ldRet) instruction.OpCode = OpCodes.Leave;
+                else if (instruction.Operand == ret)
                 {
                     instruction.OpCode = OpCodes.Leave;
                     instruction.Operand = ldRet;
@@ -634,25 +638,13 @@ internal class StaticProxyEmitter(EmitContext context)
                     if (IsLdloc(body.Instructions[index - 1])) body.Instructions.RemoveAt(--index);
                     else body.Instructions.Insert(index, Stloc(variableIndex, body.Variables));
                 }
-                else if (SupportedJump.Contains(instruction.OpCode))
-                {
-                    if (instruction.Operand == ldRet) instruction.OpCode = OpCodes.Leave;
-                    else if (instruction.Operand == ret)
-                    {
-                        instruction.OpCode = OpCodes.Leave;
-                        instruction.Operand = ldRet;
-
-                        if (IsLdloc(body.Instructions[index - 1])) body.Instructions.RemoveAt(--index);
-                        else body.Instructions.Insert(index, Stloc(variableIndex, body.Variables));
-                    }
-                }
             }
 
             return Tuple.Create(variableIndex, ldRet);
         }
     }
 
-  private  static bool IsLdloc(Instruction instruction, Collection<VariableDefinition> variables, out int variableIndex)
+    private  static bool IsLdloc(Instruction instruction, Collection<VariableDefinition> variables, out int variableIndex)
     {
         if (instruction.OpCode == OpCodes.Ldloc_0)
         {
@@ -705,14 +697,8 @@ internal class StaticProxyEmitter(EmitContext context)
         instruction.OpCode == OpCodes.Ldloc_2 || instruction.OpCode == OpCodes.Ldloc_3 ||
         instruction.OpCode == OpCodes.Ldloc_S || instruction.OpCode == OpCodes.Ldloc;
 
-    private static void ProcessHandler(MethodDefinition method, bool isVoid, int index,
-        ExceptionHandler exceptionHandler)
+    private static void ProcessHandler(MethodDefinition method, int index, ExceptionHandler exceptionHandler)
     {
-        if (method.Body.ExceptionHandlers.Count > 0 &&
-            method.Body.ExceptionHandlers[^1].HandlerEnd ==
-            method.Body.Instructions[isVoid ? ^1 : ^2])
-            method.Body.ExceptionHandlers[^1].HandlerEnd = exceptionHandler.HandlerStart;
-
         exceptionHandler.TryStart = method.Body.Instructions[index];
         exceptionHandler.TryEnd = exceptionHandler.HandlerStart;
 
@@ -720,25 +706,19 @@ internal class StaticProxyEmitter(EmitContext context)
     }
 
     private static void GetAwaiter(MethodDefinition method, ref int index,
-        CoercedAwaitableInfo awaitableInfo, Instruction ldReturn)
+        CoercedAwaitableInfo awaitableInfo)
     {
-        /*IL_0019: ldloca.s 1
-        IL_001b: call instance valuetype [System.Threading.Tasks.Extensions]System.Runtime.CompilerServices.ValueTaskAwaiter`1<!0> valuetype [System.Threading.Tasks.Extensions]System.Threading.Tasks.ValueTask`1<int32>::GetAwaiter()
-        IL_0020: stloc.2*/
-        method.Body.Instructions.Insert(index++, ldReturn);
-
         if (awaitableInfo.CoercerExpression != null)
             foreach (var instruction in awaitableInfo.CoercerExpression)
                 method.Body.Instructions.Insert(index++, instruction);
 
-        method.Body.Instructions.Insert(index++,
-            Instruction.Create(
-                awaitableInfo.AwaitableInfo.AwaitableType.IsValueType ||
-                awaitableInfo.AwaitableInfo.GetAwaiterMethod.IsFinal
-                    ? OpCodes.Call
-                    : OpCodes.Callvirt,
-                method.Module.ImportReference(awaitableInfo.AwaitableInfo.GetAwaiterMethod, method)
-                    .MakeHostInstanceGeneric(awaitableInfo.AwaitableInfo.AwaitableType)));
+        method.Body.Instructions.Insert(index++, Instruction.Create(
+            awaitableInfo.AwaitableInfo.AwaitableType.IsValueType ||
+            awaitableInfo.AwaitableInfo.GetAwaiterMethod.IsFinal
+                ? OpCodes.Call
+                : OpCodes.Callvirt,
+            method.Module.ImportReference(awaitableInfo.AwaitableInfo.GetAwaiterMethod, method)
+                .MakeHostInstanceGeneric(awaitableInfo.AwaitableInfo.AwaitableType)));
     }
 
     private bool GetActivityTags(MethodDefinition method, ref int index)

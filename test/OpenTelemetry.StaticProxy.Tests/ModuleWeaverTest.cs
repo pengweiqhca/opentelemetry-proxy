@@ -25,20 +25,34 @@ public class ModuleWeaverTest
     }
 
     [Fact]
-    public Task SuppressInstrumentationScope() => SuppressInstrumentationScopeTest(
-        nameof(ModuleWeaverTestClass.SuppressInstrumentationScope), static instance => new((bool)instance));
+    public async Task SuppressInstrumentationScope()
+    {
+        await SuppressInstrumentationScopeTest(
+            nameof(ModuleWeaverTestClass.SuppressInstrumentationScope), static instance => new((bool)instance)).ConfigureAwait(false);
+
+        await SuppressInstrumentationScopeTest(
+            nameof(ModuleWeaverTestClass.SuppressInstrumentationScope2), static instance => new((bool)instance)).ConfigureAwait(false);
+    }
 
     [Fact]
-    public Task SuppressInstrumentationScopeAsync() => SuppressInstrumentationScopeTest(
-        nameof(ModuleWeaverTestClass.SuppressInstrumentationScopeAsync), static instance => new((Task<bool>)instance));
+    public async Task SuppressInstrumentationScopeAsync()
+    {
+        await SuppressInstrumentationScopeTest(
+            nameof(ModuleWeaverTestClass.SuppressInstrumentationScopeAsync),
+            static instance => new((Task<bool>)instance)).ConfigureAwait(false);
 
-    [Fact]
-    public Task SuppressInstrumentationScope2Async() => SuppressInstrumentationScopeTest(
-        nameof(ModuleWeaverTestClass.SuppressInstrumentationScope2Async), static instance => (ValueTask<bool>)instance);
+        await SuppressInstrumentationScopeTest(
+            nameof(ModuleWeaverTestClass.SuppressInstrumentationScope2Async),
+            static instance => (ValueTask<bool>)instance).ConfigureAwait(false);
 
-    [Fact]
-    public Task SuppressInstrumentationScopeAwaitable() => SuppressInstrumentationScopeTest(
-        nameof(ModuleWeaverTestClass.SuppressInstrumentationScopeAwaitable), Awaitable2ValueTask<bool>);
+        await SuppressInstrumentationScopeTest(
+            nameof(ModuleWeaverTestClass.SuppressInstrumentationScope3Async),
+            static instance => new((Task<bool>)instance)).ConfigureAwait(false);
+
+        await SuppressInstrumentationScopeTest(
+                nameof(ModuleWeaverTestClass.SuppressInstrumentationScopeAwaitable), Awaitable2ValueTask<bool>)
+            .ConfigureAwait(false);
+    }
 
     private static async Task SuppressInstrumentationScopeTest(string methodName, Func<object, ValueTask<bool>> func)
     {
@@ -88,7 +102,7 @@ public class ModuleWeaverTest
         await ActivityTest(nameof(ModuleWeaverTestClass.GetCurrentActivity2Async),
             static instance => new((Task<Activity?>)instance), new() { { "delay", 100 } }).ConfigureAwait(false);
 
-        await ActivityTest(nameof(ModuleWeaverTestClass.AWaitGetCurrentActivityAsync),
+        await ActivityTest(nameof(ModuleWeaverTestClass.AwaitGetCurrentActivityAsync),
             static instance => new((Task<Activity?>)instance), new() { { "delay", 100 } }).ConfigureAwait(false);
     }
 
@@ -122,14 +136,7 @@ public class ModuleWeaverTest
 
         Assert.NotNull(method);
 
-        try
-        {
-            await ((Task)method.Invoke(null, [])!).ConfigureAwait(false);
-        }
-        catch
-        {
-            // ignored
-        }
+        await Assert.ThrowsAsync<Exception>(() => ((Task)method.Invoke(null, [])!)).ConfigureAwait(false);
 
         var activity = Assert.Single(list);
 

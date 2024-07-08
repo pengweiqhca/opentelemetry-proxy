@@ -192,18 +192,75 @@ internal static class Utilities
 
     public static bool IsCoreLib(this IMetadataScope scope) => CoreLibRef.Any(x => x.HaveSameIdentity(scope));
 
-    public static MethodDefinition CreateCopyAndCleanBody(this MethodDefinition rawMethod, string newMethodName)
+    // https://github.com/vescon/MethodBoundaryAspect.Fody/blob/master/src/MethodBoundaryAspect.Fody/MethodWeaver.cs#L84
+    public static MethodDefinition CreateCopy(this MethodDefinition rawMethod, string newMethodName)
     {
-        var newMethod = new MethodDefinition(newMethodName, rawMethod.Attributes, rawMethod.ReturnType);
+        var newMethod = new MethodDefinition(newMethodName, rawMethod.Attributes, rawMethod.ReturnType)
+        {
+            AggressiveInlining = true, // try to get rid of additional stack frame
+            HasThis = rawMethod.HasThis,
+            ExplicitThis = rawMethod.ExplicitThis,
+            CallingConvention = rawMethod.CallingConvention
+        };
 
         newMethod.Attributes |= MethodAttributes.Private | MethodAttributes.Final;
 
         newMethod.Attributes &= ~(MethodAttributes.Public | MethodAttributes.Family | MethodAttributes.Virtual);
 
-        foreach (var genericParameter in rawMethod.GenericParameters)
-            newMethod.GenericParameters.Add(genericParameter.CreateCopy(newMethod));
+        foreach (var parameter in rawMethod.Parameters)
+            newMethod.Parameters.Add(parameter);
 
-        foreach (var parameterDefinition in rawMethod.Parameters) newMethod.Parameters.Add(parameterDefinition);
+        if (rawMethod.HasGenericParameters)
+        {
+            //Contravariant:
+            //  The generic type parameter is contravariant. A contravariant type parameter can appear as a parameter type in method signatures.
+            //Covariant:
+            //  The generic type parameter is covariant. A covariant type parameter can appear as the result type of a method, the type of a read-only field, a declared base type, or an implemented interface.
+            //DefaultConstructorConstraint:
+            //  A type can be substituted for the generic type parameter only if it has a parameterless constructor.
+            //None:
+            //  There are no special flags.
+            //NotNullableValueTypeConstraint:
+            //  A type can be substituted for the generic type parameter only if it is a value type and is not nullable.
+            //ReferenceTypeConstraint:
+            //  A type can be substituted for the generic type parameter only if it is a reference type.
+            //SpecialConstraintMask:
+            //  Selects the combination of all special constraint flags. This value is the result of using logical OR to combine the following flags: DefaultConstructorConstraint, ReferenceTypeConstraint, and NotNullableValueTypeConstraint.
+            //VarianceMask:
+            //  Selects the combination of all variance flags. This value is the result of using logical OR to combine the following flags: Contravariant and Covariant.
+            foreach (var parameter in rawMethod.GenericParameters)
+            {
+                var clonedParameter = new GenericParameter(parameter.Name, newMethod);
+                if (parameter.HasConstraints)
+                {
+                    foreach (var parameterConstraint in parameter.Constraints)
+                    {
+                        clonedParameter.Attributes = parameter.Attributes;
+                        clonedParameter.Constraints.Add(parameterConstraint);
+                    }
+                }
+
+                if (parameter.HasReferenceTypeConstraint)
+                {
+                    clonedParameter.Attributes |= GenericParameterAttributes.ReferenceTypeConstraint;
+                    clonedParameter.HasReferenceTypeConstraint = true;
+                }
+
+                if (parameter.HasNotNullableValueTypeConstraint)
+                {
+                    clonedParameter.Attributes |= GenericParameterAttributes.NotNullableValueTypeConstraint;
+                    clonedParameter.HasNotNullableValueTypeConstraint = true;
+                }
+
+                if (parameter.HasDefaultConstructorConstraint)
+                {
+                    clonedParameter.Attributes |= GenericParameterAttributes.DefaultConstructorConstraint;
+                    clonedParameter.HasDefaultConstructorConstraint = true;
+                }
+
+                newMethod.GenericParameters.Add(clonedParameter);
+            }
+        }
 
         if (!rawMethod.HasBody) return newMethod;
 
@@ -215,26 +272,97 @@ internal static class Utilities
         foreach (var exceptionHandler in rawMethod.Body.ExceptionHandlers)
             newMethod.Body.ExceptionHandlers.Add(exceptionHandler);
 
-        foreach (var instruction in rawMethod.Body.Instructions) newMethod.Body.Instructions.Add(instruction);
+        var targetProcessor = newMethod.Body.GetILProcessor();
+
+        foreach (var instruction in rawMethod.Body.Instructions)
+            targetProcessor.Append(instruction);
+
+        if (rawMethod.DebugInformation.HasSequencePoints)
+            foreach (var sequencePoint in rawMethod.DebugInformation.SequencePoints)
+                newMethod.DebugInformation.SequencePoints.Add(sequencePoint);
+
+        newMethod.DebugInformation.Scope = new(rawMethod.Body.Instructions.First(), rawMethod.Body.Instructions.Last());
+
+        if (rawMethod.DebugInformation?.Scope?.Variables != null)
+            foreach (var variableDebugInformation in rawMethod.DebugInformation.Scope.Variables)
+                newMethod.DebugInformation.Scope.Variables.Add(variableDebugInformation);
 
         newMethod.Body.OptimizeMacros();
-
-        rawMethod.Body.Variables.Clear();
-        rawMethod.Body.ExceptionHandlers.Clear();
-        rawMethod.Body.Instructions.Clear();
 
         return newMethod;
     }
 
-    private static GenericParameter CreateCopy(this GenericParameter original, IGenericParameterProvider owner)
+    public static void Clean(this MethodDefinition method)
     {
-        var copy = new GenericParameter(original.Name, owner)
+        var body = method.Body;
+
+        body.Variables.Clear();
+        body.ExceptionHandlers.Clear();
+        body.Instructions.Clear();
+    }
+
+    public static TypeReference FixTypeReference(TypeReference typeReference)
+    {
+        if (!typeReference.HasGenericParameters)
+            return typeReference;
+
+        // workaround for method in generic type
+        // https://stackoverflow.com/questions/4968755/mono-cecil-call-generic-base-class-method-from-other-assembly
+        var genericParameters = typeReference.GenericParameters
+            .Select(x => x.GetElementType())
+            .ToArray();
+
+        return typeReference.MakeGenericType(genericParameters);
+    }
+
+    public static MethodReference FixMethodReference(TypeReference declaringType, MethodReference targetMethod)
+    {
+        // Taken and adapted from
+        // https://stackoverflow.com/questions/4968755/mono-cecil-call-generic-base-class-method-from-other-assembly
+        if (targetMethod is MethodDefinition)
         {
-            Attributes = original.Attributes
-        };
+            var newTargetMethod = new MethodReference(targetMethod.Name, targetMethod.ReturnType, declaringType)
+            {
+                HasThis = targetMethod.HasThis,
+                ExplicitThis = targetMethod.ExplicitThis,
+                CallingConvention = targetMethod.CallingConvention
+            };
 
-        foreach(var constraint in original.Constraints) copy.Constraints.Add(constraint);
+            foreach (var p in targetMethod.Parameters)
+                newTargetMethod.Parameters.Add(new ParameterDefinition(p.Name, p.Attributes, p.ParameterType));
 
-        return copy;
+            foreach (var gp in targetMethod.GenericParameters)
+                newTargetMethod.GenericParameters.Add(new GenericParameter(gp.Name, newTargetMethod));
+
+            targetMethod = newTargetMethod;
+        }
+        else
+            targetMethod.DeclaringType = declaringType;
+
+        return targetMethod.HasGenericParameters ? targetMethod.MakeGeneric() : targetMethod;
+    }
+
+    public static TypeReference MakeGenericType(this TypeReference self, params TypeReference[] arguments)
+    {
+        if (self.GenericParameters.Count != arguments.Length)
+            throw new ArgumentException("self.GenericParameters.Count != arguments.Length", nameof(arguments));
+
+        var instance = new GenericInstanceType(self);
+
+        foreach (var argument in arguments)
+            instance.GenericArguments.Add(argument);
+
+        return instance;
+    }
+
+    public static MethodReference MakeGeneric(this MethodReference self, params TypeReference[] arguments)
+    {
+        var baseReference = self.DeclaringType.Module.ImportReference(self);
+        var reference = new GenericInstanceMethod(baseReference);
+
+        foreach (var genericParameter in baseReference.GenericParameters)
+            reference.GenericArguments.Add(genericParameter);
+
+        return reference;
     }
 }
