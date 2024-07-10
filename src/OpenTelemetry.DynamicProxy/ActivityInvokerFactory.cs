@@ -26,7 +26,7 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
 
     private readonly ConcurrentDictionary<Type, ActivitySource> _activitySources = [];
 
-    public void Invoke(IInvocation invocation, InvokeContext context)
+    public void Invoke(IInvocation invocation, ImplicitActivityContext context)
     {
         IActivityInvoker invoker;
 
@@ -51,7 +51,7 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
         invoker.Invoke(invocation);
     }
 
-    private IActivityInvoker CreateActivityInvoker(IInvocation invocation, InvokeContext context)
+    private IActivityInvoker CreateActivityInvoker(IInvocation invocation, ImplicitActivityContext context)
     {
         if (invocation.Method.IsSpecialName) return ActivityInvokerHelper.Noop;
 
@@ -64,27 +64,38 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
         var settings = ActivityInvokerHelper.GetActivityName(invocation.Method, type, out var activityName,
             out var kind, out var maxUsableTimes);
 
-        return settings switch
-        {
-            ActivitySettings.Activity or ActivitySettings.ActivityAndSuppressInstrumentation => new ActivityInvoker(
-                GetActivitySource(type), GetActivityName(invocation, activityName), kind,
-                settings == ActivitySettings.ActivityAndSuppressInstrumentation,
-                SetActivityTags(invocation.TargetType, invocation.Method, out activityName), activityName),
-            ActivitySettings.ActivityName => new ActivityNameInvoker(GetActivityName(invocation, activityName),
-                maxUsableTimes, CreateActivityTags(invocation.TargetType, invocation.Method)),
-            ActivitySettings.SuppressInstrumentation => new ActivityNameInvoker(),
-            _ => context.ActivityType switch
-            {
-                ActivityType.ImplicitActivity => new ActivityInvoker(
-                    GetActivitySource(type, context.ImplicitActivitySourceName),
-                    GetActivityName(invocation, activityName, context.ImplicitActivitySourceName),
-                    context.ImplicitActivityKind, context.SuppressInstrumentation,
-                    SetActivityTags(invocation.TargetType, invocation.Method, out activityName), activityName),
-                ActivityType.ImplicitActivityName => new ActivityNameInvoker(GetActivityName(invocation, activityName),
-                    1, CreateActivityTags(invocation.TargetType, invocation.Method)),
-                _ => ActivityInvokerHelper.Noop
-            }
-        };
+        if (settings == ActivitySettings.Activity)
+            return new ActivityInvoker(GetActivitySource(type), GetActivityName(invocation, activityName), kind,
+                false, SetActivityTags(invocation.TargetType, invocation.Method, out activityName), activityName);
+
+        if (settings == ActivitySettings.ActivityAndSuppressInstrumentation)
+            return new ActivityInvoker(GetActivitySource(type), GetActivityName(invocation, activityName), kind,
+                true, SetActivityTags(invocation.TargetType, invocation.Method, out activityName), activityName);
+
+        if (settings == ActivitySettings.ActivityName)
+            return new ActivityNameInvoker(GetActivityName(invocation, activityName), maxUsableTimes,
+                CreateActivityTags(invocation.TargetType, invocation.Method));
+
+        if (settings == ActivitySettings.SuppressInstrumentation)
+            return new ActivityNameInvoker();
+
+        if (context.Type == ImplicitActivityType.Activity)
+            return context.BeforeProceed != null || context.AfterProceed != null
+                ? new ActivityInvoker(GetActivitySource(type, context.ActivitySourceName),
+                    GetActivityName(invocation, activityName, context.ActivitySourceName),
+                    context.ActivityKind, context.SuppressInstrumentation,
+                    (context.BeforeProceed, context.AfterProceed), context.ReturnValueTagName)
+                : new ActivityInvoker(GetActivitySource(type, context.ActivitySourceName),
+                    GetActivityName(invocation, activityName, context.ActivitySourceName),
+                    context.ActivityKind, context.SuppressInstrumentation,
+                    SetActivityTags(invocation.TargetType, invocation.Method, out activityName),
+                    context.ReturnValueTagName ?? activityName);
+
+        if (context.Type == ImplicitActivityType.ActivityName)
+            return new ActivityNameInvoker(GetActivityName(invocation, activityName), 1,
+                CreateActivityTags(invocation.TargetType, invocation.Method));
+
+        return ActivityInvokerHelper.Noop;
     }
 
     private static string GetActivityName(IInvocation invocation, string? activityName,
@@ -103,7 +114,7 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
             new(ActivitySourceAttribute.GetActivitySourceName(type, name),
                 type.Assembly.GetName().Version?.ToString() ?? ""), implicitActivitySourceName);
 
-    private static Tuple<Action<IInvocation, Activity>?, Action<IInvocation, Activity>?> SetActivityTags(Type type,
+    private static (Action<IInvocation, Activity>?, Action<IInvocation, Activity>?) SetActivityTags(Type type,
         MethodInfo method, out string? returnValueTagName)
     {
         var invocation = Expression.Parameter(typeof(IInvocation), "invocation");
@@ -139,7 +150,7 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
                 return Expression.Call(SetTagEnumerable, activity, Expression.Constant(key), value);
             })), invocation, activity);
 
-        return Tuple.Create(start?.Compile(), end?.Compile());
+        return (start?.Compile(), end?.Compile());
     }
 
     private static GetTags? CreateActivityTags(Type type, MethodInfo method)

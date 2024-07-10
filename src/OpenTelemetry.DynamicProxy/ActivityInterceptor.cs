@@ -1,9 +1,11 @@
 ﻿namespace OpenTelemetry.DynamicProxy;
 
-public class ActivityInterceptor(IActivityInvokerFactory invokerFactory, InvokeContext context) : IInterceptor
+public class ActivityInterceptor(IActivityInvokerFactory invokerFactory) : IInterceptor
 {
-    public ActivityInterceptor(IActivityInvokerFactory invokerFactory, ActivityType activityType = 0)
-        : this(invokerFactory, new InvokeContext(activityType)) { }
+    private readonly ImplicitActivityContext _context;
 
-    void IInterceptor.Intercept(IInvocation invocation) => invokerFactory.Invoke(invocation, context);
+    public ActivityInterceptor(IActivityInvokerFactory invokerFactory, ImplicitActivityContext context)
+        : this(invokerFactory) => _context = context;
+
+    void IInterceptor.Intercept(IInvocation invocation) => invokerFactory.Invoke(invocation, _context);
 }

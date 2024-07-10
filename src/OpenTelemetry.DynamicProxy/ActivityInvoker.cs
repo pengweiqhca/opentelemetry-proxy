@@ -9,7 +9,7 @@ public class ActivityInvoker(
     string activityName,
     ActivityKind kind,
     bool suppressInstrumentation,
-    Tuple<Action<IInvocation, Activity>?, Action<IInvocation, Activity>?> setTags,
+    (Action<IInvocation, Activity>? BeforeProceed, Action<IInvocation, Activity>? AfterProceed) setTags,
     string? returnValueTagName) : ActivityNameInvoker
 {
     public override void Invoke(IInvocation invocation)
@@ -22,7 +22,7 @@ public class ActivityInvoker(
             return;
         }
 
-        setTags.Item1?.Invoke(invocation, activity);
+        setTags.BeforeProceed?.Invoke(invocation, activity);
 
         var disposable = suppressInstrumentation ? SuppressInstrumentationScope.Begin() : null;
 
@@ -39,7 +39,7 @@ public class ActivityInvoker(
             throw;
         }
 
-        setTags.Item2?.Invoke(invocation, activity);
+        setTags.AfterProceed?.Invoke(invocation, activity);
 
         var func = ActivityInvokerHelper.Convert(invocation.Method.ReturnType);
         if (func == null)
