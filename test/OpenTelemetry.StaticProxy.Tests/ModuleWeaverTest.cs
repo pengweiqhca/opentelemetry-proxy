@@ -84,7 +84,7 @@ public class ModuleWeaverTest
 
         var (activityName, tags2, availableTimes) = await func(method.Invoke(null, [200])!).ConfigureAwait(false);
 
-        Assert.Equal($"{typeof(ModuleWeaverTestClass).FullName}.{methodName}", activityName);
+        Assert.Equal($"{nameof(ModuleWeaverTestClass)}.{methodName}", activityName);
         Assert.Equal(tags, tags2);
         Assert.Equal(1, availableTimes);
     }

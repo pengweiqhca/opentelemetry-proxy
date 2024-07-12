@@ -7,7 +7,7 @@ public class ActivityNameAttribute : Attribute
 
     public ActivityNameAttribute(string activityName) => ActivityName = string.IsNullOrWhiteSpace(activityName) ? null : activityName;
 
-    /// <summary>Default value is {Type.FullName}.{Method.Name}</summary>
+    /// <summary>Default value is {Type.Name}.{Method.Name}</summary>
     public string? ActivityName { get; }
 
     /// <summary>&lt;0: unlimited, 0: not effect, default value is 1.</summary>

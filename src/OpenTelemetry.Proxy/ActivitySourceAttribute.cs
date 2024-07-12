@@ -27,9 +27,7 @@ public class ActivitySourceAttribute : Attribute
         var name = type.GetCustomAttribute<ActivitySourceAttribute>()?.ActivitySourceName;
 
         return string.IsNullOrWhiteSpace(name)
-            ? string.IsNullOrWhiteSpace(implicitActivitySourceName)
-                ? type.FullName ?? type.ToString()
-                : implicitActivitySourceName!
+            ? string.IsNullOrWhiteSpace(implicitActivitySourceName) ? type.Name : implicitActivitySourceName!
             : name!;
     }
 }

@@ -104,7 +104,7 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
         if (!string.IsNullOrWhiteSpace(activityName)) return activityName!;
 
         if (string.IsNullOrWhiteSpace(implicitActivitySourceName))
-            implicitActivitySourceName = invocation.TargetType.FullName ?? invocation.TargetType.ToString();
+            implicitActivitySourceName = invocation.TargetType.Name;
 
         return $"{implicitActivitySourceName}.{invocation.Method.Name}";
     }
