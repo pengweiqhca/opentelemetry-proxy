@@ -44,15 +44,15 @@ internal class StaticProxyEmitter(EmitContext context)
                 if (method.Value.Settings == ActivitySettings.SuppressInstrumentation)
                     EmitSuppressInstrumentationScope(method.Key, isVoid);
                 else if (method.Value.Settings == ActivitySettings.ActivityName)
-                    EmitActivityName(method.Key, isVoid, string.IsNullOrWhiteSpace(method.Value.Name)
+                    EmitActivityName(method.Key, isVoid, string.IsNullOrWhiteSpace(method.Value.ActivityName)
                         ? $"{type.Name}.{method.Key.Name}"
-                        : method.Value.Name, method.Value.MaxUsableTimes);
+                        : method.Value.ActivityName, method.Value.MaxUsableTimes);
                 else if (method.Value.Settings is ActivitySettings.Activity or ActivitySettings.ActivityAndSuppressInstrumentation)
                 {
                     EmitActivity(method.Key, isVoid, activitySource ??= AddActivitySource(activitySourceName, version),
-                        string.IsNullOrWhiteSpace(method.Value.Name)
+                        string.IsNullOrWhiteSpace(method.Value.ActivityName)
                             ? $"{activitySourceName}.{method.Key.Name}"
-                            : method.Value.Name!, method.Value.Kind, method.Value.Settings == ActivitySettings.ActivityAndSuppressInstrumentation);
+                            : method.Value.ActivityName!, method.Value.Kind, method.Value.Settings == ActivitySettings.ActivityAndSuppressInstrumentation);
 
                     if (typeEmitted) continue;
 

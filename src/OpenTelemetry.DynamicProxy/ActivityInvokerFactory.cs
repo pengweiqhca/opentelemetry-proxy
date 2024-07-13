@@ -99,20 +99,20 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
     }
 
     private static string GetActivityName(IInvocation invocation, string? activityName,
-        string? implicitActivitySourceName = null)
+        string? activitySourceName = null)
     {
         if (!string.IsNullOrWhiteSpace(activityName)) return activityName!;
 
-        if (string.IsNullOrWhiteSpace(implicitActivitySourceName))
-            implicitActivitySourceName = invocation.TargetType.Name;
+        if (string.IsNullOrWhiteSpace(activitySourceName))
+            activitySourceName = invocation.TargetType.Name;
 
-        return $"{implicitActivitySourceName}.{invocation.Method.Name}";
+        return $"{activitySourceName}.{invocation.Method.Name}";
     }
 
-    private ActivitySource GetActivitySource(Type type, string? implicitActivitySourceName = null) =>
+    private ActivitySource GetActivitySource(Type type, string? activitySourceName = null) =>
         _activitySources.GetOrAdd(type, static (type, name) =>
             new(ActivitySourceAttribute.GetActivitySourceName(type, name),
-                type.Assembly.GetName().Version?.ToString() ?? ""), implicitActivitySourceName);
+                type.Assembly.GetName().Version?.ToString()), activitySourceName);
 
     private static (Action<IInvocation, Activity>?, Action<IInvocation, Activity>?) SetActivityTags(Type type,
         MethodInfo method, out string? returnValueTagName)

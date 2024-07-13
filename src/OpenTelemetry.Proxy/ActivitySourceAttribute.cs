@@ -22,12 +22,12 @@ public class ActivitySourceAttribute : Attribute
 
     public static string GetActivitySourceName(Type type) => GetActivitySourceName(type, null);
 
-    internal static string GetActivitySourceName(Type type, string? implicitActivitySourceName)
+    internal static string GetActivitySourceName(Type type, string? activitySourceName)
     {
         var name = type.GetCustomAttribute<ActivitySourceAttribute>()?.ActivitySourceName;
 
         return string.IsNullOrWhiteSpace(name)
-            ? string.IsNullOrWhiteSpace(implicitActivitySourceName) ? type.Name : implicitActivitySourceName!
+            ? string.IsNullOrWhiteSpace(activitySourceName) ? type.Name : activitySourceName!
             : name!;
     }
 }

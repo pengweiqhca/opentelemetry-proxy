@@ -1,6 +1,6 @@
 ﻿namespace OpenTelemetry.Proxy;
 
-internal record struct ProxyMethod(ActivitySettings Settings, string? Name = null, int Kind = 0, int MaxUsableTimes = 0);
+internal record struct ProxyMethod(ActivitySettings Settings, string? ActivityName = null, int Kind = 0, int MaxUsableTimes = 0);
 
 internal record ProxyType<T> where T : notnull
 {
