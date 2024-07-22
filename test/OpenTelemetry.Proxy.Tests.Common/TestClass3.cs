@@ -1,5 +1,4 @@
 using OpenTelemetry.Trace;
-using System.Runtime.CompilerServices;
 
 namespace OpenTelemetry.Proxy.Tests.Common;
 

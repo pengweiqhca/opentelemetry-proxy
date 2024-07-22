@@ -13,7 +13,7 @@ public static class InnerActivityAccessor
     internal static void ActivityStarted(Activity activity)
     {
         if (Holder.Value is not { } holder || !holder.OnActivityStart(activity)) return;
-
+        
         if (holder.HasOnEnd()) ActivityTable.Add(activity, holder);
         else holder.Clear();
     }
