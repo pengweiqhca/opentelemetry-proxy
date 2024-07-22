@@ -9,7 +9,7 @@
 
     <!--<VersionSuffix Condition="'$(VersionSuffix)' == ''">-preview.1</VersionSuffix>-->
     <AssemblyVersion>3.0</AssemblyVersion>
-    <StaticProxyVersion>$(AssemblyVersion).0</StaticProxyVersion>
+    <StaticProxyVersion>$(AssemblyVersion).1</StaticProxyVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 

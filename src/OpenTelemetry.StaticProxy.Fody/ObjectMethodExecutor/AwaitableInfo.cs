@@ -43,7 +43,7 @@ internal readonly struct AwaitableInfo
         // Based on Roslyn code: http://source.roslyn.io/#Microsoft.CodeAnalysis.Workspaces/Shared/Extensions/ISymbolExtensions.cs,db4d48ba694b9347
 
         // Awaitable must have method matching "object GetAwaiter()"
-        var getAwaiterMethod = type.Resolve().GetParameterlessMethod(nameof(Task.GetAwaiter));
+        var getAwaiterMethod = type.Resolve()?.GetParameterlessMethod(nameof(Task.GetAwaiter));
         if (getAwaiterMethod is null)
         {
             awaitableInfo = default;
@@ -51,6 +51,11 @@ internal readonly struct AwaitableInfo
         }
 
         var awaiterType = getAwaiterMethod.ReturnType.Resolve();
+        if (awaiterType is null)
+        {
+            awaitableInfo = default;
+            return false;
+        }
 
         // Awaiter must have property matching "bool IsCompleted { get; }"
         var isCompletedProperty = awaiterType.GetProperty(nameof(TaskAwaiter.IsCompleted));

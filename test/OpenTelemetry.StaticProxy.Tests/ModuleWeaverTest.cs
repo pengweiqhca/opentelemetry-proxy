@@ -223,6 +223,16 @@ public class ModuleWeaverTest
         Assert.True(result);
     }
 
+    [Fact]
+    public void GenericMethodTest()
+    {
+        var method = AssemblyEmit()?.GetMethod(nameof(ModuleWeaverTestClass.GenericMethod));
+
+        Assert.NotNull(method);
+
+        method.MakeGenericMethod(typeof(int)).Invoke(null, []);
+    }
+
     private static async Task ActivityTest(string methodName, Func<object, ValueTask<Activity?>> func,
         Dictionary<string, object> tags)
     {

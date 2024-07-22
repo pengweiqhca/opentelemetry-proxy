@@ -39,7 +39,13 @@ internal static class Utilities
     {
         var methods = type.GetMethods();
 
-        while (type.BaseType != null) methods = methods.Union((type = type.BaseType.Resolve()).GetMethods());
+        while (type.BaseType != null)
+        {
+            type = type.BaseType.Resolve();
+
+            if (type != null) methods = methods.Union(type.GetMethods());
+            else break;
+        }
 
         return methods.Where(m => m.Name == name);
     }
@@ -48,7 +54,7 @@ internal static class Utilities
         type.GetMethods(name).FirstOrDefault(static m => m.Parameters.Count < 1);
 
     public static PropertyDefinition? GetProperty(this TypeDefinition type, string name) =>
-        type.Properties.FirstOrDefault(p => p.Name == name) ?? type.BaseType?.Resolve().GetProperty(name);
+        type.Properties.FirstOrDefault(p => p.Name == name) ?? type.BaseType?.Resolve()?.GetProperty(name);
 
     public static TypeReference GetCoreType<T>(this ModuleDefinition module) => module.GetCoreType(typeof(T));
 

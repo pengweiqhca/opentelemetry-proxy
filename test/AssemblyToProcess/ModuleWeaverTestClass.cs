@@ -51,6 +51,9 @@ public static class ModuleWeaverTestClass
     [ActivityName]
     public static ActivityName GetActivityName([ActivityTag] int delay) => InternalGetActivityName();
 
+    [Activity]
+    public static T? GenericMethod<T>() => default;
+
     private static ActivityName InternalGetActivityName()
     {
         var holder = typeof(InnerActivityAccessor).GetProperty("Activity", BindingFlags.NonPublic | BindingFlags.Static)
