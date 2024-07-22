@@ -38,7 +38,7 @@ internal readonly struct AwaitableInfo(Type awaitableType,
 
     public static bool IsTypeAwaitable(Type type, out AwaitableInfo awaitableInfo)
     {
-        // Based on Roslyn code: http://source.roslyn.io/#Microsoft.CodeAnalysis.Workspaces/Shared/Extensions/ISymbolExtensions.cs,db4d48ba694b9347
+        // Based on Roslyn code: https://github.com/dotnet/roslyn/blob/main/src/Workspaces/SharedUtilitiesAndExtensions/Compiler/Core/Extensions/ISymbolExtensions.cs#L577
 
         // Awaitable must have method matching "object GetAwaiter()"
         var getAwaiterMethod = type.GetMethod(nameof(Task.GetAwaiter), Everything, null, Type.EmptyTypes, null);

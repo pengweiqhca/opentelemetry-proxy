@@ -10,7 +10,7 @@ public class ActivityNameAttribute : Attribute
     /// <summary>Default value is {Type.Name}.{Method.Name}</summary>
     public string? ActivityName { get; }
 
-    /// <summary>&lt;0: unlimited, 0: not effect, default value is 1.</summary>
+    /// <summary>&lt;0: unlimited, 0: ignore, default value is 1.</summary>
     public int MaxUsableTimes { get; set; } = 1;
 
     /// <summary>Set activity tag, value from parameter name, property name and field name.</summary>
