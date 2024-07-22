@@ -23,8 +23,12 @@ internal static class ActivityInvokerHelper
                 activitySource.GetValue<bool>("SuppressInstrumentation", type.Module.TypeSystem.Boolean));
         }
         else if (type.GetCustomAttribute(context.ActivityNameAttribute) is { } activityName)
-            tuple2 = new(activityName.GetValue<string>("", type.Module.TypeSystem.String),
-                activityName.GetValue("MaxUsableTimes", type.Module.TypeSystem.Int32, 1));
+        {
+            var maxUsableTimes = activityName.GetValue("MaxUsableTimes", type.Module.TypeSystem.Int32, 1);
+
+            if (maxUsableTimes != 0)
+                tuple2 = new(activityName.GetValue<string>("", type.Module.TypeSystem.String), maxUsableTimes);
+        }
 
         var proxyType = new ProxyType<MethodDefinition> { ActivitySourceName = activitySourceName };
 
@@ -69,8 +73,13 @@ internal static class ActivityInvokerHelper
                 activityName = new($"{activityName.Item1}.{method.Name}", activityName.Item2);
         }
         else
-            activityName = new(ana.GetValue<string>("", method.Module.TypeSystem.String),
-                ana.GetValue("MaxUsableTimes", method.Module.TypeSystem.Int32, 1));
+        {
+            var maxUsableTimes = ana.GetValue("MaxUsableTimes", method.Module.TypeSystem.Int32, 1);
+
+            if (maxUsableTimes != 0)
+                activityName = new(ana.GetValue<string>("", method.Module.TypeSystem.String), maxUsableTimes);
+            else return default;
+        }
 
         return new(ActivitySettings.ActivityName, activityName.Item1, MaxUsableTimes: activityName.Item2);
     }

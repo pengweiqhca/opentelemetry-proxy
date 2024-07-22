@@ -35,7 +35,7 @@ internal static class ActivityInvokerHelper
                 : ActivitySettings.Activity;
         }
 
-        if (method.GetCustomAttribute<ActivityNameAttribute>(true) is not { } ana || ana.MaxUsableTimes < 1)
+        if (method.GetCustomAttribute<ActivityNameAttribute>(true) is not { } ana || ana.MaxUsableTimes == 0)
         {
             if (type.GetCustomAttribute<ActivitySourceAttribute>(true) is { } asa)
             {
@@ -52,7 +52,7 @@ internal static class ActivityInvokerHelper
 
             ana = type.GetCustomAttribute<ActivityNameAttribute>(true);
 
-            if (ana == null || ana.MaxUsableTimes < 1) return ActivitySettings.None;
+            if (ana == null || ana.MaxUsableTimes == 0) return ActivitySettings.None;
 
             if (!string.IsNullOrWhiteSpace(ana.ActivityName))
                 activityName = $"{ana.ActivityName}.{method.Name}";

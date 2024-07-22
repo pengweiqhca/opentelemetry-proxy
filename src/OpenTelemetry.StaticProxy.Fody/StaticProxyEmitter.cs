@@ -262,7 +262,7 @@ internal class StaticProxyEmitter(EmitContext context)
 
     public void EmitActivityName(MethodDefinition method, bool isVoid, string? activityName, int maxUsableTimes)
     {
-        if (maxUsableTimes > 0)
+        if (maxUsableTimes != 0)
             EmitDisposable(method, isVoid, () =>
             {
                 var index = 0;

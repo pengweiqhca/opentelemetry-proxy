@@ -46,7 +46,7 @@ public class GetActivityNameTest
             ActivityInvokerHelper.GetActivityName(new Action(new TestClass1().Method3).Method,
                 typeof(TestClass1), out _, out _, out _));
 
-    [Fact, ActivityName(MaxUsableTimes = 3)]
+    [Fact, ActivityName(MaxUsableTimes = -3)]
     public void ActivityNameAttribute()
     {
         Assert.Equal(ActivitySettings.ActivityName, ActivityInvokerHelper.GetActivityName(
@@ -55,7 +55,7 @@ public class GetActivityNameTest
 
         Assert.Null(activityName);
 
-        Assert.Equal(3, maxUsableTimes);
+        Assert.Equal(-3, maxUsableTimes);
     }
 
     [Fact, ActivityName(MaxUsableTimes = 0)]

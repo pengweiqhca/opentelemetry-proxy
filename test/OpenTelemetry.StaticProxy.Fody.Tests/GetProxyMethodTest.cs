@@ -58,7 +58,7 @@ public class GetProxyMethodTest
 
         Assert.Equal(ActivitySettings.ActivityName, settings);
         Assert.Equal("test", activityName);
-        Assert.Equal(5, maxUsableTimes);
+        Assert.Equal(-5, maxUsableTimes);
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public class GetProxyMethodTest
         [Activity("test", Kind = ActivityKind.Client)]
         public void Test3() { }
 
-        [ActivityName("test", MaxUsableTimes = 5)]
+        [ActivityName("test", MaxUsableTimes = -5)]
         public void Test4() { }
 
         [Activity(SuppressInstrumentation = true)]
