@@ -1,5 +1,4 @@
-﻿using System.Net;
-using System.Reflection;
+﻿using System.Reflection;
 
 namespace OpenTelemetry.Proxy;
 
@@ -27,7 +26,7 @@ public class ActivitySourceAttribute : Attribute
         var name = type.GetCustomAttribute<ActivitySourceAttribute>()?.ActivitySourceName;
 
         return string.IsNullOrWhiteSpace(name)
-            ? string.IsNullOrWhiteSpace(activitySourceName) ? type.Name : activitySourceName!
+            ? string.IsNullOrWhiteSpace(activitySourceName) ? type.FullName ?? type.ToString() : activitySourceName!
             : name!;
     }
 }
