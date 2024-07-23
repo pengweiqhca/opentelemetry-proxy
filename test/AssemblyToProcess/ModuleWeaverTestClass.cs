@@ -126,77 +126,8 @@ public static class ModuleWeaverTestClass
     public static TestAwaitable<Activity?> GetCurrentActivityAwaitable([ActivityTag] int delay) =>
         new(static () => Activity.Current);
 
-    [Activity]
+    [Activity(SuppressInstrumentation = true)]
     public static Task Exception() => Task.FromException(new());
-
-    private static ActivitySource ActivitySource { get; } = new("ModuleWeaverTestClass");
-
-    [NonActivity]
-    public static Task Exception2()
-    {
-        var activity = ActivitySource.StartActivity("ModuleWeaverTestClass.Exception");
-        var disposable = OpenTelemetry.SuppressInstrumentationScope.Begin();
-
-        Task task;
-        try
-        {
-            task = Task.FromException(new Exception());
-        }
-        catch (Exception ex)
-        {
-            disposable?.Dispose();
-
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message).RecordException(ex);
-
-            throw;
-        }
-
-        if (activity != null) ActivityAwaiter2.OnCompleted(task.GetAwaiter(), activity, disposable);
-
-        return task;
-    }
-
-    private sealed class ActivityAwaiter2
-    {
-        private readonly TaskAwaiter _awaiter;
-
-        private readonly Activity _activity;
-        private readonly IDisposable _disposable;
-
-        private ActivityAwaiter2(TaskAwaiter awaiter, Activity activity, IDisposable disposable)
-        {
-            _awaiter = awaiter;
-            _activity = activity;
-            _disposable = disposable;
-
-            Activity.Current = activity.Parent;
-        }
-
-        private void OnCompleted() => Completed(_awaiter, _activity, _disposable);
-
-        private static void Completed(TaskAwaiter awaiter, Activity activity, IDisposable disposable)
-        {
-            try
-            {
-                awaiter.GetResult();
-            }
-            catch (Exception ex)
-            {
-                activity.SetStatus(ActivityStatusCode.Error, ex.Message).RecordException(ex);
-            }
-            finally
-            {
-                disposable?.Dispose();
-                activity.Dispose();
-            }
-        }
-
-        public static void OnCompleted(TaskAwaiter awaiter, Activity activity, IDisposable disposable)
-        {
-            if (awaiter.IsCompleted) Completed(awaiter, activity, disposable);
-            else awaiter.UnsafeOnCompleted(new ActivityAwaiter2(awaiter, activity, disposable).OnCompleted);
-        }
-    }
 
     [return: ActivityTag("def")]
     public static int OutMethod(in int a, out int b, ref int c, int d, int e, [ActivityTag] int f)
