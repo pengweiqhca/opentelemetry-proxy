@@ -34,12 +34,15 @@ public class ActivityInvoker(
         {
             OnException(activity, ex);
 
+            disposable?.Dispose();
             activity.Dispose();
 
             throw;
         }
 
         setTags.AfterProceed?.Invoke(invocation, activity);
+
+        disposable?.Dispose();
 
         var func = ActivityInvokerHelper.Convert(invocation.Method.ReturnType);
         if (func == null)
@@ -53,12 +56,12 @@ public class ActivityInvoker(
 
         var awaiter = func(invocation.ReturnValue).GetAwaiter();
 
-        if (awaiter.IsCompleted) ActivityAwaiter.OnCompleted(activity, awaiter, disposable, returnValueTagName);
+        if (awaiter.IsCompleted) ActivityAwaiter.OnCompleted(activity, awaiter, returnValueTagName);
         else
         {
             Activity.Current = activity.Parent;
 
-            awaiter.UnsafeOnCompleted(new ActivityAwaiter(activity, awaiter, disposable, returnValueTagName).OnCompleted);
+            awaiter.UnsafeOnCompleted(new ActivityAwaiter(activity, awaiter, returnValueTagName).OnCompleted);
         }
     }
 
@@ -68,13 +71,11 @@ public class ActivityInvoker(
     private sealed class ActivityAwaiter(
         Activity activity,
         ObjectMethodExecutorAwaitable.Awaiter awaiter,
-        IDisposable? disposable,
         string? returnValueTagName)
     {
-        public void OnCompleted() => OnCompleted(activity, awaiter, disposable, returnValueTagName);
+        public void OnCompleted() => OnCompleted(activity, awaiter, returnValueTagName);
 
-        public static void OnCompleted(Activity activity, ObjectMethodExecutorAwaitable.Awaiter awaiter,
-            IDisposable? disposable, string? returnValueTagName)
+        public static void OnCompleted(Activity activity, ObjectMethodExecutorAwaitable.Awaiter awaiter, string? returnValueTagName)
         {
             try
             {
@@ -88,7 +89,6 @@ public class ActivityInvoker(
             }
             finally
             {
-                disposable?.Dispose();
                 activity.Dispose();
             }
         }

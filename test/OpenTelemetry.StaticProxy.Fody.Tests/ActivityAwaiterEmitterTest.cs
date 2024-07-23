@@ -53,17 +53,11 @@ public class ActivityAwaiterEmitterTest(ITestOutputHelper output)
         mock.Protected().Setup(nameof(IDisposable.Dispose), ItExpr.IsAny<bool>())
             .Callback(tcs.SetResult);
 
-        var mock2 = new Mock<IDisposable>();
-
-        mock2.Setup(x => x.Dispose());
-
         type.GetMethod(nameof(TaskAwaiter.OnCompleted), BindingFlags.Public | BindingFlags.Static)!
-            .Invoke(null, isVoid ? [awaiter, mock.Object, mock2.Object] : [awaiter, mock.Object, mock2.Object, null]);
+            .Invoke(null, isVoid ? [awaiter, mock.Object] : [awaiter, mock.Object, null]);
 
         if (await Task.WhenAny(tcs.Task, Task.Delay(5000)).ConfigureAwait(false) != tcs.Task)
             Assert.Fail("Timeout");
-
-        mock2.VerifyAll();
 
         if (success)
             Assert.Equal(ActivityStatusCode.Unset, mock.Object.Status);

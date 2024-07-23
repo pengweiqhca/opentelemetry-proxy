@@ -292,8 +292,16 @@ internal class StaticProxyEmitter(EmitContext context)
         var activityIndex = method.Body.Variables.Count;
         method.Body.Variables.Add(new(Context.Activity));
 
-        var (returnVariableIndex, leave) = ProcessReturn(method, isVoid, hasAsyncStateMachineAttribute,
-            isTypeAwaitable ? _ => Ldloc(activityIndex, method.Body.Variables) : null);
+        var disposableIndex = -1;
+        if (suppressInstrumentation)
+        {
+            disposableIndex = method.Body.Variables.Count;
+            method.Body.Variables.Add(new(Context.Disposable));
+        }
+
+        var (returnVariableIndex, leave) = ProcessReturn(method, isVoid, hasAsyncStateMachineAttribute, isTypeAwaitable
+            ? _ => Ldloc(suppressInstrumentation ? disposableIndex : activityIndex, method.Body.Variables)
+            : null);
 
         /*IL_0000: ldsfld class [System.Diagnostics.DiagnosticSource]System.Diagnostics.ActivitySource OpenTelemetry.StaticProxy.Fody.TestClass::ActivitySource
         IL_0005: ldstr "Test.Activity"
@@ -310,12 +318,8 @@ internal class StaticProxyEmitter(EmitContext context)
 
         method.Body.Instructions.Insert(length++, Stloc(activityIndex, method.Body.Variables));
 
-        var disposableIndex = -1;
         if (suppressInstrumentation)
         {
-            disposableIndex = method.Body.Variables.Count;
-            method.Body.Variables.Add(new(Context.Disposable));
-
             method.Body.Instructions.Insert(length++, LdI4(1));
             method.Body.Instructions.Insert(length++, Instruction.Create(OpCodes.Call, Context.Begin));
             method.Body.Instructions.Insert(length++, Stloc(disposableIndex, method.Body.Variables));
@@ -363,8 +367,9 @@ internal class StaticProxyEmitter(EmitContext context)
 
             if (suppressInstrumentation)
             {
-                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brtrue, brTrue));
-                method.Body.Instructions.Insert(index++, Ldloc(disposableIndex, method.Body.Variables));
+                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Callvirt, Context.Dispose));
+
+                method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
             }
 
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse, leave));
@@ -375,10 +380,6 @@ internal class StaticProxyEmitter(EmitContext context)
             method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
 
             SetActivityTags(method, ref index, setActivityTags);
-
-            method.Body.Instructions.Insert(index++, suppressInstrumentation
-                ? Ldloc(disposableIndex, method.Body.Variables)
-                : Instruction.Create(OpCodes.Ldnull));
 
             if (!isVoid2)
                 method.Body.Instructions.Insert(index++, returnValueTagName == null
@@ -455,13 +456,9 @@ internal class StaticProxyEmitter(EmitContext context)
 
             if (suppressInstrumentation)
             {
-                var ldActivity = Ldloc(activityIndex, method.Body.Variables);
-
-                method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse, ldActivity));
-                method.Body.Instructions.Insert(index++, Ldloc(disposableIndex, method.Body.Variables));
                 method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Callvirt, Context.Dispose));
 
-                method.Body.Instructions.Insert(index++, ldActivity);
+                method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
             }
 
             var endFinally = Instruction.Create(OpCodes.Endfinally);
@@ -510,8 +507,6 @@ internal class StaticProxyEmitter(EmitContext context)
         int activityIndex, int disposableIndex, int exceptionIndex)
     {
         /*IL_0025: stloc.3
-        IL_0026: ldloc.1
-        IL_0027: brfalse.s IL_002f
 
         IL_0029: ldloc.1
         IL_002a: callvirt instance void [mscorlib]System.IDisposable::Dispose()
@@ -529,19 +524,16 @@ internal class StaticProxyEmitter(EmitContext context)
 
         IL_0045: rethrow*/
         var catchEnd = Instruction.Create(OpCodes.Rethrow);
-        var ldActivity = Ldloc(activityIndex, method.Body.Variables);
 
         method.Body.Instructions.Insert(index++, catchHandler.HandlerStart);
 
         if (disposableIndex >= 0)
         {
             method.Body.Instructions.Insert(index++, Ldloc(disposableIndex, method.Body.Variables));
-            method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse, ldActivity));
-            method.Body.Instructions.Insert(index++, Ldloc(disposableIndex, method.Body.Variables));
             method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Callvirt, Context.Dispose));
         }
 
-        method.Body.Instructions.Insert(index++, ldActivity);
+        method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
         method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Brfalse, catchEnd));
 
         method.Body.Instructions.Insert(index++, Ldloc(activityIndex, method.Body.Variables));
