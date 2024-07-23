@@ -28,9 +28,13 @@ internal class StaticProxyEmitter(EmitContext context)
             if (proxyType.Methods.Count < 1) continue;
 
             FieldReference? activitySource = null;
-            var activitySourceName = string.IsNullOrWhiteSpace(proxyType.ActivitySourceName)
-                ? type.FullName
-                : proxyType.ActivitySourceName!;
+            string activitySourceName, name;
+            if (string.IsNullOrWhiteSpace(proxyType.ActivitySourceName))
+            {
+                activitySourceName = type.FullName;
+                name = type.Name;
+            }
+            else activitySourceName = name = proxyType.ActivitySourceName!;
 
             var typeEmitted = false;
 
@@ -51,7 +55,7 @@ internal class StaticProxyEmitter(EmitContext context)
                 {
                     EmitActivity(method.Key, isVoid, activitySource ??= AddActivitySource(activitySourceName, version),
                         string.IsNullOrWhiteSpace(method.Value.ActivityName)
-                            ? $"{activitySourceName}.{method.Key.Name}"
+                            ? $"{name}.{method.Key.Name}"
                             : method.Value.ActivityName!, method.Value.Kind, method.Value.Settings == ActivitySettings.ActivityAndSuppressInstrumentation);
 
                     if (typeEmitted) continue;
