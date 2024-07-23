@@ -29,7 +29,7 @@ internal class StaticProxyEmitter(EmitContext context)
 
             FieldReference? activitySource = null;
             var activitySourceName = string.IsNullOrWhiteSpace(proxyType.ActivitySourceName)
-                ? type.Name
+                ? type.FullName
                 : proxyType.ActivitySourceName!;
 
             var typeEmitted = false;
