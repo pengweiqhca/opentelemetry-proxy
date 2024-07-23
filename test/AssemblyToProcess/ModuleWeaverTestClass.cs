@@ -54,6 +54,12 @@ public static class ModuleWeaverTestClass
     [Activity]
     public static T? GenericMethod<T>() => default;
 
+    [Activity]
+    public static void VoidMethod()
+    {
+        if (DateTime.Now is { Hour: > 10, Second: < 10 }) { }
+    }
+
     private static ActivityName InternalGetActivityName()
     {
         var holder = typeof(InnerActivityAccessor).GetProperty("Activity", BindingFlags.NonPublic | BindingFlags.Static)

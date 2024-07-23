@@ -233,6 +233,16 @@ public class ModuleWeaverTest
         method.MakeGenericMethod(typeof(int)).Invoke(null, []);
     }
 
+    [Fact]
+    public void VoidMethodTest()
+    {
+        var method = AssemblyEmit()?.GetMethod(nameof(ModuleWeaverTestClass.VoidMethod));
+
+        Assert.NotNull(method);
+
+        method.Invoke(null, []);
+    }
+
     private static async Task ActivityTest(string methodName, Func<object, ValueTask<Activity?>> func,
         Dictionary<string, object> tags)
     {

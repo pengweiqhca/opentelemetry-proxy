@@ -580,15 +580,20 @@ internal class StaticProxyEmitter(EmitContext context)
             {
                 if (hasAsyncStateMachineAttribute) return Tuple.Create(-1, ret);
 
-                if (!SupportedJump.Contains(body.Instructions[^2].OpCode) && body.Instructions[^2].Operand != ret)
-                    body.Instructions.Insert(body.Instructions.Count - 1, Instruction.Create(OpCodes.Leave, ret));
+                var replaceRet =  body.Instructions[^2];
+
+                if (!SupportedJump.Contains(replaceRet.OpCode) && replaceRet.Operand != ret)
+                    body.Instructions.Insert(body.Instructions.Count - 1,
+                        replaceRet = Instruction.Create(OpCodes.Leave, ret));
 
                 for (var index = body.Instructions.Count - 2; index > 0; index--)
                 {
                     var instruction = body.Instructions[index];
 
-                    if (SupportedJump.Contains(instruction.OpCode) && instruction.Operand == ret)
-                        instruction.OpCode = OpCodes.Leave;
+                    if (instruction.Operand != ret) continue;
+
+                    if (SupportedJump.Contains(instruction.OpCode)) instruction.OpCode = OpCodes.Leave;
+                    else instruction.Operand = replaceRet;
                 }
 
                 return Tuple.Create(-1, ret);
