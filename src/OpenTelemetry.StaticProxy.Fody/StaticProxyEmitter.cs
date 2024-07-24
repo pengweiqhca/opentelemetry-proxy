@@ -133,7 +133,7 @@ internal class StaticProxyEmitter(EmitContext context)
     {
         var hasAsyncStateMachineAttribute = method.GetCustomAttribute(Context.AsyncStateMachineAttribute) != null;
 
-        if (!hasAsyncStateMachineAttribute && ShouldGenerateMethod(method.Body)) ReplaceBody(method);
+        if (!hasAsyncStateMachineAttribute && ShouldGenerateMethod(method.Body, isVoid)) ReplaceBody(method);
 
         method.Body.InitLocals = true;
 
@@ -286,7 +286,7 @@ internal class StaticProxyEmitter(EmitContext context)
     {
         var hasAsyncStateMachineAttribute = method.GetCustomAttribute(Context.AsyncStateMachineAttribute) != null;
 
-        if (!hasAsyncStateMachineAttribute && ShouldGenerateMethod(method.Body)) ReplaceBody(method);
+        if (!hasAsyncStateMachineAttribute && ShouldGenerateMethod(method.Body, isVoid)) ReplaceBody(method);
 
         method.Body.InitLocals = true;
 
@@ -501,11 +501,12 @@ internal class StaticProxyEmitter(EmitContext context)
 
     private static readonly IReadOnlyList<OpCode> SupportedJump = [OpCodes.Br_S, OpCodes.Leave_S, OpCodes.Br, OpCodes.Leave];
 
-    private static bool ShouldGenerateMethod(MethodBody body) =>
+    private static bool ShouldGenerateMethod(MethodBody body, bool isVoid) =>
         body.HasExceptionHandlers ||
         body.Instructions.Count < 1 ||
         body.Instructions[^1].OpCode != OpCodes.Ret ||
-        body.Instructions.Count(i => i.OpCode == OpCodes.Ret) != 1;
+        body.Instructions.Count(i => i.OpCode == OpCodes.Ret) != 1 ||
+        !isVoid && body.Instructions.Any(i => !SupportedJump.Contains(i.OpCode) && i.Operand == body.Instructions[^1]);
 
     private void EmitActivityCatch(MethodDefinition method, ref int index, ExceptionHandler catchHandler,
         int activityIndex, int disposableIndex, int exceptionIndex)
@@ -555,7 +556,7 @@ internal class StaticProxyEmitter(EmitContext context)
     private static Tuple<int, Instruction?> ProcessReturn(MethodDefinition method, bool isVoid,
         bool hasAsyncStateMachineAttribute, Func<int, Instruction>? createLeave)
     {
-        var (variableIndex, raw) = RetOrBr2LeaveS(method.Body, hasAsyncStateMachineAttribute, isVoid);
+        var (variableIndex, rawLeave) = RetOrBr2LeaveS(method.Body, hasAsyncStateMachineAttribute, isVoid);
 
         if (variableIndex < 0 || createLeave == null) return Tuple.Create<int, Instruction?>(variableIndex, null);
 
@@ -564,7 +565,7 @@ internal class StaticProxyEmitter(EmitContext context)
         {
             var instruction = method.Body.Instructions[index];
 
-            if (instruction.Operand == raw && SupportedJump.Contains(instruction.OpCode)) instruction.Operand = leave;
+            if (instruction.Operand == rawLeave) instruction.Operand = leave;
         }
 
         return Tuple.Create<int, Instruction?>(variableIndex, leave);
@@ -576,11 +577,11 @@ internal class StaticProxyEmitter(EmitContext context)
             {
                 if (hasAsyncStateMachineAttribute) return Tuple.Create(-1, ret);
 
-                var replaceRet =  body.Instructions[^2];
+                var leave =  body.Instructions[^2];
 
-                if (!SupportedJump.Contains(replaceRet.OpCode) && replaceRet.Operand != ret)
+                if (!SupportedJump.Contains(leave.OpCode) && leave.Operand != ret)
                     body.Instructions.Insert(body.Instructions.Count - 1,
-                        replaceRet = Instruction.Create(OpCodes.Leave, ret));
+                        leave = Instruction.Create(OpCodes.Leave, ret));
 
                 for (var index = body.Instructions.Count - 2; index > 0; index--)
                 {
@@ -588,60 +589,64 @@ internal class StaticProxyEmitter(EmitContext context)
 
                     if (instruction.Operand != ret) continue;
 
-                    if (SupportedJump.Contains(instruction.OpCode)) instruction.OpCode = OpCodes.Leave;
-                    else instruction.Operand = replaceRet;
+                    if (SupportedJump.Contains(instruction.OpCode)) instruction.OpCode = OpCodes.Leave; // Br => leave;
+                    else instruction.Operand = leave; // Jump to leave;
                 }
 
                 return Tuple.Create(-1, ret);
             }
 
             var ldRet = body.Instructions[^2];
+            Instruction replaceLdRet;
+
             if (!IsLdloc(ldRet, body.Variables, out var variableIndex))
             {
-                for (var index = 0; index < body.Variables.Count; index++)
-                    if (body.Method.ReturnType.HaveSameIdentity(body.Variables[index].VariableType))
-                    {
-                        variableIndex = index;
-                        break;
-                    }
+                variableIndex = GetOrCreateReturnVariable(body);
 
-                if (variableIndex < 0)
-                {
-                    variableIndex = body.Variables.Count;
+                var index = body.Instructions.Count - 1;
 
-                    body.Variables.Add(new(body.Method.ReturnType));
-                }
-
-                var i = body.Instructions.Count - 1;
-
-                body.Instructions.Insert(i, ldRet = Ldloc(variableIndex, body.Variables));
+                body.Instructions.Insert(index, replaceLdRet = ldRet = Ldloc(variableIndex, body.Variables));
 
                 if (!hasAsyncStateMachineAttribute)
-                    body.Instructions.Insert(i, Instruction.Create(OpCodes.Leave, ldRet));
+                    body.Instructions.Insert(index, replaceLdRet = Instruction.Create(OpCodes.Leave, ldRet));
 
-                body.Instructions.Insert(i, Stloc(variableIndex, body.Variables));
+                body.Instructions.Insert(index, Stloc(variableIndex, body.Variables));
             }
-            else if (!SupportedJump.Contains(body.Instructions[^3].OpCode) && body.Instructions[^3].Operand != ldRet)
-                body.Instructions.Insert(body.Instructions.Count - 2, Instruction.Create(OpCodes.Leave_S, ldRet));
+            else
+            {
+                replaceLdRet = body.Instructions[^3];
+
+                if (!SupportedJump.Contains(replaceLdRet.OpCode) && replaceLdRet.Operand != ldRet)
+                    body.Instructions.Insert(body.Instructions.Count - 2,
+                        replaceLdRet = Instruction.Create(OpCodes.Leave, ldRet));
+            }
 
             for (var index = body.Instructions.Count - 3; index > 0; index--)
             {
                 var instruction = body.Instructions[index];
 
-                if (!SupportedJump.Contains(instruction.OpCode)) continue;
-
-                if (instruction.Operand == ldRet) instruction.OpCode = OpCodes.Leave;
-                else if (instruction.Operand == ret)
+                if (instruction.Operand == ldRet)
                 {
-                    instruction.OpCode = OpCodes.Leave;
-                    instruction.Operand = ldRet;
-
-                    if (IsLdloc(body.Instructions[index - 1])) body.Instructions.RemoveAt(--index);
-                    else body.Instructions.Insert(index, Stloc(variableIndex, body.Variables));
+                    if (SupportedJump.Contains(instruction.OpCode)) instruction.OpCode = OpCodes.Leave; // Br => leave;
+                    else instruction.Operand = replaceLdRet; // Jump to leave;
                 }
+                else if (instruction.Operand == ret) instruction.OpCode = OpCodes.Leave; // Br => leave;
             }
 
             return Tuple.Create(variableIndex, ldRet);
+        }
+
+        static int GetOrCreateReturnVariable(MethodBody body)
+        {
+            for (var index = 0; index < body.Variables.Count; index++)
+                if (body.Method.ReturnType.HaveSameIdentity(body.Variables[index].VariableType))
+                    return index;
+
+            var variableIndex = body.Variables.Count;
+
+            body.Variables.Add(new(body.Method.ReturnType));
+
+            return variableIndex;
         }
     }
 

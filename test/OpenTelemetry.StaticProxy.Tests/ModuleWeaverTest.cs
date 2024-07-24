@@ -241,6 +241,12 @@ public class ModuleWeaverTest
         Assert.NotNull(method);
 
         method.Invoke(null, []);
+
+        method = AssemblyEmit()?.GetMethod(nameof(ModuleWeaverTestClass.VoidMethod2));
+
+        Assert.NotNull(method);
+
+        method.Invoke(null, []);
     }
 
     private static async Task ActivityTest(string methodName, Func<object, ValueTask<Activity?>> func,

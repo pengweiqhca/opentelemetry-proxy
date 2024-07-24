@@ -60,6 +60,16 @@ public static class ModuleWeaverTestClass
         if (DateTime.Now is { Hour: > 10, Second: < 10 }) { }
     }
 
+    [Activity]
+    public static DateTime VoidMethod2()
+    {
+        var now = DateTime.Now;
+
+        if (now is { Hour: > 10, Second: < 10 }) { }
+
+        return now;
+    }
+
     private static ActivityName InternalGetActivityName()
     {
         var holder = typeof(InnerActivityAccessor).GetProperty("Activity", BindingFlags.NonPublic | BindingFlags.Static)
