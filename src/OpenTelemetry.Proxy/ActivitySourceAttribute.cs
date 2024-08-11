@@ -2,7 +2,7 @@
 
 namespace OpenTelemetry.Proxy;
 
-[AttributeUsage(AttributeTargets.Interface | AttributeTargets.Class)]
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Interface)]
 public class ActivitySourceAttribute : Attribute
 {
     public ActivitySourceAttribute() { }

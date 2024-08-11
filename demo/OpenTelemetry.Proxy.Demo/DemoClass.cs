@@ -1,84 +1,86 @@
-﻿using OpenTelemetry.Proxy;
-
-[ActivitySource]
-public class DemoClass
+﻿namespace OpenTelemetry.Proxy.Demo
 {
-    private readonly AsyncLocal<string> _asyncLocal = new();
-
-    [Activity]
-    public virtual async Task<T> Demo<T>(T arg)
+    [ActivitySource]
+    public class DemoClass
     {
-        Console.WriteLine($"Demo begin: {_asyncLocal.Value}");
+        private readonly AsyncLocal<string> _asyncLocal = new();
 
-        _asyncLocal.Value = "Demo";
+        [Activity]
+        public virtual async Task<T> Demo<T>(T arg)
+        {
+            Console.WriteLine($"Demo begin: {_asyncLocal.Value}");
 
-        await Demo2().ConfigureAwait(false);
+            _asyncLocal.Value = "Demo";
 
-        Console.WriteLine($"Demo middle: {_asyncLocal.Value}");
+            await Demo2().ConfigureAwait(false);
 
-        await Demo5().ConfigureAwait(false);
+            Console.WriteLine($"Demo middle: {_asyncLocal.Value}");
 
-        Console.WriteLine($"Demo end: {_asyncLocal.Value}");
+            await Demo5().ConfigureAwait(false);
 
-        return arg;
-    }
+            Console.WriteLine($"Demo end: {_asyncLocal.Value}");
 
-    [Activity]
-    public virtual async ValueTask Demo2()
-    {
-        Console.WriteLine($"Demo2 begin: {_asyncLocal.Value}");
+            return arg;
+        }
 
-        _asyncLocal.Value = "Demo2";
+        [Activity]
+        public virtual async ValueTask Demo2()
+        {
+            Console.WriteLine($"Demo2 begin: {_asyncLocal.Value}");
 
-        var task = Demo3();
+            _asyncLocal.Value = "Demo2";
 
-        await Demo4().ConfigureAwait(false);
+            var task = Demo3();
 
-        Console.WriteLine($"Demo2 middle: {_asyncLocal.Value}");
+            await Demo4().ConfigureAwait(false);
 
-        await task.ConfigureAwait(false);
+            Console.WriteLine($"Demo2 middle: {_asyncLocal.Value}");
 
-        Console.WriteLine($"Demo2 end: {_asyncLocal.Value}");
-    }
+            await task.ConfigureAwait(false);
 
-    [Activity(Tags = [ActivityTagAttribute.ReturnValueTagName])]
-    public virtual async Task<int> Demo3()
-    {
-        Console.WriteLine($"Demo3 begin: {_asyncLocal.Value}");
+            Console.WriteLine($"Demo2 end: {_asyncLocal.Value}");
+        }
 
-        _asyncLocal.Value = "Demo3";
+        [Activity]
+        [ActivityTags("$returnvalue")]
+        public virtual async Task<int> Demo3()
+        {
+            Console.WriteLine($"Demo3 begin: {_asyncLocal.Value}");
 
-        await Task.Delay(Random.Shared.Next(20, 200)).ConfigureAwait(false);
+            _asyncLocal.Value = "Demo3";
 
-        Console.WriteLine($"Demo3 end: {_asyncLocal.Value}");
+            await Task.Delay(Random.Shared.Next(20, 200)).ConfigureAwait(false);
 
-        return DateTime.Now.Microsecond;
-    }
+            Console.WriteLine($"Demo3 end: {_asyncLocal.Value}");
 
-    [Activity]
-    [return: ActivityTag("__ReturnValue__")]
-    public virtual async Task<DateTime> Demo4()
-    {
-        Console.WriteLine($"Demo4 begin: {_asyncLocal.Value}");
+            return DateTime.Now.Microsecond;
+        }
 
-        _asyncLocal.Value = "Demo4";
+        [Activity]
+        [return: ActivityTag("__ReturnValue__")]
+        public virtual async Task<DateTime> Demo4()
+        {
+            Console.WriteLine($"Demo4 begin: {_asyncLocal.Value}");
 
-        await Task.Delay(Random.Shared.Next(20, 200)).ConfigureAwait(false);
+            _asyncLocal.Value = "Demo4";
 
-        Console.WriteLine($"Demo4 end: {_asyncLocal.Value}");
+            await Task.Delay(Random.Shared.Next(20, 200)).ConfigureAwait(false);
 
-        return DateTime.Now;
-    }
+            Console.WriteLine($"Demo4 end: {_asyncLocal.Value}");
 
-    [Activity]
-    public virtual async ValueTask Demo5()
-    {
-        Console.WriteLine($"Demo5 begin: {_asyncLocal.Value}");
+            return DateTime.Now;
+        }
 
-        _asyncLocal.Value = "Demo5";
+        [Activity]
+        public virtual async ValueTask Demo5()
+        {
+            Console.WriteLine($"Demo5 begin: {_asyncLocal.Value}");
 
-        await Task.WhenAll(Demo3(), Demo4()).ConfigureAwait(false);
+            _asyncLocal.Value = "Demo5";
 
-        Console.WriteLine($"Demo5 end: {_asyncLocal.Value}");
+            await Task.WhenAll(Demo3(), Demo4()).ConfigureAwait(false);
+
+            Console.WriteLine($"Demo5 end: {_asyncLocal.Value}");
+        }
     }
 }

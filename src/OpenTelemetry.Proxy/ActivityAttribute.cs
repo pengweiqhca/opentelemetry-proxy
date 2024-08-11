@@ -12,8 +12,5 @@ public class ActivityAttribute : Attribute
 
     public ActivityKind Kind { get; set; }
 
-    /// <summary>Set activity tag, value from parameter name, property name and field name.</summary>
-    public string[]? Tags { get; set; }
-
     public bool SuppressInstrumentation { get; set; }
 }

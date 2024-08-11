@@ -2,14 +2,14 @@
 
   <PropertyGroup>
     <AssemblyVersion>$(StaticProxyVersion)</AssemblyVersion>
+    <DefineConstants>$(DefineConstants);Fody</DefineConstants>
     <IsPackable>false</IsPackable>
     <DebugType>embedded</DebugType>
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="../Shared/ActivitySettings.cs" />
-    <Compile Include="../Shared/ProxyMethod.cs" />
+    <Compile Include="../Shared/*.cs" />
 
     <InternalsVisibleTo Include="OpenTelemetry.StaticProxy.Fody.Tests" />
 

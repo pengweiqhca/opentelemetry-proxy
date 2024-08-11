@@ -1,7 +1,0 @@
-﻿<Project>
-
-  <ItemGroup Condition="'$(UseCodeGenerator)' != 'True'">
-    <WeaverFiles Include="$(MsBuildThisFileDirectory)..\weaver\OpenTelemetry.StaticProxy.Fody.dll" />
-  </ItemGroup>
-
-</Project>

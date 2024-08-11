@@ -1,4 +1,6 @@
-﻿using System.Collections;
+﻿using OpenTelemetry.Trace;
+using System.Collections;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace OpenTelemetry.Proxy;
@@ -28,5 +30,25 @@ public static class ActivityExtensions
             activity.SetTagEnumerable($"{key}.Item{index + 1}", tuple[index]);
 
         return activity;
+    }
+
+    /// <returns>Return false always.</returns>
+    public static bool SetExceptionStatus(Activity? activity, Exception ex)
+    {
+        activity?.SetStatus(ActivityStatusCode.Error, UnwrapException(ex).Message).RecordException(ex.Demystify());
+
+        return false;
+
+        static Exception UnwrapException(Exception ex)
+        {
+            var counter = 100;
+
+            while (counter-- > 0)
+                if (ex is AggregateException or TargetInvocationException && ex.InnerException != null)
+                    ex = ex.InnerException;
+                else counter = 0;
+
+            return ex;
+        }
     }
 }

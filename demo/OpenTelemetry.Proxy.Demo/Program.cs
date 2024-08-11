@@ -55,28 +55,31 @@ app.Services.GetRequiredService<TracerProvider>();
 
 app.Run();
 
-record ConfigureOtlp(IServiceProvider Services)
+namespace OpenTelemetry.Proxy.Demo
 {
-    public static MeterProviderBuilder ConfigureResource(
-        MeterProviderBuilder tracerProviderBuilder)
+    record ConfigureOtlp(IServiceProvider Services)
     {
-        if (tracerProviderBuilder is IDeferredMeterProviderBuilder meterProviderBuilder1)
-            meterProviderBuilder1.Configure((provider, mpb) =>
-                mpb.ConfigureResource(new ConfigureOtlp(provider).ConfigureResource));
+        public static MeterProviderBuilder ConfigureResource(
+            MeterProviderBuilder tracerProviderBuilder)
+        {
+            if (tracerProviderBuilder is IDeferredMeterProviderBuilder meterProviderBuilder1)
+                meterProviderBuilder1.Configure((provider, mpb) =>
+                    mpb.ConfigureResource(new ConfigureOtlp(provider).ConfigureResource));
 
-        return tracerProviderBuilder;
+            return tracerProviderBuilder;
+        }
+
+        public static TracerProviderBuilder ConfigureResource(
+            TracerProviderBuilder tracerProviderBuilder)
+        {
+            if (tracerProviderBuilder is IDeferredTracerProviderBuilder tracerProviderBuilder1)
+                tracerProviderBuilder1.Configure((provider, mpb) =>
+                    mpb.ConfigureResource(new ConfigureOtlp(provider).ConfigureResource));
+
+            return tracerProviderBuilder;
+        }
+
+        private void ConfigureResource(ResourceBuilder builder) =>
+            builder.AddService(Services.GetRequiredService<IHostEnvironment>().ApplicationName);
     }
-
-    public static TracerProviderBuilder ConfigureResource(
-        TracerProviderBuilder tracerProviderBuilder)
-    {
-        if (tracerProviderBuilder is IDeferredTracerProviderBuilder tracerProviderBuilder1)
-            tracerProviderBuilder1.Configure((provider, mpb) =>
-                mpb.ConfigureResource(new ConfigureOtlp(provider).ConfigureResource));
-
-        return tracerProviderBuilder;
-    }
-
-    private void ConfigureResource(ResourceBuilder builder) =>
-        builder.AddService(Services.GetRequiredService<IHostEnvironment>().ApplicationName);
 }

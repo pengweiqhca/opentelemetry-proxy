@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);IDE2000</NoWarn>
+    <RootNamespace>OpenTelemetry.StaticProxy.SourceTransformer</RootNamespace>
+    <TargetFrameworks>net472;netstandard2.1</TargetFrameworks>
+
+    <!--<MetalamaDebugTransformedCode>true</MetalamaDebugTransformedCode>-->
+    <!--<MetalamaDebugCompiler>true</MetalamaDebugCompiler>-->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../AssemblyToProcess/*.cs" />
+
+    <PackageReference Include="fasterflect" Version="3.*" />
+    <PackageReference Include="FSharp.Core" Version="8.*" />
+    <PackageReference Include="Metalama.Compiler" Version="$(MetalamaVersion)" PrivateAssets="all" />
+
+    <ProjectReference Include="..\..\src\OpenTelemetry.Proxy\OpenTelemetry.Proxy.csproj" />
+    <ProjectReference Include="..\..\src\OpenTelemetry.StaticProxy.SourceTransformer\OpenTelemetry.StaticProxy.SourceTransformer.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\OpenTelemetry.Proxy.Tests.Common\OpenTelemetry.Proxy.Tests.Common.csproj" />
+  </ItemGroup>
+
+</Project>

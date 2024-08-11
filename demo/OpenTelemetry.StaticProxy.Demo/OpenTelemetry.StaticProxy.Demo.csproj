@@ -2,10 +2,13 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    
+    <MetalamaDebugTransformedCode>true</MetalamaDebugTransformedCode>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Fody" Version="6.*" PrivateAssets="all" />
+    <PackageReference Include="Metalama.Compiler" Version="$(MetalamaVersion)" PrivateAssets="all" />
 
     <Content Include="..\OpenTelemetry.Proxy.Demo\*.json" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="..\OpenTelemetry.Proxy.Demo\ActivityExtensions.cs" />
@@ -13,6 +16,7 @@
     <Compile Include="..\OpenTelemetry.Proxy.Demo\Program.cs" />
 
     <ProjectReference Include="..\..\src\OpenTelemetry.Proxy\OpenTelemetry.Proxy.csproj" />
+    <ProjectReference Include="..\..\src\OpenTelemetry.StaticProxy.SourceTransformer\OpenTelemetry.StaticProxy.SourceTransformer.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 
     <WeaverFiles Include="..\..\src\OpenTelemetry.StaticProxy.Fody\bin\$(Configuration)\netstandard2.0\OpenTelemetry.StaticProxy.Fody.dll" />
   </ItemGroup>

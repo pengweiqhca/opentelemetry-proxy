@@ -7,14 +7,16 @@ Generate an activity to wrap the method, modify name of the inner activity or di
 ### [ActivitySource]
 
 #### DynamicProxy
-[ActivitySource] can be define on `interface` or `class`, all methods defined in the interface or virtual methods defined in the class will automatically generate activity, unless defined [NonActivity] on method.
+[ActivitySource] all methods defined in the interface or virtual methods defined in the class will automatically generate activity, unless defined [NonActivity] on method.
 
 `IncludeNonAsyncStateMachineMethod`: default include all async methods of defined in an interface, or all [AsyncStateMachine] public or protected virtual method of class (except for `async void` method). If true, all methods defined in the interface will be included and all public or protected virtual methods of the class.
 
 #### StaticProxy
-[ActivitySource] can be defined on a `class`, all methods will automatically generate activity, except for those that are defined [NonActivity] on method.
+[ActivitySource] all methods will automatically generate activity, except for those that are defined [NonActivity] on method.
 
 `IncludeNonAsyncStateMachineMethod`: public methods defined in the class that are marked with the [AsyncStateMachine] attribute (except for `async void` method). If true, will include all methods of class.
+
+> Needs to be installed in each working project, and install `Metalama.Compiler` or `Fody` (`Fody` need some additional file), recommend  `Metalama.Compiler`.
 
 ### [Activity]
 [Activity] can be defined on method only.
@@ -29,15 +31,21 @@ To modify the DisplayName of an inner activity, you must invoke `TracerProviderB
 
 ### [ActivityTag]
 
-To add tags to activity.
+To add tag to activity, it defined on parameter or return value.
+
+### [ActivityTags]
+
+To add tags to activity, it defined on type or method.
 
 ## About DynamicProxy and StaticProxy
 
-1. DynamicProxy works at runtime by generatting a proxy class to wrap methods, so it does not support AOT.
-
-2. StaticProxy works at compile time by modifying the raw type IL code, so it support **AOT**.
-
-3. DynamicProxy will not generate a proxy class if type has already been processed by StaticProxy.
+|                   | DynamicProxy                | StaticProxy / Fody      | StaticProxy / Metalama                        |
+| ----------------- | --------------------------- | ----------------------- | --------------------------------------------- |
+| AOT               | ❌                           | ✔️                       | ✔️                                             |
+| Work Stage        | Runtime                     | After compile           | Before compile                                |
+| Potential problem | No                          | Runtime error.          | Compile error.                                |
+| Support scenario  | interface or virtual method | Any method with a body. | Any method with a body except local function. |
+| Work order (ASC)  | 3                           | 2                       | 1                                             |
 
 ## QA
 ### How to get ActivitySource name?

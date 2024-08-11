@@ -6,6 +6,7 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using OpenTelemetry.Proxy;
+using OpenTelemetry.Proxy.StandardFiles;
 using OpenTelemetry.Proxy.Tests.Common;
 using System.Reflection;
 using Xunit.Abstractions;
@@ -17,54 +18,60 @@ public class StaticProxyEmitterTest(ITestOutputHelper output)
     [Fact]
     public void GetActivityTags()
     {
-        List<string> tags = ["_now", "Now", "e", Guid.NewGuid().ToString("N")];
+        HashSet<string> tags = ["_now", "Now", "e", Guid.NewGuid().ToString("N")];
 
-        var emitter = CreateEmitter(typeof(TestClass3));
+        var emitter = CreateEmitter(typeof(ActivityTagTestClass2));
 
         var (startInstructions, endInstructions) = emitter.GetActivityTags(
-            emitter.Context.TargetModule.GetType(typeof(TestClass3).FullName)
-                .GetMethods(nameof(TestClass3.StaticMethod)).Single(), tags, out var returnValueTagName, out var isVoid);
+            emitter.Context.TargetModule.GetType(typeof(ActivityTagTestClass2).FullName)
+                .GetMethods(nameof(ActivityTagTestClass2.InstanceMethod)).Single(), tags, out var returnValueTagName, out var isVoid);
 
         Assert.Equal("ghi", returnValueTagName);
-        Assert.Equal(5, startInstructions.Count);
+        Assert.Equal(6, startInstructions.Count);
         Assert.Equal(2, endInstructions.Count);
         Assert.False(isVoid);
 
         AssertInstructions(startInstructions[0], """
-                                                 IL_0000: ldstr "def"
-                                                 IL_0000: call System.DateTimeOffset OpenTelemetry.Proxy.Tests.Common.TestClass3::get_Now2()
-                                                 IL_0000: box System.DateTimeOffset
+                                                 IL_0000: ldstr "a2"
+                                                 IL_0000: ldarg.1
+                                                 IL_0000: box System.Int32
                                                  """);
 
         AssertInstructions(startInstructions[1], """
-                                                 IL_0000: ldstr "a2"
-                                                 IL_0000: ldarg.0
-                                                 IL_0000: box System.Int32
+                                                 IL_0000: ldstr "b"
+                                                 IL_0000: ldarg.3
                                                  """);
 
         AssertInstructions(startInstructions[2], """
-                                                 IL_0000: ldstr "b"
-                                                 IL_0000: ldarg.2
-                                                 IL_0000: ldind.i4
-                                                 IL_0000: box System.Int32
-                                                 """);
-
-        AssertInstructions(startInstructions[3], """
                                                  IL_0000: ldstr "d"
                                                  IL_0000: ldarg.s d
                                                  IL_0000: ldind.i4
                                                  IL_0000: box System.Int32
                                                  """);
 
-        AssertInstructions(startInstructions[4], """
+        AssertInstructions(startInstructions[3], """
                                                  IL_0000: ldstr "e"
                                                  IL_0000: ldarg.s e
                                                  IL_0000: box System.Int32
                                                  """);
 
+        AssertInstructions(startInstructions[4], """
+                                                 IL_0000: ldstr "_now"
+                                                 IL_0000: ldarg.0
+                                                 IL_0000: ldfld System.DateTime OpenTelemetry.Proxy.StandardFiles.ActivityTagTestClass2::_now
+                                                 IL_0000: box System.DateTime
+                                                 """);
+
+        AssertInstructions(startInstructions[5], """
+                                                 IL_0000: ldstr "Now"
+                                                 IL_0000: ldarg.0
+                                                 IL_0000: callvirt System.DateTimeOffset OpenTelemetry.Proxy.StandardFiles.ActivityTagTestClass2::get_Now()
+                                                 IL_0000: box System.DateTimeOffset
+                                                 """);
+
         AssertInstructions(endInstructions[0], """
                                                IL_0000: ldstr "c"
-                                               IL_0000: ldarg.3
+                                               IL_0000: ldarg.s c
                                                IL_0000: ldobj System.DateTimeOffset
                                                IL_0000: box System.DateTimeOffset
                                                """);
@@ -85,14 +92,14 @@ public class StaticProxyEmitterTest(ITestOutputHelper output)
     {
         var activity = new Activity("test").Start();
 
-        var emitter = CreateEmitter(typeof(TestClass3));
+        var emitter = CreateEmitter(typeof(ActivityTagTestClass2));
 
         var name = Guid.NewGuid().ToString("N");
         var activityName = Guid.NewGuid().ToString("N");
         var version = DateTime.Now.ToString("HH.mm.ss.fff");
 
-        emitter.EmitActivity(emitter.Context.TargetModule.GetType(typeof(TestClass3).FullName)
-                .GetMethods(nameof(TestClass3.StaticMethod)).Single(), false,
+        emitter.EmitActivity(emitter.Context.TargetModule.GetType(typeof(ActivityTagTestClass2).FullName)
+                .GetMethods(nameof(ActivityTagTestClass2.StaticMethod)).Single(), false,
             emitter.AddActivitySource(name, version), activityName, (int)ActivityKind.Client);
 
         var assembly = SaveAndLoad(emitter, output);
@@ -108,18 +115,21 @@ public class StaticProxyEmitterTest(ITestOutputHelper output)
 
         ActivitySource.AddActivityListener(activityListener);
 
-        var type = assembly.GetType(typeof(TestClass3).FullName!);
+        var type = assembly.GetType(typeof(ActivityTagTestClass2).FullName!);
 
         Assert.NotNull(type);
 
-        var method = type.GetMethod(nameof(TestClass3.StaticMethod))?.CreateDelegate<TestClass3.TestDelegate>();
+        var now = DateTime.Now.AddDays(-1);
+        var now2 = DateTime.Now.AddDays(1);
+
+        var target = new ActivityTagTestClass2(now, now2);
+
+        var method = type.GetMethod(nameof(ActivityTagTestClass2.StaticMethod))
+            ?.CreateDelegate<TestDelegate>();
 
         Assert.NotNull(method);
 
         var random = Random.Shared;
-
-        var now = DateTime.Now.AddDays(-1);
-        var now2 = DateTime.Now.AddDays(1);
 
         var a = random.Next();
         var a2 = random.Next();
@@ -134,18 +144,19 @@ public class StaticProxyEmitterTest(ITestOutputHelper output)
 
         activity = Assert.Single(list);
 
-        AssertTag(activity, "def", type.GetProperty(nameof(TestClass3.Now2))!.GetValue(null));
         AssertTag(activity, "a2", a);
         AssertTag(activity, "b", b);
         AssertTag(activity, "c", c);
         AssertTag(activity, "d", d2);
         AssertTag(activity, "d$out", d);
         AssertTag(activity, "e", e);
-        AssertTag(activity, "ghi", a2);
+        AssertTag(activity, "$returnvalue", a2);
 
         static void AssertTag(Activity activity, string key, object? value) => activity.GetTagItem(key).Should()
             .Be(value, "Activity tag `{0}` should be equal", key);
     }
+
+    public delegate int TestDelegate(int a, int _, in int b, out DateTimeOffset c, ref int d, int e);
 
     [Fact]
     public void AddActivitySourceTest()
@@ -641,7 +652,7 @@ public static class StaticProxyEmitterTestClass
 
         return new(nameHolder.GetPropertyValue("Name") as string,
             nameHolder.GetPropertyValue("Tags") as IReadOnlyCollection<KeyValuePair<string, object?>>,
-            Assert.IsType<long>(nameHolder.GetFieldValue("<availableTimes>P", Flags.NonPublic | Flags.Instance)));
+            Assert.IsType<long>(nameHolder.GetFieldValue("_availableTimes", Flags.NonPublic | Flags.Instance)));
     }
 
     public static Tuple<string?, IReadOnlyCollection<KeyValuePair<string, object?>>?, long> ActivityName(

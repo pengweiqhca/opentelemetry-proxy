@@ -1,5 +1,5 @@
 ﻿using OpenTelemetry.Proxy;
-using System.Runtime.CompilerServices;
+using OpenTelemetry.Proxy.Tests.Common;
 
 namespace OpenTelemetry.DynamicProxy.Tests;
 
@@ -19,11 +19,13 @@ public interface ITestInterface
 
     ValueTask Method4([ActivityTag] int delay);
 
-    [Activity(Tags = ["Field", ActivityTagAttribute.ReturnValueTagName])]
+    [Activity]
+    [ActivityTags("Field", "$returnvalue")]
     ValueTask<int> Method5([ActivityTag] int delay);
 
-    [Activity(Tags = [nameof(Now)])]
-    TestExceptionAwaitable<int> Method6([ActivityTag] int delay);
+    [Activity]
+    [ActivityTags(nameof(Now))]
+    TestAwaitable<int> Method6([ActivityTag] int delay);
 
     [Activity(SuppressInstrumentation = true)]
     bool Method7();
@@ -31,16 +33,13 @@ public interface ITestInterface
 
 public class TestInterface1 : ITestInterface
 {
- #pragma warning disable CS0414
-    private static readonly string Field = "Abc";
- #pragma warning restore CS0414
-
     public DateTime Now => new(2024, 1, 1);
 
     public void Method0() { }
 
     public int Method1() => 1;
 
+    [Activity]
     public Task Method2() => Task.CompletedTask;
 
     public async Task<int> Method3(int delay)
@@ -64,44 +63,9 @@ public class TestInterface1 : ITestInterface
         return delay;
     }
 
-    public TestExceptionAwaitable<int> Method6(int delay) => new(delay);
+    public TestAwaitable<int> Method6(int delay) => new(() => throw new NotSupportedException());
 
     public bool Method7() => Sdk.SuppressInstrumentation;
-}
-
-public class TestExceptionAwaitable<T>
-{
-    private bool _isCompleted;
-    private readonly List<Action> _onCompletedCallbacks = [];
-
-    public TestExceptionAwaitable(int delay) => ThreadPool.QueueUserWorkItem(_ =>
-    {
-        Thread.Sleep(delay);
-
-        SetCompleted();
-    });
-
-    private void SetCompleted()
-    {
-        _isCompleted = true;
-
-        foreach (var callback in _onCompletedCallbacks) callback();
-    }
-
-    public TestAwaiter GetAwaiter() => new(this);
-
-    public readonly struct TestAwaiter(TestExceptionAwaitable<T> owner) : INotifyCompletion
-    {
-        public bool IsCompleted => owner._isCompleted;
-
-        public void OnCompleted(Action continuation)
-        {
-            if (owner._isCompleted) continuation();
-            else owner._onCompletedCallbacks.Add(continuation);
-        }
-
-        public T GetResult() => throw new NotSupportedException();
-    }
 }
 
 public interface ITestInterface2 : ITestInterface, IDisposable;

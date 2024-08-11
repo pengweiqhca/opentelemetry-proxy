@@ -1,4 +1,3 @@
-﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -9,6 +8,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.gitattributes = .gitattributes
 		.gitignore = .gitignore
 		Directory.Build.props = Directory.Build.props
+		Directory.Build.targets = Directory.Build.targets
 		README.md = README.md
 		global.json = global.json
 	EndProjectSection
@@ -33,24 +33,32 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{2F4707CE-5
 		test\Directory.Build.props = test\Directory.Build.props
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenTelemetry.Proxy.Tests.Common", "test\OpenTelemetry.Proxy.Tests.Common\OpenTelemetry.Proxy.Tests.Common.csproj", "{32C63373-98BA-48AD-96D5-B08FB0D026C5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.Proxy.Tests", "test\OpenTelemetry.Proxy.Tests\OpenTelemetry.Proxy.Tests.csproj", "{32C63373-98BA-48AD-96D5-B08FB0D026C5}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "demo", "demo", "{513A2B43-4F20-4013-961A-6644DB084610}"
 	ProjectSection(SolutionItems) = preProject
 		demo\Directory.Build.props = demo\Directory.Build.props
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenTelemetry.DynamicProxy.Demo", "demo\OpenTelemetry.DynamicProxy.Demo\OpenTelemetry.DynamicProxy.Demo.csproj", "{FCE0BE4D-E709-4AEA-8DE0-9119BAA78872}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.DynamicProxy.Demo", "demo\OpenTelemetry.DynamicProxy.Demo\OpenTelemetry.DynamicProxy.Demo.csproj", "{FCE0BE4D-E709-4AEA-8DE0-9119BAA78872}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenTelemetry.Proxy.Demo", "demo\OpenTelemetry.Proxy.Demo\OpenTelemetry.Proxy.Demo.csproj", "{ED3DB13B-7AA4-43AA-A659-72B137C7466E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.Proxy.Demo", "demo\OpenTelemetry.Proxy.Demo\OpenTelemetry.Proxy.Demo.csproj", "{ED3DB13B-7AA4-43AA-A659-72B137C7466E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenTelemetry.StaticProxy.Demo", "demo\OpenTelemetry.StaticProxy.Demo\OpenTelemetry.StaticProxy.Demo.csproj", "{CA2403D4-F810-478C-89EC-5A100E30EF1D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.StaticProxy.Demo", "demo\OpenTelemetry.StaticProxy.Demo\OpenTelemetry.StaticProxy.Demo.csproj", "{CA2403D4-F810-478C-89EC-5A100E30EF1D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenTelemetry.StaticProxy", "src\OpenTelemetry.StaticProxy\OpenTelemetry.StaticProxy.csproj", "{10A0AD65-E503-407A-858A-389FC8B08F22}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.StaticProxy", "src\OpenTelemetry.StaticProxy\OpenTelemetry.StaticProxy.csproj", "{10A0AD65-E503-407A-858A-389FC8B08F22}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssemblyToProcess", "test\AssemblyToProcess\AssemblyToProcess.csproj", "{41BA616D-A29B-47EF-A979-4B5E23852DA3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AssemblyToProcess", "test\AssemblyToProcess\AssemblyToProcess.csproj", "{41BA616D-A29B-47EF-A979-4B5E23852DA3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenTelemetry.StaticProxy.Tests", "test\OpenTelemetry.StaticProxy.Tests\OpenTelemetry.StaticProxy.Tests.csproj", "{73509ACB-9DA3-476F-A2E1-6F79C10086C0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.StaticProxy.Tests", "test\OpenTelemetry.StaticProxy.Tests\OpenTelemetry.StaticProxy.Tests.csproj", "{73509ACB-9DA3-476F-A2E1-6F79C10086C0}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.StaticProxy.SourceTransformer", "src\OpenTelemetry.StaticProxy.SourceTransformer\OpenTelemetry.StaticProxy.SourceTransformer.csproj", "{518A4A22-CED1-49D1-9FB4-255C7DAAE95D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.StaticProxy.SourceTransformer.Tests", "test\OpenTelemetry.StaticProxy.SourceTransformer.Tests\OpenTelemetry.StaticProxy.SourceTransformer.Tests.csproj", "{BA34C694-132D-467F-82E7-4A7219FB1240}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenTelemetry.StaticProxy.SourceTransformer.TestClass", "test\OpenTelemetry.StaticProxy.SourceTransformer.TestClass\OpenTelemetry.StaticProxy.SourceTransformer.TestClass.csproj", "{793613F8-B47D-41C2-A657-F730E68503AF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenTelemetry.Proxy.Tests.Common", "test\OpenTelemetry.Proxy.Tests.Common\OpenTelemetry.Proxy.Tests.Common.csproj", "{B9BB18A2-6314-47C8-94EF-16AE3934A116}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -58,6 +66,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BA34C694-132D-467F-82E7-4A7219FB1240}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BA34C694-132D-467F-82E7-4A7219FB1240}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BA34C694-132D-467F-82E7-4A7219FB1240}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BA34C694-132D-467F-82E7-4A7219FB1240}.Release|Any CPU.Build.0 = Release|Any CPU
 		{EFC06121-31D1-43C5-BFF8-4F4BC787C094}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{EFC06121-31D1-43C5-BFF8-4F4BC787C094}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EFC06121-31D1-43C5-BFF8-4F4BC787C094}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -106,11 +118,24 @@ Global
 		{73509ACB-9DA3-476F-A2E1-6F79C10086C0}.Release|Any CPU.Build.0 = Release|Any CPU
 		{73509ACB-9DA3-476F-A2E1-6F79C10086C0}.Debug|Any CPU.ActiveCfg = Release|Any CPU
 		{73509ACB-9DA3-476F-A2E1-6F79C10086C0}.Debug|Any CPU.Build.0 = Release|Any CPU
+		{518A4A22-CED1-49D1-9FB4-255C7DAAE95D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{518A4A22-CED1-49D1-9FB4-255C7DAAE95D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{518A4A22-CED1-49D1-9FB4-255C7DAAE95D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{518A4A22-CED1-49D1-9FB4-255C7DAAE95D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{793613F8-B47D-41C2-A657-F730E68503AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{793613F8-B47D-41C2-A657-F730E68503AF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{793613F8-B47D-41C2-A657-F730E68503AF}.Debug|Any CPU.ActiveCfg = Release|Any CPU
+		{793613F8-B47D-41C2-A657-F730E68503AF}.Debug|Any CPU.Build.0 = Release|Any CPU
+		{B9BB18A2-6314-47C8-94EF-16AE3934A116}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9BB18A2-6314-47C8-94EF-16AE3934A116}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9BB18A2-6314-47C8-94EF-16AE3934A116}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9BB18A2-6314-47C8-94EF-16AE3934A116}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{BA34C694-132D-467F-82E7-4A7219FB1240} = {2F4707CE-56BC-4148-847C-D9875C5C3EC4}
 		{EFC06121-31D1-43C5-BFF8-4F4BC787C094} = {2F4707CE-56BC-4148-847C-D9875C5C3EC4}
 		{7356959A-44B7-46EA-B898-1121F14C4900} = {3EDC5428-8807-4638-938C-A3AE3D7AA262}
 		{8FBFF91C-7BB4-4F0A-A86B-E9CFE75CA6D2} = {3EDC5428-8807-4638-938C-A3AE3D7AA262}
@@ -123,6 +148,9 @@ Global
 		{10A0AD65-E503-407A-858A-389FC8B08F22} = {3EDC5428-8807-4638-938C-A3AE3D7AA262}
 		{41BA616D-A29B-47EF-A979-4B5E23852DA3} = {2F4707CE-56BC-4148-847C-D9875C5C3EC4}
 		{73509ACB-9DA3-476F-A2E1-6F79C10086C0} = {2F4707CE-56BC-4148-847C-D9875C5C3EC4}
+		{518A4A22-CED1-49D1-9FB4-255C7DAAE95D} = {3EDC5428-8807-4638-938C-A3AE3D7AA262}
+		{793613F8-B47D-41C2-A657-F730E68503AF} = {2F4707CE-56BC-4148-847C-D9875C5C3EC4}
+		{B9BB18A2-6314-47C8-94EF-16AE3934A116} = {2F4707CE-56BC-4148-847C-D9875C5C3EC4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A1DF9CB4-8A59-4F99-A61A-D67C19908FD8}

@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyVersion>$(StaticProxyVersion)</AssemblyVersion>
+    <DefineConstants>$(DefineConstants);CollectionExpression</DefineConstants>
+    <IsPackable>false</IsPackable>
+    <DebugType>embedded</DebugType>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="OpenTelemetry.StaticProxy.SourceTransformer.Tests" />
+
+    <PackageReference Include="Metalama.Compiler.Sdk" Version="$(MetalamaVersion)" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,8 @@
+﻿<Project>
+
+  <ItemGroup Condition="'$(DisableExtraUsings)' != 'true'">
+    <Using Include="System.Collections.Concurrent" />
+    <Using Include="System.Diagnostics" />
+  </ItemGroup>
+
+</Project>

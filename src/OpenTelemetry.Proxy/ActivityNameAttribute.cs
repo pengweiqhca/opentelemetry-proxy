@@ -1,6 +1,7 @@
 ﻿namespace OpenTelemetry.Proxy;
 
-[AttributeUsage(AttributeTargets.Method | AttributeTargets.Interface | AttributeTargets.Class)]
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Interface |
+    AttributeTargets.Method)]
 public class ActivityNameAttribute : Attribute
 {
     public ActivityNameAttribute() { }
@@ -12,7 +13,4 @@ public class ActivityNameAttribute : Attribute
 
     /// <summary>&lt;0: unlimited, 0: ignore, default value is 1.</summary>
     public int MaxUsableTimes { get; set; } = 1;
-
-    /// <summary>Set activity tag, value from parameter name, property name and field name.</summary>
-    public string[]? Tags { get; set; }
 }

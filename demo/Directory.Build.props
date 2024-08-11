@@ -13,7 +13,7 @@
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="$(OpenTelemetryVersion)" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="$(OpenTelemetryVersion)" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="$(OpenTelemetryVersion)" />
-    <PackageReference Include="PW.Diagnostics.Runtime" Version="1.6.0" />
+    <PackageReference Include="PW.Diagnostics.Runtime" Version="2.0.0" />
   </ItemGroup>
 
 </Project>

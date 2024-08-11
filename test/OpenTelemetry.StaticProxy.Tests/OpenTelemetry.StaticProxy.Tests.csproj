@@ -2,18 +2,14 @@
 
   <PropertyGroup>
     <TargetFrameworks>net472;net8.0</TargetFrameworks>
-    <DisableFody>true</DisableFody>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="FodyHelpers" Version="$(FodyVersion)" />
-    <PackageReference Include="FSharp.Core" Version="8.*" />
     <PackageReference Include="Moq" Version="4.*" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.*" PrivateAssets="None" />
 
     <ProjectReference Include="..\..\src\OpenTelemetry.StaticProxy.Fody\OpenTelemetry.StaticProxy.Fody.csproj" />
     <ProjectReference Include="..\AssemblyToProcess\AssemblyToProcess.csproj" />
-    <ProjectReference Include="..\OpenTelemetry.Proxy.Tests.Common\OpenTelemetry.Proxy.Tests.Common.csproj" />
   </ItemGroup>
 
 </Project>

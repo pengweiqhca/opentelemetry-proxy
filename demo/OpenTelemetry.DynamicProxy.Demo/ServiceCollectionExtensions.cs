@@ -1,5 +1,6 @@
 ﻿using Castle.DynamicProxy;
 using OpenTelemetry.DynamicProxy;
+using OpenTelemetry.Proxy.Demo;
 
 // ReSharper disable once CheckNamespace
 namespace Microsoft.Extensions.DependencyInjection;

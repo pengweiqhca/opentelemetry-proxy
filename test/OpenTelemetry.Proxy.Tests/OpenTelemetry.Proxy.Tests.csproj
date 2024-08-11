@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net472;net6.0</TargetFrameworks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\OpenTelemetry.Proxy.StandardFiles\ActivityTestClass*.cs" Link="StandardFiles\%(Filename)%(Extension)" />
+
+    <PackageReference Include="FSharp.Core" Version="7.*" />
+    <PackageReference Include="PolySharp" Version="1.*" PrivateAssets="All" />
+
+    <ProjectReference Include="..\..\src\OpenTelemetry.Proxy\OpenTelemetry.Proxy.csproj" />
+  </ItemGroup>
+
+</Project>

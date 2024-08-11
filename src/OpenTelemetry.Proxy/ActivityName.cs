@@ -1,13 +1,20 @@
-﻿namespace OpenTelemetry.Proxy;
+﻿using System.Runtime.CompilerServices;
+
+namespace OpenTelemetry.Proxy;
 
 public static class ActivityName
 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [StackTraceHidden]
     public static IDisposable SetName(string name, IReadOnlyCollection<KeyValuePair<string, object?>>? tags = null,
         int setTimes = 1) => SetName(tags, name, setTimes);
 
+    [StackTraceHidden]
     public static IDisposable SetName(string name, string tagName, object? tagValue, int setTimes = 1) =>
         SetName([new(tagName, tagValue)], name, setTimes);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [StackTraceHidden]
     public static IDisposable SetName(IReadOnlyCollection<KeyValuePair<string, object?>> tags, int setTimes = 1) =>
         SetName(tags, null, setTimes);
 
@@ -30,6 +37,7 @@ public static class ActivityName
         long availableTimes)
     {
         private int _waitingItems;
+        private long _availableTimes = availableTimes;
 
         public string? Name => name;
 
@@ -37,11 +45,11 @@ public static class ActivityName
 
         public bool OnStart(Activity _)
         {
-            var times = Interlocked.Read(ref availableTimes);
+            var times = Interlocked.Read(ref _availableTimes);
 
             if (times == 0) return false;
 
-            if (times < 0 || Interlocked.Decrement(ref availableTimes) >= 0)
+            if (times < 0 || Interlocked.Decrement(ref _availableTimes) >= 0)
             {
                 Interlocked.Increment(ref _waitingItems);
 
@@ -49,7 +57,7 @@ public static class ActivityName
             }
 
             // rollback Decrement
-            Interlocked.Increment(ref availableTimes);
+            Interlocked.Increment(ref _availableTimes);
 
             return false;
         }

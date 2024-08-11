@@ -16,6 +16,8 @@ internal class StaticProxyEmitter(EmitContext context)
 
     public void Emit()
     {
+        if (Context.TargetModule.Assembly.GetCustomAttribute(Context.ProxyHasGeneratedAttribute) != null) return;
+
         var version = Context.TargetModule.Assembly.Name.Version?.ToString() ?? string.Empty;
 
         var assemblyEmitted = false;
@@ -28,13 +30,8 @@ internal class StaticProxyEmitter(EmitContext context)
             if (proxyType.Methods.Count < 1) continue;
 
             FieldReference? activitySource = null;
-            string activitySourceName, name;
-            if (string.IsNullOrWhiteSpace(proxyType.ActivitySourceName))
-            {
-                activitySourceName = type.FullName;
-                name = type.Name;
-            }
-            else activitySourceName = name = proxyType.ActivitySourceName!;
+
+            var activitySourceName = string.IsNullOrWhiteSpace(proxyType.ActivitySourceName) ? type.FullName : proxyType.ActivitySourceName!;
 
             var typeEmitted = false;
 
@@ -45,18 +42,14 @@ internal class StaticProxyEmitter(EmitContext context)
                 if (isVoid && method.Key.Body.Instructions.Count < 2 ||
                     method.Key.Body.Instructions[^1].OpCode != OpCodes.Ret) continue;
 
-                if (method.Value.Settings == ActivitySettings.SuppressInstrumentation)
+                if (method.Value is SuppressInstrumentationMethod)
                     EmitSuppressInstrumentationScope(method.Key, isVoid);
-                else if (method.Value.Settings == ActivitySettings.ActivityName)
-                    EmitActivityName(method.Key, isVoid, string.IsNullOrWhiteSpace(method.Value.ActivityName)
-                        ? $"{type.Name}.{method.Key.Name}"
-                        : method.Value.ActivityName, method.Value.MaxUsableTimes);
-                else if (method.Value.Settings is ActivitySettings.Activity or ActivitySettings.ActivityAndSuppressInstrumentation)
+                else if (method.Value is ActivityNameMethod activityName)
+                    EmitActivityName(method.Key, isVoid, activityName.ActivityName, activityName.MaxUsableTimes);
+                else if (method.Value is ActivityMethod activityMethod)
                 {
                     EmitActivity(method.Key, isVoid, activitySource ??= AddActivitySource(activitySourceName, version),
-                        string.IsNullOrWhiteSpace(method.Value.ActivityName)
-                            ? $"{name}.{method.Key.Name}"
-                            : method.Value.ActivityName!, method.Value.Kind, method.Value.Settings == ActivitySettings.ActivityAndSuppressInstrumentation);
+                        activityMethod.ActivityName, activityMethod.Kind, activityMethod.SuppressInstrumentation);
 
                     if (typeEmitted) continue;
 
@@ -131,19 +124,16 @@ internal class StaticProxyEmitter(EmitContext context)
     // https://stackoverflow.com/questions/11074518/add-a-try-catch-with-mono-cecil
     private void EmitDisposable(MethodDefinition method, bool isVoid, Func<int> createDisposable)
     {
-        var hasAsyncStateMachineAttribute = method.GetCustomAttribute(Context.AsyncStateMachineAttribute) != null;
+        var isAsync = method.GetCustomAttribute(Context.AsyncStateMachineAttribute) != null;
 
-        if (!hasAsyncStateMachineAttribute && ShouldGenerateMethod(method.Body, isVoid)) ReplaceBody(method);
+        if (!isAsync && ShouldGenerateMethod(method.Body, isVoid)) ReplaceBody(method);
 
         method.Body.InitLocals = true;
 
-        var isTypeAwaitable = CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo);
-        hasAsyncStateMachineAttribute = hasAsyncStateMachineAttribute && isTypeAwaitable;
+        isAsync = CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo) && isAsync;
 
-        var (_, leave) = ProcessReturn(method, isVoid, hasAsyncStateMachineAttribute,
-            isTypeAwaitable
-                ? index => Ldloca(index, awaitableInfo.AwaitableInfo.AwaitableType.IsValueType, method.Body.Variables)
-                : null);
+        var (_, leave) = ProcessReturn(method, isVoid, isAsync,
+            index => Ldloca(index, awaitableInfo.AwaitableInfo.AwaitableType.IsValueType, method.Body.Variables));
 
         var disposeVariableIndex = method.Body.Variables.Count;
         method.Body.Variables.Add(new(Context.Disposable));
@@ -155,7 +145,7 @@ internal class StaticProxyEmitter(EmitContext context)
 
         if (leave != null)
         {
-            if (!hasAsyncStateMachineAttribute)
+            if (!isAsync)
             {
                 var catchHandler = new ExceptionHandler(ExceptionHandlerType.Catch)
                 {
@@ -284,14 +274,13 @@ internal class StaticProxyEmitter(EmitContext context)
     public void EmitActivity(MethodDefinition method, bool isVoid,
         FieldReference activitySource, string? activityName, int activityKind, bool suppressInstrumentation = true)
     {
-        var hasAsyncStateMachineAttribute = method.GetCustomAttribute(Context.AsyncStateMachineAttribute) != null;
+        var isAsync = method.GetCustomAttribute(Context.AsyncStateMachineAttribute) != null;
 
-        if (!hasAsyncStateMachineAttribute && ShouldGenerateMethod(method.Body, isVoid)) ReplaceBody(method);
+        if (!isAsync && ShouldGenerateMethod(method.Body, isVoid)) ReplaceBody(method);
 
         method.Body.InitLocals = true;
 
-        var isTypeAwaitable = CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo);
-        hasAsyncStateMachineAttribute = hasAsyncStateMachineAttribute && isTypeAwaitable;
+        isAsync = CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo) && isAsync;
 
         var activityIndex = method.Body.Variables.Count;
         method.Body.Variables.Add(new(Context.Activity));
@@ -303,9 +292,8 @@ internal class StaticProxyEmitter(EmitContext context)
             method.Body.Variables.Add(new(Context.Disposable));
         }
 
-        var (returnVariableIndex, leave) = ProcessReturn(method, isVoid, hasAsyncStateMachineAttribute, isTypeAwaitable
-            ? _ => Ldloc(suppressInstrumentation ? disposableIndex : activityIndex, method.Body.Variables)
-            : null);
+        var (returnVariableIndex, leave) = ProcessReturn(method, isVoid, isAsync,
+            _ => Ldloc(suppressInstrumentation ? disposableIndex : activityIndex, method.Body.Variables));
 
         /*IL_0000: ldsfld class [System.Diagnostics.DiagnosticSource]System.Diagnostics.ActivitySource OpenTelemetry.StaticProxy.Fody.TestClass::ActivitySource
         IL_0005: ldstr "Test.Activity"
@@ -335,7 +323,7 @@ internal class StaticProxyEmitter(EmitContext context)
 
         if (leave != null)
         {
-            if (!hasAsyncStateMachineAttribute)
+            if (!isAsync)
             {
                 var exceptionIndex = method.Body.Variables.Count;
                 method.Body.Variables.Add(new(Context.Exception));
@@ -554,11 +542,11 @@ internal class StaticProxyEmitter(EmitContext context)
 
     /// <returns>返回值变量索引，-1则表示是void</returns>
     private static Tuple<int, Instruction?> ProcessReturn(MethodDefinition method, bool isVoid,
-        bool hasAsyncStateMachineAttribute, Func<int, Instruction>? createLeave)
+        bool isAsync, Func<int, Instruction> createLeave)
     {
-        var (variableIndex, rawLeave) = RetOrBr2LeaveS(method.Body, hasAsyncStateMachineAttribute, isVoid);
+        var (variableIndex, rawLeave) = RetOrBr2LeaveS(method.Body, isAsync, isVoid);
 
-        if (variableIndex < 0 || createLeave == null) return Tuple.Create<int, Instruction?>(variableIndex, null);
+        if (variableIndex < 0 || !isAsync) return Tuple.Create<int, Instruction?>(variableIndex, null);
 
         var leave = createLeave(variableIndex);
         for (var index = method.Body.Instructions.Count - 2; index > 0; index--)
@@ -570,12 +558,12 @@ internal class StaticProxyEmitter(EmitContext context)
 
         return Tuple.Create<int, Instruction?>(variableIndex, leave);
 
-        static Tuple<int, Instruction> RetOrBr2LeaveS(MethodBody body, bool hasAsyncStateMachineAttribute, bool isVoid)
+        static Tuple<int, Instruction> RetOrBr2LeaveS(MethodBody body, bool isAsync, bool isVoid)
         {
             var ret = body.Instructions[^1];
             if (isVoid)
             {
-                if (hasAsyncStateMachineAttribute) return Tuple.Create(-1, ret);
+                if (isAsync) return Tuple.Create(-1, ret);
 
                 var leave =  body.Instructions[^2];
 
@@ -607,7 +595,7 @@ internal class StaticProxyEmitter(EmitContext context)
 
                 body.Instructions.Insert(index, replaceLdRet = ldRet = Ldloc(variableIndex, body.Variables));
 
-                if (!hasAsyncStateMachineAttribute)
+                if (!isAsync)
                     body.Instructions.Insert(index, replaceLdRet = Instruction.Create(OpCodes.Leave, ldRet));
 
                 body.Instructions.Insert(index, Stloc(variableIndex, body.Variables));
@@ -698,11 +686,6 @@ internal class StaticProxyEmitter(EmitContext context)
         return false;
     }
 
-    private static bool IsLdloc(Instruction instruction) =>
-        instruction.OpCode == OpCodes.Ldloc_0 || instruction.OpCode == OpCodes.Ldloc_1 ||
-        instruction.OpCode == OpCodes.Ldloc_2 || instruction.OpCode == OpCodes.Ldloc_3 ||
-        instruction.OpCode == OpCodes.Ldloc_S || instruction.OpCode == OpCodes.Ldloc;
-
     private static void ProcessHandler(MethodDefinition method, int index, ExceptionHandler exceptionHandler)
     {
         exceptionHandler.TryStart = method.Body.Instructions[index];
@@ -729,9 +712,9 @@ internal class StaticProxyEmitter(EmitContext context)
 
     private bool GetActivityTags(MethodDefinition method, ref int index)
     {
-        var list = GetActivityTags(method, (method.GetCustomAttribute(Context.ActivityNameAttribute) ??
-                method.DeclaringType.GetCustomAttribute(Context.ActivityNameAttribute))?
-            .GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList(), out _, out _).Item1;
+        var list = GetActivityTags(method, GetTags(method.GetCustomAttribute(Context.ActivityTagsAttribute),
+            method.DeclaringType.GetCustomAttribute(Context.ActivityTagsAttribute),
+            method.Module.TypeSystem.String), out _, out _).Item1;
 
         if (list.Count < 1) return false;
 
@@ -764,9 +747,9 @@ internal class StaticProxyEmitter(EmitContext context)
         out string? returnValueTagName, out bool isVoid)
     {
         var (startInstructions, endInstructions) = GetActivityTags(method,
-            method.GetCustomAttribute(Context.ActivityAttribute)?
-                .GetValue<string[]>("Tags", new ArrayType(method.Module.TypeSystem.String))?.ToList(),
-            out returnValueTagName, out isVoid);
+            GetTags(method.GetCustomAttribute(Context.ActivityTagsAttribute),
+                method.DeclaringType.GetCustomAttribute(Context.ActivityTagsAttribute),
+                method.Module.TypeSystem.String), out returnValueTagName, out isVoid);
 
         if (startInstructions.Count < 1) return endInstructions;
 
@@ -781,6 +764,16 @@ internal class StaticProxyEmitter(EmitContext context)
         method.Body.Instructions.Insert(index++, Instruction.Create(OpCodes.Pop));
 
         return endInstructions;
+    }
+
+    private static HashSet<string> GetTags(CustomAttribute? methodTags, CustomAttribute? typeTags, TypeReference type)
+    {
+        var tags1 = methodTags?.GetValue<string[]>("", new ArrayType(type));
+        var tags2 = typeTags?.GetValue<string[]>("", new ArrayType(type));
+
+        if (tags1 == null || tags1.Length < 1) return tags2 == null ? [] : [..tags2];
+
+        return tags2 == null || tags2.Length < 1 ? [..tags1] : [..tags1, ..tags2];
     }
 
     private void SetActivityTags(MethodDefinition method, ref int index, List<IReadOnlyList<Instruction>> setActivityTags)
@@ -798,122 +791,140 @@ internal class StaticProxyEmitter(EmitContext context)
     }
 
     internal Tuple<List<IReadOnlyList<Instruction>>, List<IReadOnlyList<Instruction>>>
-        GetActivityTags(MethodDefinition method, ICollection<string>? tags, out string? returnValueTagName, out bool isVoid)
+        GetActivityTags(MethodDefinition method, HashSet<string> tags, out string? returnValueTagName, out bool isVoid)
     {
         isVoid = method.ReturnType.HaveSameIdentity(Context.TargetModule.TypeSystem.Void) ||
+            method.GetCustomAttribute(Context.AsyncStateMachineAttribute) != null &&
             CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo) &&
             awaitableInfo.AwaitableInfo.AwaiterGetResultMethod.ReturnType
                 .HaveSameIdentity(Context.TargetModule.TypeSystem.Void);
 
         if (isVoid) returnValueTagName = null;
         else
-            TryGetName(tags, method.MethodReturnType.GetCustomAttribute(Context.ActivityTagAttribute),
-                "$returnvalue", out returnValueTagName);
+        {
+            var attr = method.MethodReturnType.GetCustomAttribute(Context.ActivityTagAttribute);
+            if (attr == null) returnValueTagName = null;
+            else
+            {
+                returnValueTagName = attr.GetValue<string>("", Context.TargetModule.TypeSystem.String);
+
+                if (string.IsNullOrWhiteSpace(returnValueTagName)) returnValueTagName = "$returnvalue";
+
+                tags.Remove(returnValueTagName!);
+            }
+        }
 
         var startInstructions = new List<IReadOnlyList<Instruction>>();
         var endInstructions = new List<IReadOnlyList<Instruction>>();
-
-        foreach (var field in method.DeclaringType.Fields)
-            if ((!method.IsStatic || field.IsStatic) && TryGetName(tags,
-                    field.GetCustomAttribute(Context.ActivityTagAttribute),
-                    field.Name, out var name))
-            {
-                /*IL_0558: ldstr        "123"
-                  IL_055d: ldarg_0
-                  IL_055d: ldfld        "aaa"*/
-                var instructions = new List<Instruction>
-                {
-                    Instruction.Create(OpCodes.Ldstr, name)
-                };
-
-                if (!field.IsStatic) instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
-
-                instructions.Add(Instruction.Create(OpCodes.Ldfld, field));
-
-                instructions.AddRange(LdindAndBox(field.FieldType));
-
-                startInstructions.Add(instructions);
-            }
-
-        foreach (var property in method.DeclaringType.Properties)
-            if (property.GetMethod != null && (!method.IsStatic || property.GetMethod.IsStatic) &&
-                TryGetName(tags, property.GetCustomAttribute(Context.ActivityTagAttribute),
-                    property.Name, out var name))
-            {
-                /*IL_0558: ldstr        "123"
-                  IL_055d: ldarg_0
-                  IL_055d: callvirt        "aaa"*/
-                var instructions = new List<Instruction>
-                {
-                    Instruction.Create(OpCodes.Ldstr, name)
-                };
-
-                if (!property.GetMethod.IsStatic) instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
-
-                instructions.Add(Instruction.Create(
-                    method.DeclaringType.IsValueType || property.GetMethod.IsFinal || property.GetMethod.IsStatic
-                        ? OpCodes.Call
-                        : OpCodes.Callvirt,
-                    method.Module.ImportReference(property.GetMethod, method)));
-
-                instructions.AddRange(LdindAndBox(property.PropertyType));
-
-                startInstructions.Add(instructions);
-            }
 
         for (var i = 0; i < method.Parameters.Count; i++)
         {
             var parameter = method.Parameters[i];
 
-            if (TryGetName(tags, parameter.GetCustomAttribute(Context.ActivityTagAttribute), parameter.Name,
-                    out var name))
-            {
-                /*IL_0558: ldstr        "123"
+            if (!TryGetName(tags, parameter.GetCustomAttribute(Context.ActivityTagAttribute), parameter.Name,
+                    out var name)) continue;
+
+            /*IL_0558: ldstr        "123"
                   IL_055d: ldarg_0
                   IL_055d: ldarg_1*/
-                var instructions = new List<Instruction>
+            var instructions = new List<Instruction>
+            {
+                Instruction.Create(OpCodes.Ldstr, name),
+                Ldarg(i, method.IsStatic, method.Parameters)
+            };
+
+            instructions.AddRange(LdindAndBox(parameter.ParameterType));
+
+            if (parameter.IsOut) endInstructions.Add(instructions);
+            else if (parameter is { IsIn: false, ParameterType.IsByReference: true })
+            {
+                startInstructions.Add(instructions);
+
+                instructions = new(instructions)
                 {
-                    Instruction.Create(OpCodes.Ldstr, name),
-                    Ldarg(i, method.IsStatic, method.Parameters)
+                    [0] = Instruction.Create(OpCodes.Ldstr, name + "$out")
                 };
 
-                instructions.AddRange(LdindAndBox(parameter.ParameterType));
+                endInstructions.Add(instructions);
+            }
+            else startInstructions.Add(instructions);
+        }
 
-                if (parameter.IsOut) endInstructions.Add(instructions);
-                else if (parameter is { IsIn: false, ParameterType.IsByReference: true })
+        foreach (var tag in tags.ToArray())
+            if (method.DeclaringType.Properties.FirstOrDefault(x => x.Name == tag) is { } property)
+            {
+                if (property.GetMethod != null && (!method.IsStatic || property.GetMethod.IsStatic) &&
+                    TryGetName(tags, null, property.Name, out var name))
                 {
-                    startInstructions.Add(instructions);
-
-                    instructions = new(instructions)
+                    /*IL_0558: ldstr        "123"
+                      IL_055d: ldarg_0
+                      IL_055d: callvirt        "aaa"*/
+                    var instructions = new List<Instruction>
                     {
-                        [0] = Instruction.Create(OpCodes.Ldstr, name + "$out")
+                        Instruction.Create(OpCodes.Ldstr, name)
                     };
 
-                    endInstructions.Add(instructions);
+                    if (!property.GetMethod.IsStatic) instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
+
+                    instructions.Add(Instruction.Create(
+                        method.DeclaringType.IsValueType || property.GetMethod.IsFinal || property.GetMethod.IsStatic
+                            ? OpCodes.Call
+                            : OpCodes.Callvirt,
+                        method.Module.ImportReference(property.GetMethod, method)));
+
+                    instructions.AddRange(LdindAndBox(property.PropertyType));
+
+                    startInstructions.Add(instructions);
                 }
-                else startInstructions.Add(instructions);
             }
-        }
+            else if (method.DeclaringType.Fields.FirstOrDefault(x => x.Name == tag) is { } field)
+                if ((!method.IsStatic || field.IsStatic) && TryGetName(tags,
+                        null, field.Name, out var name))
+                {
+                    /*IL_0558: ldstr        "123"
+                      IL_055d: ldarg_0
+                      IL_055d: ldfld        "aaa"*/
+                    var instructions = new List<Instruction>
+                    {
+                        Instruction.Create(OpCodes.Ldstr, name)
+                    };
+
+                    if (!field.IsStatic) instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
+
+                    instructions.Add(Instruction.Create(OpCodes.Ldfld, field));
+
+                    instructions.AddRange(LdindAndBox(field.FieldType));
+
+                    startInstructions.Add(instructions);
+                }
+
+        if (!isVoid && string.IsNullOrWhiteSpace(returnValueTagName) && tags.Remove("$returnvalue"))
+            returnValueTagName = "$returnvalue";
 
         return Tuple.Create(startInstructions, endInstructions);
     }
 
-    private bool TryGetName(ICollection<string>? tags, ICustomAttribute? attr, string memberName,
+    private bool TryGetName(HashSet<string> tags, ICustomAttribute? attr, string? memberName,
         [NotNullWhen(true)] out string? name)
     {
         name = null;
 
         if (attr == null)
         {
-            if (tags == null || !tags.Contains(memberName)) return false;
+            if (string.IsNullOrWhiteSpace(memberName) || !tags.Contains(memberName!)) return false;
 
             name = memberName;
         }
-        else name = attr.GetValue<string>("", Context.TargetModule.TypeSystem.String) ?? memberName;
+        else
+        {
+            name = attr.GetValue<string>("", Context.TargetModule.TypeSystem.String);
 
-        tags?.Remove(memberName);
+            if (string.IsNullOrWhiteSpace(name)) name = memberName;
+        }
 
-        return true;
+        if (!string.IsNullOrWhiteSpace(memberName)) tags.Remove(memberName!);
+
+        return !string.IsNullOrWhiteSpace(name);
     }
 
     private static Instruction Ldarg(int index, bool isStaticMethod, IList<ParameterDefinition> parameters) =>

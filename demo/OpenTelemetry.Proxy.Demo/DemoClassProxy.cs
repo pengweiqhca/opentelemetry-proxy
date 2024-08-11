@@ -24,10 +24,8 @@ public class DemoClassProxy : DemoClass
         {
             return await base.Demo(arg).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (OpenTelemetry.Proxy.ActivityExtensions.SetExceptionStatus(activity, ex))
         {
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message).RecordException(ex);
-
             throw;
         }
         finally
@@ -44,10 +42,8 @@ public class DemoClassProxy : DemoClass
         {
             await base.Demo2().ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (OpenTelemetry.Proxy.ActivityExtensions.SetExceptionStatus(activity, ex))
         {
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message).RecordException(ex);
-
             throw;
         }
         finally
@@ -64,14 +60,12 @@ public class DemoClassProxy : DemoClass
         {
             var result = await base.Demo3().ConfigureAwait(false);
 
-            activity?.SetTagEnumerable(ActivityTagAttribute.ReturnValueTagName, result);
+            activity?.SetTagEnumerable("$returnvalue", result);
 
             return result;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (OpenTelemetry.Proxy.ActivityExtensions.SetExceptionStatus(activity, ex))
         {
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message).RecordException(ex);
-
             throw;
         }
         finally
@@ -92,10 +86,8 @@ public class DemoClassProxy : DemoClass
 
             return result;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (OpenTelemetry.Proxy.ActivityExtensions.SetExceptionStatus(activity, ex))
         {
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message).RecordException(ex);
-
             throw;
         }
         finally
@@ -112,10 +104,8 @@ public class DemoClassProxy : DemoClass
         {
             await base.Demo5().ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (OpenTelemetry.Proxy.ActivityExtensions.SetExceptionStatus(activity, ex))
         {
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message).RecordException(ex);
-
             throw;
         }
         finally

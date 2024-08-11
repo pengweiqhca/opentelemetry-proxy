@@ -1,15 +1,15 @@
 ﻿using Castle.DynamicProxy;
 using FluentAssertions;
 using OpenTelemetry.Proxy;
+using OpenTelemetry.Proxy.StandardFiles;
 using OpenTelemetry.Proxy.Tests.Common;
-using System.Linq.Expressions;
 
 namespace OpenTelemetry.DynamicProxy.Tests;
 
 public class ActivityInterceptorTest : IDisposable
 {
     private readonly ITestInterface _target = new ProxyGenerator()
-        .CreateInterfaceProxyWithTarget<ITestInterface>(new TestInterface1(),
+        .CreateInterfaceProxyWithTargetInterface<ITestInterface>(new TestInterface1(),
             new ActivityInterceptor(new ActivityInvokerFactory()));
 
     private readonly ITestInterface2 _target2 = new ProxyGenerator()
@@ -23,89 +23,6 @@ public class ActivityInterceptorTest : IDisposable
     public ActivityInterceptorTest() => ActivitySource.AddActivityListener(_listener);
 
     [Fact]
-    public void GetActivityTags()
-    {
-        List<string> tags = ["_now", "Now", "e", Guid.NewGuid().ToString("N")];
-        var invocation = Expression.Parameter(typeof(IInvocation), "invocation");
-
-        var activityTags = ActivityInvokerFactory.GetActivityTags(typeof(TestClass3),
-            typeof(TestClass3).GetMethod(nameof(TestClass3.InstanceMethod))!, tags, invocation,
-            out var returnValueTagName);
-
-        Assert.Equal("ghi", returnValueTagName);
-        Assert.Equal(9, activityTags.Count);
-
-        AssertNameAndPosition(activityTags[0], "_now", SetTagPosition.Start);
-        AssertConvertExpression(AssertMemberExpression(activityTags[0].Value, "_now"));
-
-        AssertNameAndPosition(activityTags[1], "abc", SetTagPosition.Start);
-        AssertConvertExpression(AssertMemberExpression(activityTags[1].Value, "_now2"));
-
-        AssertNameAndPosition(activityTags[2], "Now", SetTagPosition.Start);
-        AssertConvertExpression(AssertMemberExpression(activityTags[2].Value, "Now"));
-
-        AssertNameAndPosition(activityTags[3], "def", SetTagPosition.Start);
-        Assert.Null(AssertMemberExpression(activityTags[3].Value, "Now2"));
-
-        AssertNameAndPosition(activityTags[4], "a2", SetTagPosition.Start);
-        AssertCallExpression(activityTags[4].Value, invocation, 0);
-
-        AssertNameAndPosition(activityTags[5], "b", SetTagPosition.Start);
-        AssertCallExpression(activityTags[5].Value, invocation, 2);
-
-        AssertNameAndPosition(activityTags[6], "c", SetTagPosition.End);
-        AssertCallExpression(activityTags[6].Value, invocation, 3);
-
-        AssertNameAndPosition(activityTags[7], "d", SetTagPosition.All);
-        AssertCallExpression(activityTags[7].Value, invocation, 4);
-
-        AssertNameAndPosition(activityTags[8], "e", SetTagPosition.Start);
-        AssertCallExpression(activityTags[8].Value, invocation, 5);
-
-        static void AssertNameAndPosition(ActivityTag activityTag, string name, SetTagPosition position)
-        {
-            Assert.Equal(name, activityTag.Key);
-            Assert.Equal(position, activityTag.Direction);
-        }
-
-        static void AssertConvertExpression(Expression? expression)
-        {
-            Assert.NotNull(expression);
-
-            var unaryExpression = Assert.IsType<UnaryExpression>(expression);
-
-            Assert.Equal(ExpressionType.Convert, unaryExpression.NodeType);
-
-            Assert.Equal(typeof(TestClass3), unaryExpression.Type);
-
-            AssertMemberExpression(unaryExpression.Operand, "InvocationTarget");
-        }
-
-        static Expression? AssertMemberExpression(Expression expression, string name)
-        {
-            var memberExpression = Assert.IsAssignableFrom<MemberExpression>(expression);
-
-            Assert.Equal(ExpressionType.MemberAccess, memberExpression.NodeType);
-
-            Assert.Equal(name, memberExpression.Member.Name);
-
-            return memberExpression.Expression;
-        }
-
-        static void AssertCallExpression(Expression expression, Expression invocation, int index)
-        {
-            var methodCallExpression = Assert.IsAssignableFrom<MethodCallExpression>(expression);
-
-            Assert.Equal(invocation, methodCallExpression.Object);
-
-            Assert.Equal(typeof(IInvocation).GetMethod("GetArgumentValue"), methodCallExpression.Method);
-
-            Assert.Equal(index, Assert.IsType<int>(Assert.IsType<ConstantExpression>(
-                Assert.Single(methodCallExpression.Arguments)).Value));
-        }
-    }
-
-    [Fact]
     public async Task FullTags()
     {
         var random = new Random();
@@ -113,8 +30,8 @@ public class ActivityInterceptorTest : IDisposable
         var now = DateTime.Now.AddDays(-1);
         var now2 = DateTime.Now.AddDays(1);
 
-        var testClass3 = (TestClass3)new ProxyGenerator()
-            .CreateClassProxy(typeof(TestClass3), [now, now2], new ActivityInterceptor(new ActivityInvokerFactory()));
+        var testClass3 = (ActivityTagTestClass2)new ProxyGenerator()
+            .CreateClassProxy(typeof(ActivityTagTestClass2), [now, now2], new ActivityInterceptor(new ActivityInvokerFactory()));
 
         var a = random.Next();
         var a2 = random.Next();
@@ -129,12 +46,10 @@ public class ActivityInterceptorTest : IDisposable
                 target.InstanceMethod(a, a2, b, out c, ref d, e);
 
                 return default;
-            }, $"Test.{nameof(TestClass3.InstanceMethod)}", ActivityStatusCode.Unset, () => new()
+            }, $"Test.{nameof(ActivityTagTestClass2.InstanceMethod)}", ActivityStatusCode.Unset, () => new()
             {
                 { "_now", now },
-                { "abc", now2 },
                 { "Now", testClass3.Now },
-                { "def", TestClass3.Now2 },
                 { "a2", a },
                 { "b", b },
                 { "c", c },
@@ -152,7 +67,7 @@ public class ActivityInterceptorTest : IDisposable
 
             return default;
         },
-        $"{nameof(TestInterface1)}.{nameof(ITestInterface.Method0)}",
+        $"{nameof(ITestInterface)}.{nameof(ITestInterface.Method0)}",
         ActivityStatusCode.Unset);
 
     [Fact]
@@ -162,12 +77,12 @@ public class ActivityInterceptorTest : IDisposable
 
             return default;
         },
-        $"{nameof(TestInterface1)}.{nameof(ITestInterface.Method1)}",
+        $"{nameof(ITestInterface)}.{nameof(TestInterface1.Method1)}",
         ActivityStatusCode.Unset, () => new() { { "abc", 1 } });
 
     [Fact]
     public Task TaskMethodTest() => Intercept(target => new(target.Method2()),
-        $"{nameof(TestInterface1)}.{nameof(ITestInterface.Method2)}",
+        $"{nameof(TestInterface1)}.{nameof(TestInterface1.Method2)}",
         ActivityStatusCode.Unset);
 
     [Fact]
@@ -179,7 +94,7 @@ public class ActivityInterceptorTest : IDisposable
 
             return new(result);
         },
-        $"{nameof(TestInterface2)}.{nameof(ITestInterface.Method2)}",
+        $"{nameof(TestInterface1)}.{nameof(TestInterface1.Method2)}",
         ActivityStatusCode.Unset);
 
     [Fact]
@@ -191,7 +106,7 @@ public class ActivityInterceptorTest : IDisposable
             }
             catch (NotSupportedException) { }
         },
-        $"{nameof(TestInterface1)}.{nameof(ITestInterface.Method3)}",
+        $"{nameof(ITestInterface)}.{nameof(ITestInterface.Method3)}",
         ActivityStatusCode.Error, () => new() { { "delay", 100 } });
 
     [Fact]
@@ -203,15 +118,15 @@ public class ActivityInterceptorTest : IDisposable
             }
             catch (NotSupportedException) { }
         },
-        $"{nameof(TestInterface1)}.{nameof(ITestInterface.Method4)}",
+        $"{nameof(ITestInterface)}.{nameof(TestInterface1.Method4)}",
         ActivityStatusCode.Error, () => new() { { "delay", 100 } });
 
     [Fact]
     public Task ValueTaskTTest() => Intercept(
         target => new(target.Method5(100).AsTask()),
-        $"{nameof(TestInterface1)}.{nameof(ITestInterface.Method5)}",
+        $"{nameof(ITestInterface)}.{nameof(ITestInterface.Method5)}",
         ActivityStatusCode.Unset,
-        () => new() { { "delay", 100 }, { "Field", "Abc" }, { ActivityTagAttribute.ReturnValueTagName, 100 } });
+        () => new() { { "delay", 100 }, { "$returnvalue", 100 } });
 
     [Fact]
     public Task CustomAwaitableTest() => Intercept(async target =>
@@ -222,7 +137,7 @@ public class ActivityInterceptorTest : IDisposable
             }
             catch (NotSupportedException) { }
         },
-        $"{nameof(TestInterface1)}.{nameof(ITestInterface.Method6)}",
+        $"{nameof(ITestInterface)}.{nameof(TestInterface1.Method6)}",
         ActivityStatusCode.Error, () => new() { { "delay", 100 }, { "Now", new DateTime(2024, 1, 1) } });
 
     private Task Intercept(Func<ITestInterface, ValueTask> func, string name, ActivityStatusCode statusCode,

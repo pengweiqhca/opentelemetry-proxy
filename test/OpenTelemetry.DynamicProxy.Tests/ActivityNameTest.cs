@@ -2,6 +2,7 @@
 using Moq;
 using OpenTelemetry.Proxy;
 using OpenTelemetry.Trace;
+using System.Net.Http;
 
 namespace OpenTelemetry.DynamicProxy.Tests;
 
@@ -33,5 +34,17 @@ public class ActivityNameTest
 
         Assert.Equal("TestName2." + nameof(_target.Method1), list[0].DisplayName);
         Assert.Equal("GET", list[1].DisplayName);
+    }
+
+    [ActivityName("TestName2")]
+    public class TestClass2
+    {
+        public virtual async Task Method1()
+        {
+            using var client = new HttpClient();
+
+            await client.GetStringAsync("https://docs.microsoft.com/_themes/docs.theme/master/zh-cn/_themes/styles/9b70df4.site-ltr.css").ConfigureAwait(false);
+            await client.GetStringAsync("https://docs.microsoft.com/_themes/docs.theme/master/zh-cn/_themes/styles/9b70df4.site-ltr.css").ConfigureAwait(false);
+        }
     }
 }

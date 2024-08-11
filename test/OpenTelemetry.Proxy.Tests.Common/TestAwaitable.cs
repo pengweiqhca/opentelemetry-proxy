@@ -1,4 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 
 namespace OpenTelemetry.Proxy.Tests.Common;
 
@@ -7,6 +8,7 @@ public class TestAwaitable
     private bool _result;
     private bool _isCompleted;
     private readonly List<Action> _onCompletedCallbacks = [];
+    private ExceptionDispatchInfo? _exception;
 
     public TestAwaitable(Func<bool> resultFunc) => ThreadPool.QueueUserWorkItem(static state =>
     {
@@ -14,7 +16,14 @@ public class TestAwaitable
 
         Thread.Sleep(100);
 
-        testAwaitable._result = resultFunc();
+        try
+        {
+            testAwaitable._result = resultFunc();
+        }
+        catch (Exception ex)
+        {
+            testAwaitable._exception = ExceptionDispatchInfo.Capture(ex);
+        }
 
         testAwaitable.SetCompleted();
     }, (this, resultFunc));
@@ -38,7 +47,12 @@ public class TestAwaitable
             else owner._onCompletedCallbacks.Add(continuation);
         }
 
-        public TResult GetResult() => result();
+        public TResult GetResult()
+        {
+            owner._exception?.Throw();
+
+            return result();
+        }
     }
 }
 
@@ -47,6 +61,7 @@ public class TestAwaitable<TResult>
     private TResult _result = default!;
     private bool _isCompleted;
     private readonly List<Action> _onCompletedCallbacks = [];
+    private ExceptionDispatchInfo? _exception;
 
     public TestAwaitable(Func<TResult> resultFunc) => ThreadPool.QueueUserWorkItem(static state =>
     {
@@ -54,9 +69,17 @@ public class TestAwaitable<TResult>
 
         Thread.Sleep(100);
 
-        testAwaitable._result = resultFunc();
+        try
+        {
+            testAwaitable._result = resultFunc();
+        }
+        catch (Exception ex)
+        {
+            testAwaitable._exception = ExceptionDispatchInfo.Capture(ex);
+        }
 
         testAwaitable.SetCompleted();
+
     }, (this, resultFunc));
 
     private void SetCompleted()
@@ -78,6 +101,11 @@ public class TestAwaitable<TResult>
             else owner._onCompletedCallbacks.Add(continuation);
         }
 
-        public TResult GetResult() => owner._result;
+        public TResult GetResult()
+        {
+            owner._exception?.Throw();
+
+            return owner._result;
+        }
     }
 }

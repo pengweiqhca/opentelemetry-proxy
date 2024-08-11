@@ -7,5 +7,6 @@ public class ActivityInterceptor(IActivityInvokerFactory invokerFactory) : IInte
     public ActivityInterceptor(IActivityInvokerFactory invokerFactory, ImplicitActivityContext context)
         : this(invokerFactory) => _context = context;
 
-    void IInterceptor.Intercept(IInvocation invocation) => invokerFactory.Invoke(invocation, _context);
+    void IInterceptor.Intercept(IInvocation invocation) =>
+        invokerFactory.Create(invocation, _context).Invoke(invocation);
 }

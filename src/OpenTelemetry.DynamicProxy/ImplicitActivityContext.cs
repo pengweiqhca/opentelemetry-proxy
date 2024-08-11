@@ -6,6 +6,8 @@ public readonly struct ImplicitActivityContext(ImplicitActivityType type)
 
     public string? ActivitySourceName { get; }
 
+    public string? ActivityBaseName { get; }
+
     public ActivityKind ActivityKind { get; }
 
     public bool SuppressInstrumentation { get; init; }
@@ -20,6 +22,14 @@ public readonly struct ImplicitActivityContext(ImplicitActivityType type)
         : this(ImplicitActivityType.Activity)
     {
         ActivitySourceName = activitySourceName;
+        ActivityKind = activityKind;
+    }
+
+    public ImplicitActivityContext(string? activitySourceName, string? activityBaseName, ActivityKind activityKind)
+        : this(ImplicitActivityType.Activity)
+    {
+        ActivitySourceName = activitySourceName;
+        ActivityBaseName = string.IsNullOrWhiteSpace(activityBaseName) ? activitySourceName : activityBaseName;
         ActivityKind = activityKind;
     }
 }

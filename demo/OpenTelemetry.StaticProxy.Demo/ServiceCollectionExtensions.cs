@@ -1,4 +1,6 @@
-﻿// ReSharper disable once CheckNamespace
+﻿using OpenTelemetry.Proxy.Demo;
+
+// ReSharper disable once CheckNamespace
 namespace Microsoft.Extensions.DependencyInjection;
 
 public static class ServiceCollectionExtensions

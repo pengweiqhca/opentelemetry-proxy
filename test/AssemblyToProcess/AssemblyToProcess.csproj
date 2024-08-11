@@ -2,13 +2,13 @@
 
   <PropertyGroup>
     <TargetFrameworks>net472;net6.0</TargetFrameworks>
-    <DisableFody>true</DisableFody>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="fasterflect" Version="3.*" />
+    <PackageReference Include="FSharp.Core" Version="8.*" />
 
-    <ProjectReference Include="..\..\src\OpenTelemetry.StaticProxy\OpenTelemetry.StaticProxy.csproj" />
+    <ProjectReference Include="..\..\src\OpenTelemetry.Proxy\OpenTelemetry.Proxy.csproj" />
     <ProjectReference Include="..\OpenTelemetry.Proxy.Tests.Common\OpenTelemetry.Proxy.Tests.Common.csproj" />
   </ItemGroup>
 

@@ -11,57 +11,52 @@ internal static class ActivityInvokerHelper
 
     public static IActivityInvoker Noop { get; } = new NoopActivityInvoker();
 
-    /// <returns>0: Not a activity</returns>
-    public static ActivitySettings GetActivityName(MethodInfo method, Type type, out string? activityName,
-        out ActivityKind kind, out int maxUsableTimes)
+    /// <returns>0: Not an activity</returns>
+    public static IProxyMethod? GetProxyMethod(MethodInfo method, Type type)
     {
-        activityName = null;
-        kind = ActivityKind.Internal;
-        maxUsableTimes = 0;
-
-        if (method.GetCustomAttribute<NonActivityAttribute>(true) is { } naa)
+        if (method.GetCustomAttribute<NonActivityAttribute>() is { } naa)
             return naa.SuppressInstrumentation
-                ? ActivitySettings.SuppressInstrumentation
-                : ActivitySettings.None;
+                ? SuppressInstrumentationMethod.Instance
+                : null;
 
-        if (method.GetCustomAttribute<ActivityAttribute>(true) is { } attr)
+        if (method.GetCustomAttribute<ActivityAttribute>() is { } attr)
+            return new ActivityMethod(GetActivityName(method, type, attr.ActivityName), attr.Kind,
+                attr.SuppressInstrumentation);
+
+        if (method.GetCustomAttribute<ActivityNameAttribute>() is not { } ana || ana.MaxUsableTimes == 0)
         {
-            activityName = attr.ActivityName;
-
-            kind = attr.Kind;
-
-            return attr.SuppressInstrumentation
-                ? ActivitySettings.ActivityAndSuppressInstrumentation
-                : ActivitySettings.Activity;
-        }
-
-        if (method.GetCustomAttribute<ActivityNameAttribute>(true) is not { } ana || ana.MaxUsableTimes == 0)
-        {
-            if (type.GetCustomAttribute<ActivitySourceAttribute>(true) is { } asa)
+            if (type.GetCustomAttribute<ActivitySourceAttribute>() is { } asa)
             {
-                kind = asa.Kind;
-
-                return asa.IncludeNonAsyncStateMachineMethod ||
+                if (asa.IncludeNonAsyncStateMachineMethod ||
                     (type.IsInterface || method.IsDefined(typeof(AsyncStateMachineAttribute), false)) &&
-                    CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out _)
-                        ? asa.SuppressInstrumentation
-                            ? ActivitySettings.ActivityAndSuppressInstrumentation
-                            : ActivitySettings.Activity
-                        : ActivitySettings.None;
+                    CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out _))
+                    return new ActivityMethod(GetActivityName(method, type, null, asa.ActivitySourceName), asa.Kind,
+                        asa.SuppressInstrumentation);
+
+                return null;
             }
 
-            ana = type.GetCustomAttribute<ActivityNameAttribute>(true);
+            ana = type.GetCustomAttribute<ActivityNameAttribute>();
 
-            if (ana == null || ana.MaxUsableTimes == 0) return ActivitySettings.None;
-
-            if (!string.IsNullOrWhiteSpace(ana.ActivityName))
-                activityName = $"{ana.ActivityName}.{method.Name}";
+            return ana == null || ana.MaxUsableTimes == 0
+                ? null
+                : new ActivityNameMethod(GetActivityName(method, type, null, ana.ActivityName), ana.MaxUsableTimes);
         }
-        else activityName = ana.ActivityName;
 
-        maxUsableTimes = ana.MaxUsableTimes;
+        return new ActivityNameMethod(GetActivityName(method, type, ana.ActivityName,
+            type.GetCustomAttribute<ActivitySourceAttribute>() == null
+                ? type.GetCustomAttribute<ActivityNameAttribute>()?.ActivityName
+                : null), ana.MaxUsableTimes);
+    }
 
-        return maxUsableTimes == 0 ? ActivitySettings.None : ActivitySettings.ActivityName;
+    public static string GetActivityName(MethodInfo method, Type type, string? activityName,
+        string? activityBaseName = null)
+    {
+        if (!string.IsNullOrWhiteSpace(activityName)) return activityName!;
+
+        if (string.IsNullOrWhiteSpace(activityBaseName)) activityBaseName = type.Name;
+
+        return $"{activityBaseName}.{method.Name}";
     }
 
     public static Func<object, ObjectMethodExecutorAwaitable>? Convert(Type returnType) =>
@@ -75,4 +70,32 @@ internal static class ActivityInvokerHelper
                 ObjectMethodExecutor.ConvertToObjectMethodExecutorAwaitable(coercedAwaitableInfo,
                     Expression.Convert(param, type)), param).Compile();
         });
+}
+
+internal interface IProxyMethod;
+
+internal sealed class SuppressInstrumentationMethod : IProxyMethod
+{
+    private SuppressInstrumentationMethod() { }
+
+    public static SuppressInstrumentationMethod Instance { get; } = new();
+}
+
+internal sealed class ActivityNameMethod(string activityName, int maxUsableTimes) : IProxyMethod
+{
+    public string ActivityName { get; } = activityName;
+
+    public int MaxUsableTimes { get; } = maxUsableTimes;
+}
+
+internal sealed class ActivityMethod(
+    string activityName,
+    ActivityKind kind,
+    bool suppressInstrumentation) : IProxyMethod
+{
+    public string ActivityName { get; } = activityName;
+
+    public ActivityKind Kind { get; } = kind;
+
+    public bool SuppressInstrumentation { get; } = suppressInstrumentation;
 }

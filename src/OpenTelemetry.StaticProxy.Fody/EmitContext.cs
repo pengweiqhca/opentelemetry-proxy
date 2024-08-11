@@ -40,7 +40,11 @@ internal class EmitContext
 
     public TypeReference ActivityTagAttribute { get; }
 
+    public TypeReference ActivityTagsAttribute { get; }
+
     public TypeReference NonActivityAttribute { get; }
+
+    public TypeDefinition ProxyHasGeneratedAttribute { get; }
 
     public MethodReference ProxyHasGeneratedAttributeCtor { get; }
 
@@ -118,8 +122,10 @@ internal class EmitContext
         ActivityNameAttribute = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ActivityNameAttribute");
         ActivitySourceAttribute = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ActivitySourceAttribute");
         ActivityTagAttribute = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ActivityTagAttribute");
+        ActivityTagsAttribute = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ActivityTagsAttribute");
         NonActivityAttribute = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.NonActivityAttribute");
-        ProxyHasGeneratedAttributeCtor = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ProxyHasGeneratedAttribute")
+        ProxyHasGeneratedAttribute = openTelemetryProxyModule.GetType("OpenTelemetry.Proxy.ProxyHasGeneratedAttribute");
+        ProxyHasGeneratedAttributeCtor = ProxyHasGeneratedAttribute
             .GetConstructors().Single(c => !c.IsStatic);
 
         Action = new(typeof(Exception).Namespace, nameof(Action), targetModule, targetModule.TypeSystem.CoreLibrary);

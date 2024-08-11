@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Internal;
 using OpenTelemetry.Proxy;
-using OpenTelemetry.Trace;
 
 namespace OpenTelemetry.DynamicProxy;
 
@@ -12,6 +11,8 @@ public class ActivityInvoker(
     (Action<IInvocation, Activity>? BeforeProceed, Action<IInvocation, Activity>? AfterProceed) setTags,
     string? returnValueTagName) : ActivityNameInvoker
 {
+    public string ActivitySourceName { get; } = activitySource.Name;
+
     public override void Invoke(IInvocation invocation)
     {
         if (activitySource.StartActivity(activityName, kind) is not { } activity)
@@ -32,7 +33,7 @@ public class ActivityInvoker(
         }
         catch (Exception ex)
         {
-            OnException(activity, ex);
+            ActivityExtensions.SetExceptionStatus(activity, ex);
 
             disposable?.Dispose();
             activity.Dispose();
@@ -65,9 +66,6 @@ public class ActivityInvoker(
         }
     }
 
-    private static void OnException(Activity activity, Exception ex) =>
-        activity.SetStatus(ActivityStatusCode.Error, ex.Message).RecordException(ex);
-
     private sealed class ActivityAwaiter(
         Activity activity,
         ObjectMethodExecutorAwaitable.Awaiter awaiter,
@@ -85,7 +83,7 @@ public class ActivityInvoker(
             }
             catch (Exception ex)
             {
-                OnException(activity, ex);
+                ActivityExtensions.SetExceptionStatus(activity, ex);
             }
             finally
             {

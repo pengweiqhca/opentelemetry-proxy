@@ -64,7 +64,7 @@ internal static class Utilities
             IsValueType = type.IsValueType
         };
 
-    public static CustomAttribute? GetCustomAttribute(this TypeDefinition? type, TypeReference attributeType)
+    /*public static CustomAttribute? GetCustomAttribute(this TypeDefinition? type, TypeReference attributeType)
     {
         while (type != null)
         {
@@ -91,7 +91,7 @@ internal static class Utilities
         }
 
         return null;
-    }
+    }*/
 
     public static CustomAttribute? GetCustomAttribute(this ICustomAttributeProvider provider,
         TypeReference attributeType) =>
@@ -101,7 +101,7 @@ internal static class Utilities
     public static T? GetValue<T>(this ICustomAttribute attr, string property, TypeReference type,
         T? defaultValue = default)
     {
-        foreach (var arg in attr.ConstructorArguments.Where(a => a.Type.HaveSameIdentity(type))) return (T)arg.Value;
+        foreach (var arg in attr.ConstructorArguments.Where(a => a.Type.HaveSameIdentity(type))) return ReadValue(arg.Value);
 
         foreach (var p in attr.Properties.Where(p => p.Name == property)) return ReadValue(p.Argument.Value);
 
@@ -156,9 +156,10 @@ internal static class Utilities
         return reference;
     }
 
-    public static bool HaveSameIdentity(this TypeReference type1, TypeReference type2)
+    public static bool HaveSameIdentity(this TypeReference type1, TypeReference? type2)
     {
-        if (!HaveSameIdentityOrCoreLib(type1.Scope, type2.Scope) ||
+        if (type2 == null ||
+            !HaveSameIdentityOrCoreLib(type1.Scope, type2.Scope) ||
             !string.Equals(type1.Namespace, type2.Namespace, StringComparison.Ordinal) ||
             !string.Equals(type1.Name, type2.Name, StringComparison.Ordinal)) return false;
 
@@ -217,7 +218,6 @@ internal static class Utilities
             newMethod.Parameters.Add(parameter);
 
         if (rawMethod.HasGenericParameters)
-        {
             //Contravariant:
             //  The generic type parameter is contravariant. A contravariant type parameter can appear as a parameter type in method signatures.
             //Covariant:
@@ -238,13 +238,11 @@ internal static class Utilities
             {
                 var clonedParameter = new GenericParameter(parameter.Name, newMethod);
                 if (parameter.HasConstraints)
-                {
                     foreach (var parameterConstraint in parameter.Constraints)
                     {
                         clonedParameter.Attributes = parameter.Attributes;
                         clonedParameter.Constraints.Add(parameterConstraint);
                     }
-                }
 
                 if (parameter.HasReferenceTypeConstraint)
                 {
@@ -266,7 +264,6 @@ internal static class Utilities
 
                 newMethod.GenericParameters.Add(clonedParameter);
             }
-        }
 
         if (!rawMethod.HasBody) return newMethod;
 
@@ -335,10 +332,10 @@ internal static class Utilities
             };
 
             foreach (var p in targetMethod.Parameters)
-                newTargetMethod.Parameters.Add(new ParameterDefinition(p.Name, p.Attributes, p.ParameterType));
+                newTargetMethod.Parameters.Add(new(p.Name, p.Attributes, p.ParameterType));
 
             foreach (var gp in targetMethod.GenericParameters)
-                newTargetMethod.GenericParameters.Add(new GenericParameter(gp.Name, newTargetMethod));
+                newTargetMethod.GenericParameters.Add(new(gp.Name, newTargetMethod));
 
             targetMethod = newTargetMethod;
         }

@@ -22,12 +22,11 @@
 
     <FodyVersion>6.*</FodyVersion>
     <OpenTelemetryVersion>1.9.*</OpenTelemetryVersion>
+    <MetalamaVersion>2024.1.12</MetalamaVersion>
+    <CodeAnalysisVersion>4.7.0</CodeAnalysisVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <Using Include="System.Collections.Concurrent" />
-    <Using Include="System.Diagnostics" />
-
     <PackageReference Include="ConfigureAwaitChecker.Analyzer" Version="5.*" PrivateAssets="All" />
     <PackageReference Include="Microsoft.SourceLink.GitLab" Version="1.*" PrivateAssets="All" />
   </ItemGroup>

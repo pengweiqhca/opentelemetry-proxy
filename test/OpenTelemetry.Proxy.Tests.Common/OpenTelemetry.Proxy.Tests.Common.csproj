@@ -1,14 +1,12 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net472;netstandard2.1</TargetFrameworks>
-    <DisableFody>true</DisableFody>
+    <TargetFrameworks>net472;net6.0</TargetFrameworks>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="7.*" />
-    <PackageReference Include="PolySharp" Version="1.*" PrivateAssets="All" />
-
+    <PackageReference Include="PolySharp" Version="1.*" PrivateAssets="All" Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'" />
+    
     <ProjectReference Include="..\..\src\OpenTelemetry.Proxy\OpenTelemetry.Proxy.csproj" />
   </ItemGroup>
 
