@@ -35,20 +35,20 @@ public static class ActivityExtensions
     /// <returns>Return false always.</returns>
     public static bool SetExceptionStatus(Activity? activity, Exception ex)
     {
-        activity?.SetStatus(ActivityStatusCode.Error, UnwrapException(ex).Message).RecordException(ex.Demystify());
+        activity?.SetStatus(ActivityStatusCode.Error, GetInnerExceptionMessage(ex)).RecordException(ex.Demystify());
 
         return false;
 
-        static Exception UnwrapException(Exception ex)
+        static string GetInnerExceptionMessage(Exception ex)
         {
             var counter = 100;
 
-            while (counter-- > 0)
-                if (ex is AggregateException or TargetInvocationException && ex.InnerException != null)
+            while (counter-- > 0 && ex.InnerException != null)
+                if (ex is AggregateException or TargetInvocationException)
                     ex = ex.InnerException;
-                else counter = 0;
+                else break;
 
-            return ex;
+            return ex.Message;
         }
     }
 }
