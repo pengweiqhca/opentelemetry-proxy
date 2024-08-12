@@ -201,21 +201,32 @@ internal static class SyntaxExtensions
     }
 
     /// <summary>Restore raw line number.</summary>
-    public static BlockSyntax RestoreLineNumber(this BlockSyntax node, ILineNumber? line) =>
-        line != null && node is { Statements: [var statement, ..] } && !statement.HaveLineNumber()
-            ? node.WithStatements(new(node.Statements.Skip(1)
-                .Prepend(statement.RestoreLineNumber(line))))
-            : node;
-
-    /// <summary>Restore raw line number.</summary>
-    public static TSyntax RestoreLineNumber<TSyntax>(this TSyntax node, ILineNumber line)
-        where TSyntax : SyntaxNode
+    public static TSyntax RestoreLineNumber<TSyntax>(this TSyntax node, ILineNumber line) where TSyntax : SyntaxNode
     {
         if (node.HaveLineNumber()) return node;
 
         var newLeadingTrivia = SyntaxFactory.Trivia(SyntaxFactory.LineDirectiveTrivia(
                 SyntaxFactory.Literal(line.Line).WithLeadingWhiteSpace(),
                 SyntaxFactory.Literal(line.File).WithLeadingWhiteSpace(), true)
+            .WithTrailingTrivia(SyntaxFactory.EndOfLine(Environment.NewLine)));
+
+        var syntaxTriviaList = node.GetLeadingTrivia();
+
+        for (var index = syntaxTriviaList.Count - 1; index >= 0; index--)
+            if (syntaxTriviaList[index].IsKind(SyntaxKind.WhitespaceTrivia))
+                return node.WithLeadingTrivia(syntaxTriviaList.Take(index)
+                    .Append(newLeadingTrivia).Union(syntaxTriviaList.Skip(index)));
+
+        return node.WithLeadingTrivia(syntaxTriviaList.Append(newLeadingTrivia));
+    }
+
+    /// <summary>Hidden raw line number.</summary>
+    public static TSyntax HiddenLineNumber<TSyntax>(this TSyntax node) where TSyntax : SyntaxNode
+    {
+        if (node.HaveLineNumber()) return node;
+
+        var newLeadingTrivia = SyntaxFactory.Trivia(SyntaxFactory.LineDirectiveTrivia(
+                SyntaxFactory.Token(SyntaxKind.HiddenKeyword).WithLeadingWhiteSpace(), true)
             .WithTrailingTrivia(SyntaxFactory.EndOfLine(Environment.NewLine)));
 
         var syntaxTriviaList = node.GetLeadingTrivia();

@@ -5,11 +5,12 @@ public class SpecificTest
     [Fact]
     public async Task KeepColumnNumberTest()
     {
-        var ex = Assert.ThrowsAny<Exception>(() => KeepLineNumberTestClass.TestMethod());
+        var ex = Assert.ThrowsAny<Exception>(() => KeepLineNumberTestClass<int>.TestMethod(10));
 
         var stackFrame = new EnhancedStackTrace(ex).GetFrame(0);
 
         var fileName = stackFrame.GetFileName();
+        var fileLineNumber = stackFrame.GetFileLineNumber();
         var fileColumnNumber = stackFrame.GetFileColumnNumber();
 
         Assert.NotNull(fileName);
@@ -20,12 +21,16 @@ public class SpecificTest
 
         using var sr = new StreamReader(fileName);
 
+        var i = 0;
         while (await sr.ReadLineAsync().ConfigureAwait(false) is { } line)
         {
-            var index = line.IndexOf("throw new()", StringComparison.Ordinal);
+            i++;
+
+            var index = line.IndexOf("throw new();", StringComparison.Ordinal);
 
             if (index >= 0)
             {
+                Assert.Equal(fileLineNumber, i);
                 Assert.Equal(index + 1, fileColumnNumber);
 
                 return;
@@ -38,13 +43,12 @@ public class SpecificTest
     [Fact]
     public async Task KeepLineNumberTest()
     {
-        var ex = Assert.ThrowsAny<Exception>(KeepLineNumberTestClass.NormalClass.Exception);
+        var ex = Assert.ThrowsAny<Exception>(KeepLineNumberTestClass<long>.NormalClass.Exception);
 
         var stackFrame = new EnhancedStackTrace(ex).GetFrame(0);
 
         var fileName = stackFrame.GetFileName();
         var fileLineNumber = stackFrame.GetFileLineNumber();
-        var fileColumnNumber = stackFrame.GetFileColumnNumber();
 
         Assert.NotNull(fileName);
 

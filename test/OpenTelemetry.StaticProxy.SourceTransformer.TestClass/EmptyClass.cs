@@ -15,13 +15,11 @@ public class EmptyClass2;
 class NoModifierClass
 {
     [Activity]
-    public void TestMethod()
+    [return: ActivityTag]
+    public int TestMethod([ActivityTag] ref int abc)
     {
+        if (DateTime.Now.Second > 10) return 1;
 
-
-
-
-        // Some comment.
-        Console.WriteLine(DateTime.Now);
+        return abc;
     }
 }

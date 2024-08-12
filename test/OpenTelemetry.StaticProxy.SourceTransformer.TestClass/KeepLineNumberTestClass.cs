@@ -9,16 +9,18 @@ namespace OpenTelemetry.StaticProxy.SourceTransformer;
 /// KeepLineNumberTestClass
 /// </summary>
 [ActivitySource]
-public class KeepLineNumberTestClass
+public class KeepLineNumberTestClass<T>
 {
     [Activity]
     [return: ActivityTag]
-    public static int TestMethod() =>
+    public static int TestMethod(int size)
+    {
+        if (size < 10) return 1;
 
+        Console.WriteLine(DateTime.Now);
 
-
-        // Some comment.
         throw new();
+    }
 
     public static class NormalClass
     {

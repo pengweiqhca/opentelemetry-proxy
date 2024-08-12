@@ -19,8 +19,8 @@ internal sealed class ProxyRewriter(
         return _addAssemblyAttribute && syntaxNode is CompilationUnitSyntax compilationUnit
             ? compilationUnit.AddAttributeLists(SyntaxFactory.AttributeList(
                     SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Attribute(
-                        SyntaxFactory.ParseName("OpenTelemetry.Proxy.ProxyHasGeneratedAttribute"))))
-                .WithTarget(SyntaxFactory.AttributeTargetSpecifier(SyntaxFactory.Identifier("assembly"))))
+                        SyntaxFactory.ParseName("OpenTelemetry.Proxy.ProxyHasGeneratedAttribute")).WithLeadingWhiteSpace()))
+                .WithTarget(SyntaxFactory.AttributeTargetSpecifier(SyntaxFactory.Identifier("assembly"))).WithNewLine(0))
             : syntaxNode;
     }
 
@@ -54,8 +54,9 @@ internal sealed class ProxyRewriter(
             return AddLineNumber(node, type);
 
         type = type.AddAttributeLists(SyntaxFactory.AttributeList(
-            SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Attribute(
-                SyntaxFactory.ParseName("OpenTelemetry.Proxy.ProxyHasGeneratedAttribute")))));
+                SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Attribute(
+                    SyntaxFactory.ParseName("OpenTelemetry.Proxy.ProxyHasGeneratedAttribute"))))
+            .WithNewLine(node.GetIndent()));
 
         if (hasMethod && !proxyRewriterContext.AssemblyHasAddedAttribute)
             proxyRewriterContext.AssemblyHasAddedAttribute = _addAssemblyAttribute = true;
@@ -72,7 +73,7 @@ internal sealed class ProxyRewriter(
             : type.WithKeyword(type.Keyword.RestoreLineNumber(node.Keyword.GetLineNumber(node.SyntaxTree)));
 
         return type.WithCloseBraceToken(
-            node.CloseBraceToken.RestoreLineNumber(node.CloseBraceToken.GetLineNumber(node.SyntaxTree)));
+            type.CloseBraceToken.RestoreLineNumber(node.CloseBraceToken.GetLineNumber(node.SyntaxTree)));
     }
 
     private static TypeDeclarationSyntax AddActivitySource(TypeDeclarationSyntax node, string activitySourceName)
@@ -144,7 +145,7 @@ internal sealed class ProxyRewriter(
         var usingStatement = SyntaxFactory.UsingStatement(SyntaxFactory.Block(method.Body.Statements).WithNewLine())
             .WithExpression(SuppressInstrumentationScope());
 
-        return method.WithBody(SyntaxFactory.Block(usingStatement.WithNewLine(indent)).WithNewLine());
+        return method.WithBody(SyntaxFactory.Block(usingStatement.WithNewLine(indent).HiddenLineNumber()).WithNewLine());
     }
 
     private static InvocationExpressionSyntax SuppressInstrumentationScope() => SyntaxFactory.InvocationExpression(
@@ -202,9 +203,8 @@ internal sealed class ProxyRewriter(
                         SyntaxFactory.Literal(context.ActivityName))),
                     SyntaxFactory.Argument(dictionaryCreation),
                     SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression,
-                            SyntaxFactory.Literal(context.MaxUsableTimes)))
-                        .WithLeadingWhiteSpace()
-                ])))).WithNewLine(indent);
+                        SyntaxFactory.Literal(context.MaxUsableTimes))).WithLeadingWhiteSpace()
+                ])))).WithNewLine(indent).HiddenLineNumber();
 
         return method.WithBody(SyntaxFactory.Block(usingStatement).WithNewLine());
     }
@@ -234,25 +234,21 @@ internal sealed class ProxyRewriter(
         method = AddLineNumber(node, method);
         if (method.Body == null) return method;
 
-        var activityDeclaration = SyntaxFactory.LocalDeclarationStatement(
-            SyntaxFactory.VariableDeclaration(SyntaxFactory.ParseTypeName("var"))
-                .WithVariables(SyntaxFactory.SingletonSeparatedList(
-                    SyntaxFactory.VariableDeclarator(activity.Identifier)
-                        .WithWhiteSpace()
-                        .WithInitializer(SyntaxFactory.EqualsValueClause(SyntaxFactory.InvocationExpression(
+        var activityDeclaration = SyntaxFactory.LocalDeclarationStatement(SyntaxFactory
+            .VariableDeclaration(SyntaxFactory.ParseTypeName("var"))
+            .WithVariables(SyntaxFactory.SingletonSeparatedList(
+                SyntaxFactory.VariableDeclarator(activity.Identifier).WithWhiteSpace()
+                    .WithInitializer(SyntaxFactory.EqualsValueClause(SyntaxFactory.InvocationExpression(
+                            SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
                                 SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                    SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                                        SyntaxFactory.ParseExpression(type.GetTypeName(2))
-                                            .WithLeadingWhiteSpace(),
-                                        SyntaxFactory.IdentifierName("@ActivitySource@")),
-                                    SyntaxFactory.IdentifierName("StartActivity")))
-                            .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList([
-                                SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
-                                    SyntaxKind.StringLiteralExpression,
-                                    SyntaxFactory.Literal(context.ActivityName))),
-                                SyntaxFactory.Argument(SyntaxFactory.ParseExpression(context.Kind))
-                                    .WithLeadingWhiteSpace()
-                            ])))))))).WithNewLine(indent);
+                                    SyntaxFactory.ParseExpression(type.GetTypeName(2)).WithLeadingWhiteSpace(),
+                                    SyntaxFactory.IdentifierName("@ActivitySource@")),
+                                SyntaxFactory.IdentifierName("StartActivity")))
+                        .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList([
+                            SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
+                                SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(context.ActivityName))),
+                            SyntaxFactory.Argument(SyntaxFactory.ParseExpression(context.Kind)).WithLeadingWhiteSpace()
+                        ])))))))).WithNewLine(indent).HiddenLineNumber();
 
         var bodyStatements = new List<StatementSyntax> { activityDeclaration };
 
@@ -295,7 +291,7 @@ internal sealed class ProxyRewriter(
                     SyntaxFactory.Argument(SyntaxFactory.IdentifierName("ex")).WithLeadingWhiteSpace()
                 ]))).WithLeadingTrivia()).WithLeadingWhiteSpace())
             .WithBlock(SyntaxFactory.Block(SyntaxFactory.ThrowStatement().WithNewLine(indent)).WithNewLine())
-            .WithNewLine(indent);
+            .WithNewLine(indent).HiddenLineNumber();
 
         finallyStatements.Add(SyntaxFactory.IfStatement(SyntaxFactory.BinaryExpression(
                 SyntaxKind.NotEqualsExpression, activity.WithTrailingWhiteSpace(),
@@ -304,8 +300,7 @@ internal sealed class ProxyRewriter(
                 SyntaxKind.SimpleMemberAccessExpression,
                 activity.WithLeadingWhiteSpace(), SyntaxFactory.IdentifierName("Dispose"))))).WithNewLine(indent));
 
-        var tryStatement = SyntaxFactory.TryStatement(method.Body,
-            SyntaxFactory.SingletonList(catchClause),
+        var tryStatement = SyntaxFactory.TryStatement(method.Body, SyntaxFactory.SingletonList(catchClause),
             SyntaxFactory.FinallyClause().WithBlock(SyntaxFactory.Block(finallyStatements).WithNewLine())
                 .WithNewLine(indent));
 
@@ -315,29 +310,24 @@ internal sealed class ProxyRewriter(
     }
 
     private static ExpressionSyntax SetTag(ExpressionSyntax variable, Dictionary<string, ActivityTagSource> inTags,
-        TypeDeclarationSyntax type) =>
-        inTags.Aggregate(variable, (current, tag) =>
-            SyntaxFactory.InvocationExpression(SyntaxFactory.MemberAccessExpression(
-                    SyntaxKind.SimpleMemberAccessExpression,
-                    current, SyntaxFactory.IdentifierName("SetTag")))
-                .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList([
-                    SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression,
-                        SyntaxFactory.Literal(tag.Key))),
-                    SyntaxFactory.Argument(GetTagValue(tag.Value, type))
-                        .WithLeadingWhiteSpace()
-                ]))));
+        TypeDeclarationSyntax type) => inTags.Aggregate(variable, (current, tag) =>
+        SyntaxFactory.InvocationExpression(SyntaxFactory.MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression, current, SyntaxFactory.IdentifierName("SetTag")))
+            .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList([
+                SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
+                    SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(tag.Key))),
+                SyntaxFactory.Argument(GetTagValue(tag.Value, type)).WithLeadingWhiteSpace()
+            ]))));
 
     private static ExpressionSyntax SetTag(ExpressionSyntax variable, Dictionary<string, ActivityTagSource> inTags,
         Dictionary<string, ActivityTagSource> outTags, TypeDeclarationSyntax type) =>
         outTags.Aggregate(variable, (current, tag) =>
             SyntaxFactory.InvocationExpression(SyntaxFactory.MemberAccessExpression(
-                    SyntaxKind.SimpleMemberAccessExpression,
-                    current, SyntaxFactory.IdentifierName("SetTag")))
+                    SyntaxKind.SimpleMemberAccessExpression, current, SyntaxFactory.IdentifierName("SetTag")))
                 .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList([
                     SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression,
                         SyntaxFactory.Literal(inTags.ContainsKey(tag.Key) ? tag.Key + "$out" : tag.Key))),
-                    SyntaxFactory.Argument(GetTagValue(tag.Value, type))
-                        .WithLeadingWhiteSpace()
+                    SyntaxFactory.Argument(GetTagValue(tag.Value, type)).WithLeadingWhiteSpace()
                 ]))));
 
     private static MethodDeclarationSyntax Expression2Return(MethodDeclarationSyntax method,
@@ -355,27 +345,26 @@ internal sealed class ProxyRewriter(
                 ? SyntaxFactory.ThrowStatement(tes.Expression.WithLeadingWhiteSpace())
                 : SyntaxFactory.ReturnStatement(expression.WithLeadingWhiteSpace());
 
+        if (statement is ReturnStatementSyntax ret)
+            statement = ret.WithReturnKeyword(ret.ReturnKeyword.WithTrailingWhiteSpace());
+
         return method.WithBody(SyntaxFactory.Block(addLineNumber // Try to keep the same column number
                 ? statement.WithNewLine(expression.GetColumnNumber()).RestoreLineNumber(expression.GetLineNumber())
                 : statement.WithNewLine(expression is ThrowExpressionSyntax
                     ? expression.GetColumnNumber()
-                    : Math.Max(0, expression.GetColumnNumber() - 7))).WithNewLine())
+                    : Math.Max(0, expression.GetColumnNumber() - 8))).WithNewLine())
             .WithExpressionBody(null)
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.None));
     }
 
-    private static MethodDeclarationSyntax AddLineNumber(MethodDeclarationSyntax node, MethodDeclarationSyntax method)
-    {
-        if (node.Body == null || node.Body.Statements.Count < 1 ||
-            method.Body == null || method.Body.Statements.Count < 1) return method;
-
-        if (!node.Body.Statements[0].HaveLineNumber())
-            method = method.WithBody(method.Body.WithStatements(new(method.Body.Statements.Skip(1)
+    private static MethodDeclarationSyntax AddLineNumber(MethodDeclarationSyntax node,
+        MethodDeclarationSyntax method) =>
+        node.Body == null || node.Body.Statements.Count < 1 ||
+        method.Body == null || method.Body.Statements.Count < 1 ||
+        node.Body.Statements[0].HaveLineNumber()
+            ? method
+            : method.WithBody(method.Body.WithStatements(new(method.Body.Statements.Skip(1)
                 .Prepend(method.Body.Statements[0].RestoreLineNumber(node.Body.Statements[0].GetLineNumber())))));
-
-        return method.WithBody(method.Body!.WithCloseBraceToken(
-            method.Body.CloseBraceToken.RestoreLineNumber(node.Body.CloseBraceToken.GetLineNumber(node.SyntaxTree))));
-    }
 
     private static ExpressionSyntax GetTagValue(ActivityTagSource tag, TypeDeclarationSyntax type) => tag.From switch
     {
@@ -393,68 +382,37 @@ internal sealed class ProxyRewriter(
         ILineNumber? line)
         : CSharpSyntaxRewriter
     {
-        public override SyntaxNode VisitReturnStatement(ReturnStatementSyntax node) => node.Expression switch
-        {
-            null or ThrowExpressionSyntax => context.OutTags.Count > 0 ? InsertVoid(node) : node,
-            LiteralExpressionSyntax or IdentifierNameSyntax => InsertSimple(node, node.Expression),
-            _ => InsertComplex(node, node.Expression),
-        };
+        public override SyntaxNode VisitReturnStatement(ReturnStatementSyntax node) => node.Expression == null
+            ? context.OutTags.Count > 0 ? InsertVoid(node) : node
+            : InsertComplex(node, node.Expression);
 
         private BlockSyntax InsertVoid(ReturnStatementSyntax node) => SyntaxFactory.Block(SyntaxFactory.IfStatement(
-                    SyntaxFactory.BinaryExpression(SyntaxKind.NotEqualsExpression,
-                        variable.WithTrailingWhiteSpace(),
-                        SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression).WithLeadingWhiteSpace()),
-                    SyntaxFactory.ExpressionStatement(SetTag(variable, context.InTags, context.OutTags, type)))
-                .RestoreLineNumber(line ?? node.GetLineNumber()),
-            node).WithNewLine();
+                SyntaxFactory.BinaryExpression(SyntaxKind.NotEqualsExpression,
+                    variable.WithTrailingWhiteSpace(),
+                    SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression).WithLeadingWhiteSpace()),
+                SyntaxFactory.ExpressionStatement(SetTag(variable, context.InTags, context.OutTags, type))),
+            node.RestoreLineNumber(line ?? node.GetLineNumber())).WithNewLine().HiddenLineNumber();
 
-        private BlockSyntax InsertSimple(ReturnStatementSyntax node, ExpressionSyntax returnExpression)
-        {
-            returnExpression = string.IsNullOrWhiteSpace(context.ReturnValueTag)
-                ? SetTag(variable, context.InTags, context.OutTags, type)
-                : SyntaxFactory.InvocationExpression(SyntaxFactory.MemberAccessExpression(
-                        SyntaxKind.SimpleMemberAccessExpression,
-                        SetTag(variable, context.InTags, context.OutTags, type),
-                        SyntaxFactory.IdentifierName("SetTag")))
-                    .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList([
-                        SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
-                            SyntaxKind.StringLiteralExpression,
-                            SyntaxFactory.Literal(context.ReturnValueTag!))),
-                        SyntaxFactory.Argument(returnExpression)
-                    ])));
-
-            var setTagStatement = SyntaxFactory.IfStatement(SyntaxFactory.BinaryExpression(
-                        SyntaxKind.NotEqualsExpression, variable.WithTrailingWhiteSpace(),
-                        SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression)
-                            .WithLeadingWhiteSpace()),
-                    SyntaxFactory.ExpressionStatement(returnExpression).WithLeadingWhiteSpace())
-                .WithNewLine(node.GetColumnNumber()).RestoreLineNumber(line ?? node.GetLineNumber());
-
-            return SyntaxFactory.Block(setTagStatement, node).WithNewLine();
-        }
-
-        private BlockSyntax InsertComplex(ReturnStatementSyntax node, ExpressionSyntax returnExpression)
+        private BlockSyntax InsertComplex(ReturnStatementSyntax node, ExpressionSyntax ret)
         {
             var retVariable = SyntaxFactory.IdentifierName("return@");
 
             var retDeclaration = SyntaxFactory.LocalDeclarationStatement(SyntaxFactory
-                    .VariableDeclaration(SyntaxFactory.IdentifierName("var")
-                    )
+                    .VariableDeclaration(SyntaxFactory.IdentifierName("var"))
                     .WithVariables(SyntaxFactory.SingletonSeparatedList(SyntaxFactory
                         .VariableDeclarator(retVariable.Identifier.WithWhiteSpace())
-                        .WithInitializer(SyntaxFactory.EqualsValueClause(returnExpression.WithLeadingWhiteSpace())))))
-                .WithNewLine(Math.Max(0, returnExpression.GetColumnNumber() - 14)) // Try to keep the same column number
+                        .WithInitializer(SyntaxFactory.EqualsValueClause(ret.WithLeadingWhiteSpace())))))
+                .WithNewLine(Math.Max(0, ret.GetColumnNumber() - 14)) // Try to keep the same column number
                 .RestoreLineNumber(line ?? node.GetLineNumber());
 
-            returnExpression = SetTag(variable, context.InTags, context.OutTags, type);
+            var returnExpression = SetTag(variable, context.InTags, context.OutTags, type);
             if (!string.IsNullOrWhiteSpace(context.ReturnValueTag))
                 returnExpression = SyntaxFactory.InvocationExpression(
                         SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
                             returnExpression, SyntaxFactory.IdentifierName("SetTag")))
                     .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList([
                         SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
-                            SyntaxKind.StringLiteralExpression,
-                            SyntaxFactory.Literal(context.ReturnValueTag!))),
+                            SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(context.ReturnValueTag!))),
                         SyntaxFactory.Argument(retVariable).WithLeadingWhiteSpace()
                     ])));
 
@@ -465,8 +423,8 @@ internal sealed class ProxyRewriter(
                     SyntaxFactory.ExpressionStatement(returnExpression).WithLeadingWhiteSpace())
                 .WithNewLine(node.GetColumnNumber());
 
-            return SyntaxFactory.Block(retDeclaration, setTagStatement,
-                node.WithExpression(retVariable.WithLeadingWhiteSpace())).WithNewLine();
+            return SyntaxFactory.Block(retDeclaration, setTagStatement.HiddenLineNumber(),
+                node.WithExpression(retVariable).RestoreLineNumber(ret.GetLineNumber())).WithNewLine();
         }
     }
 }
