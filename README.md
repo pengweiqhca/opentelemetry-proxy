@@ -39,13 +39,14 @@ To add tags to activity, it defined on type or method.
 
 ## About DynamicProxy and StaticProxy
 
-|                   | DynamicProxy                | StaticProxy / Fody      | StaticProxy / Metalama                        |
-| ----------------- | --------------------------- | ----------------------- | --------------------------------------------- |
-| AOT               | ❌                           | ✔️                       | ✔️                                             |
-| Work Stage        | Runtime                     | After compile           | Before compile                                |
-| Potential problem | No                          | Runtime error.          | Compile error.                                |
-| Support scenario  | interface or virtual method | Any method with a body. | Any method with a body except local function. |
-| Work order (ASC)  | 3                           | 2                       | 1                                             |
+|                  | DynamicProxy                | StaticProxy / Fody        | StaticProxy / Metalama                        |
+| ---------------- | --------------------------- | ------------------------- | --------------------------------------------- |
+| AOT              | ❌                           | ✔️                         | ✔️                                             |
+| Work in          | Runtime                     | Compile time (IL rewrite) | Compile time (Syntax tree)                    |
+| Possible problem | No                          | Runtime error.            | Compile error.                                |
+| Support scenario | interface or virtual method | Any method with a body.   | Any method with a body except local function. |
+| Work order (ASC) | 3                           | 2                         | 1                                             |
+| Performance      | ⭐⭐⭐                         | ⭐⭐⭐⭐⭐                     | ⭐⭐⭐⭐⭐                                         |
 
 ## QA
 ### How to get ActivitySource name?
