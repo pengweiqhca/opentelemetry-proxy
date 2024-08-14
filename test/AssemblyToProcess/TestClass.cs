@@ -139,7 +139,10 @@ public static partial class TestClass
 
     [Activity(SuppressInstrumentation = true)]
 #pragma warning disable CS1998
-    public static async Task Exception() => throw new();
+    public static async Task Exception()
+    {
+        throw new();
+    }
 #pragma warning restore CS1998
     [return: ActivityTag("def")]
     public static int OutMethod(in int a, out int b, ref int c, int d, int e, [ActivityTag] int f)

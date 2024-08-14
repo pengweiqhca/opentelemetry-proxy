@@ -139,9 +139,10 @@ public class FunctionTest
 
         var stackFrame = new EnhancedStackTrace(ex).GetFrame(0);
 
-        Assert.Contains(stackFrame.GetFileLineNumber(), new[] { 142, 143 });
-        Assert.Equal(@"S:\GitHub\opentelemetry-proxy\test\AssemblyToProcess\TestClass.cs", stackFrame.GetFileName());
-        Assert.Contains(stackFrame.GetFileColumnNumber(), new[] { 9, 45 });
+        Assert.Equal(144, stackFrame.GetFileLineNumber());
+        Assert.Equal(Path.GetFullPath(
+            "../../../../AssemblyToProcess/TestClass.cs"), stackFrame.GetFileName());
+        Assert.Equal(9, stackFrame.GetFileColumnNumber());
 
         var activity = Assert.Single(list);
 
