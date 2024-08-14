@@ -1,6 +1,5 @@
 ﻿using Castle.DynamicProxy;
 using FluentAssertions;
-using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.StandardFiles;
 using OpenTelemetry.Proxy.Tests.Common;
 

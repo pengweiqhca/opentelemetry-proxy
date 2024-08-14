@@ -1,6 +1,4 @@
-﻿using OpenTelemetry.Trace;
-
-namespace OpenTelemetry.Proxy.Demo;
+﻿namespace OpenTelemetry.Proxy.Demo;
 
 public class DemoClassProxy : DemoClass
 {

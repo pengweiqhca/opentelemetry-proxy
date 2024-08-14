@@ -1,5 +1,4 @@
-﻿using AssemblyToProcess;
-using Fody;
+﻿using Fody;
 using Microsoft.FSharp.Control;
 using Microsoft.FSharp.Core;
 using OpenTelemetry.Proxy;

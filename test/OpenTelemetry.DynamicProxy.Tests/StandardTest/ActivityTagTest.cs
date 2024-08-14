@@ -1,5 +1,4 @@
 ﻿using Castle.DynamicProxy;
-using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.StandardFiles;
 using System.Linq.Expressions;
 

@@ -1,5 +1,4 @@
-﻿using OpenTelemetry.Proxy;
-using OpenTelemetry.Proxy.StandardFiles;
+﻿using OpenTelemetry.Proxy.StandardFiles;
 
 namespace OpenTelemetry.DynamicProxy.Tests.StandardTest;
 
