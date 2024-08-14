@@ -47,6 +47,7 @@ To add tags to activity, it defined on type or method.
 | Support scenario | interface or virtual method | Any method with a body.   | Any method with a body except local function. |
 | Work order (ASC) | 3                           | 2                         | 1                                             |
 | Performance      | ⭐⭐⭐                         | ⭐⭐⭐⭐⭐                     | ⭐⭐⭐⭐⭐                                         |
+| Limit            |                             | Not support `#line`       |                                               |
 
 ## QA
 ### How to get ActivitySource name?
