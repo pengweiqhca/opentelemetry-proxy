@@ -24,6 +24,6 @@ public class KeepLineNumberTestClass<T>
 
     public static class NormalClass
     {
-        public static Exception Exception() => throw new();
+        public static Exception TestMethod() => throw new();
     }
 }

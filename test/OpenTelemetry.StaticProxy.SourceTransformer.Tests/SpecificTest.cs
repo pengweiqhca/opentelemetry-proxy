@@ -43,7 +43,7 @@ public class SpecificTest
     [Fact]
     public async Task KeepLineNumberTest()
     {
-        var ex = Assert.ThrowsAny<Exception>(KeepLineNumberTestClass<long>.NormalClass.Exception);
+        var ex = Assert.ThrowsAny<Exception>(KeepLineNumberTestClass<long>.NormalClass.TestMethod);
 
         var stackFrame = new EnhancedStackTrace(ex).GetFrame(0);
 
@@ -63,7 +63,7 @@ public class SpecificTest
         {
             index++;
 
-            if (line.Contains("public static Exception Exception()"))
+            if (line.Contains("public static Exception TestMethod()"))
             {
                 Assert.Equal(fileLineNumber, index);
 
