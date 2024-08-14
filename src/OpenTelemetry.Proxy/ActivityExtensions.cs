@@ -23,13 +23,16 @@ public static class ActivityExtensions
 
             return activity;
         }
-
+#if NETSTANDARD2_0
+        return activity.SetTag(key, value);
+#else
         if (value is not ITuple tuple) return activity.SetTag(key, value);
 
         for (var index = 0; index < tuple.Length; index++)
             activity.SetTagEnumerable($"{key}.Item{index + 1}", tuple[index]);
 
         return activity;
+#endif
     }
 
     /// <returns>Return false always.</returns>
