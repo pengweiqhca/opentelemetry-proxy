@@ -19,8 +19,9 @@ internal sealed class ProxyRewriter(
         return _addAssemblyAttribute && syntaxNode is CompilationUnitSyntax compilationUnit
             ? compilationUnit.AddAttributeLists(SyntaxFactory.AttributeList(
                     SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Attribute(
-                        SyntaxFactory.ParseName("OpenTelemetry.Proxy.ProxyHasGeneratedAttribute")).WithLeadingWhiteSpace()))
-                .WithTarget(SyntaxFactory.AttributeTargetSpecifier(SyntaxFactory.Identifier("assembly"))).WithNewLine(0))
+                            SyntaxFactory.ParseName("OpenTelemetry.Proxy.ProxyHasGeneratedAttribute"))
+                        .WithLeadingWhiteSpace()))
+                .WithTarget(SyntaxFactory.AttributeTargetSpecifier(SyntaxFactory.Identifier("assembly"))).WithNewLine())
             : syntaxNode;
     }
 
@@ -145,7 +146,8 @@ internal sealed class ProxyRewriter(
         var usingStatement = SyntaxFactory.UsingStatement(SyntaxFactory.Block(method.Body.Statements).WithNewLine())
             .WithExpression(SuppressInstrumentationScope());
 
-        return method.WithBody(SyntaxFactory.Block(usingStatement.WithNewLine(indent).HiddenLineNumber()).WithNewLine());
+        return method.WithBody(SyntaxFactory.Block(usingStatement.WithNewLine(indent).HiddenLineNumber())
+            .WithNewLine());
     }
 
     private static InvocationExpressionSyntax SuppressInstrumentationScope() => SyntaxFactory.InvocationExpression(
@@ -219,19 +221,18 @@ internal sealed class ProxyRewriter(
 
         if (string.IsNullOrWhiteSpace(context.ReturnValueTag) && context.OutTags.Count < 1 ||
             node.ExpressionBody is { Expression: ThrowExpressionSyntax })
-            method = Expression2Return(node, out indent);
+            method = AddLineNumber(node, Expression2Return(node, out indent));
         else
         {
             var syntaxNode = new ReturnRewriter(type, context, activity,
                     node.ExpressionBody?.Expression.GetLineNumber())
-                .Visit(Expression2Return(node, out indent, false));
+                .Visit(Expression2Return(node, out indent));
 
             if (syntaxNode is not MethodDeclarationSyntax newMethod) return syntaxNode;
 
             method = newMethod;
         }
 
-        method = AddLineNumber(node, method);
         if (method.Body == null) return method;
 
         var activityDeclaration = SyntaxFactory.LocalDeclarationStatement(SyntaxFactory
@@ -331,7 +332,7 @@ internal sealed class ProxyRewriter(
                 ]))));
 
     private static MethodDeclarationSyntax Expression2Return(MethodDeclarationSyntax method,
-        out int indent, bool addLineNumber = true)
+        out int indent)
     {
         indent = method.GetIndent() + 4;
 
@@ -348,23 +349,31 @@ internal sealed class ProxyRewriter(
         if (statement is ReturnStatementSyntax ret)
             statement = ret.WithReturnKeyword(ret.ReturnKeyword.WithTrailingWhiteSpace());
 
-        return method.WithBody(SyntaxFactory.Block(addLineNumber // Try to keep the same column number
-                ? statement.WithNewLine(expression.GetColumnNumber()).RestoreLineNumber(expression.GetLineNumber())
-                : statement.WithNewLine(expression is ThrowExpressionSyntax
-                    ? expression.GetColumnNumber()
-                    : Math.Max(0, expression.GetColumnNumber() - 8))).WithNewLine())
+        return method.WithBody(SyntaxFactory.Block(statement.WithNewLine(expression is ThrowExpressionSyntax
+                ? expression.GetColumnNumber() // Try to keep the same column number
+                : Math.Max(0, expression.GetColumnNumber() - 8))).WithNewLine())
             .WithExpressionBody(null)
             .WithSemicolonToken(SyntaxFactory.Token(SyntaxKind.None));
     }
 
     private static MethodDeclarationSyntax AddLineNumber(MethodDeclarationSyntax node,
-        MethodDeclarationSyntax method) =>
-        node.Body == null || node.Body.Statements.Count < 1 ||
-        method.Body == null || method.Body.Statements.Count < 1 ||
-        node.Body.Statements[0].HaveLineNumber()
-            ? method
-            : method.WithBody(method.Body.WithStatements(new(method.Body.Statements.Skip(1)
-                .Prepend(method.Body.Statements[0].RestoreLineNumber(node.Body.Statements[0].GetLineNumber())))));
+        MethodDeclarationSyntax method)
+    {
+        if (method.Body == null || method.Body.Statements.Count < 1) return method;
+
+        SyntaxNode syntaxNode;
+        if (node.Body != null)
+        {
+            if (node.Body.Statements.Count < 1 || node.Body.Statements[0].HaveLineNumber()) return method;
+
+            syntaxNode = node.Body.Statements[0];
+        }
+        else if (node.ExpressionBody == null || node.ExpressionBody.HaveLineNumber()) return method;
+        else syntaxNode = node.ExpressionBody;
+
+        return method.WithBody(method.Body.WithStatements(new(method.Body.Statements.Skip(1)
+            .Prepend(method.Body.Statements[0].RestoreLineNumber(syntaxNode.GetLineNumber())))));
+    }
 
     private static ExpressionSyntax GetTagValue(ActivityTagSource tag, TypeDeclarationSyntax type) => tag.From switch
     {

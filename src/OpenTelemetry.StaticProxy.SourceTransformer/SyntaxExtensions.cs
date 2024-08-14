@@ -179,6 +179,9 @@ internal static class SyntaxExtensions
     public static TSyntax WithTrailingWhiteSpace<TSyntax>(this TSyntax node) where TSyntax : SyntaxNode =>
         node.WithTrailingTrivia(SyntaxFactory.Whitespace(" "));
 
+    public static TSyntax WithNewLine<TSyntax>(this TSyntax node) where TSyntax : SyntaxNode =>
+        node.WithTrailingTrivia(SyntaxFactory.EndOfLine(Environment.NewLine));
+
     public static TSyntax WithNewLine<TSyntax>(this TSyntax node, int width) where TSyntax : SyntaxNode =>
         node.WithLeadingTrivia(SyntaxFactory.Whitespace(new(' ', width)))
             .WithTrailingTrivia(SyntaxFactory.EndOfLine(Environment.NewLine));
