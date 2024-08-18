@@ -1,6 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
-
-namespace OpenTelemetry.StaticProxy.SourceTransformer;
+﻿namespace OpenTelemetry.StaticProxy.SourceTransformer;
 
 internal sealed class ActivityContext(string activitySourceName, string activityName)
     : IMethodTagContext
@@ -11,17 +9,15 @@ internal sealed class ActivityContext(string activitySourceName, string activity
 
     public string Kind { get; set; } = "default";
 
-    public string? ReturnValueTag { get; set; }
+    public HashSet<ActivityTag> ReturnValueTag { get; } = [];
 
-    public HashSet<string> UnknownTag { get; } = [];
+    public HashSet<ActivityTag> UnknownTag { get; } = [];
 
-    public Dictionary<string, ActivityTagSource> InTags { get; } = [];
+    public Dictionary<ActivityTag, ActivityTagSource> InTags { get; } = [];
 
-    public Dictionary<string, ActivityTagSource> OutTags { get; } = [];
+    public Dictionary<ActivityTag, ActivityTagSource> OutTags { get; } = [];
 
     public bool SuppressInstrumentation { get; set; }
 
     public bool IsStatic { get; set; }
-
-    public Dictionary<SyntaxNode, LineNumber> Returns { get; } = [];
 }

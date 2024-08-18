@@ -8,4 +8,7 @@ public class ActivityTagAttribute : Attribute
     public ActivityTagAttribute(string name) => Name = string.IsNullOrWhiteSpace(name) ? null : name;
 
     public string? Name { get; }
+
+    /// <summary>$.SomeProperty</summary>
+    public string? Expression { get; }
 }

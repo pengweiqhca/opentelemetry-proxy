@@ -26,7 +26,7 @@ public class PartialTest
 
         var typeMethods = Assert.Single(results);
 
-        Assert.Equal(["TestName"], Assert.IsAssignableFrom<ActivitySourceContext>(typeMethods.Context).Tags);
+        Assert.Equal(["TestName"], Assert.IsAssignableFrom<ActivitySourceContext>(typeMethods.Context).Tags.Select(x => x.Name));
 
         Assert.Equal("PartialTestClass2.TestMethod",
             Assert.IsAssignableFrom<ActivityContext>(Assert.Single(typeMethods.MethodContexts.Values)).ActivityName);

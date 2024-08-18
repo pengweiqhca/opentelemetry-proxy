@@ -9,7 +9,7 @@ internal sealed class NoAttributeTypeContext(
 
     public Dictionary<string, MemberType> PropertyOrField { get; } = propertyOrField;
 
-    public HashSet<string> Tags { get; } = [];
+    public HashSet<ActivityTag> Tags { get; } = [];
 
     public ITypeContext ToImplicateActivitySource(string typeFullName)
     {

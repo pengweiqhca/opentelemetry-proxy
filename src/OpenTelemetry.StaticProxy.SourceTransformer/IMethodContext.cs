@@ -4,9 +4,9 @@ internal interface IMethodContext;
 
 internal interface IMethodTagContext : IMethodContext
 {
-    HashSet<string> UnknownTag { get; }
+    HashSet<ActivityTag> UnknownTag { get; }
 
-    Dictionary<string, ActivityTagSource> InTags { get; }
+    Dictionary<ActivityTag, ActivityTagSource> InTags { get; }
 
     bool IsStatic { get; set; }
 }

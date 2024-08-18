@@ -12,7 +12,7 @@ public class ActivityTagTest
         var context = Assert.IsAssignableFrom<MethodActivityNameContext>(
             Assert.Single(Assert.Single(results).MethodContexts.Values));
 
-        Assert.Equal(["test"], context.UnknownTag);
+        Assert.Equal(["test"], context.UnknownTag.Select(x => x.Name));
 
         Assert.Equal(
             new() { ["abc"] = new("abc", ActivityTagFrom.Argument), ["def"] = new("age", ActivityTagFrom.Argument), },
@@ -30,7 +30,7 @@ public class ActivityTagTest
 
         Assert.Equal(2, typeMethods.MethodContexts.Count);
 
-        var dic = new Dictionary<string, ActivityTagSource>
+        var dic = new Dictionary<ActivityTag, ActivityTagSource>
         {
             ["a2"] = new("a", ActivityTagFrom.Argument),
             ["b"] = new("b", ActivityTagFrom.Argument),
@@ -46,7 +46,7 @@ public class ActivityTagTest
         Assert.Equal(new() { ["c"] = new("c", ActivityTagFrom.Argument), ["d"] = new("d", ActivityTagFrom.Argument), },
             activityTag.OutTags);
 
-        Assert.Equal("ghi", activityTag.ReturnValueTag);
+        Assert.Equal(["ghi"], activityTag.ReturnValueTag.Select(x => x.Name));
 
         dic.Remove("_now");
         dic.Remove("Now");
@@ -58,7 +58,7 @@ public class ActivityTagTest
         Assert.Equal(new() { ["c"] = new("c", ActivityTagFrom.Argument), ["d"] = new("d", ActivityTagFrom.Argument), },
             activityTag.OutTags);
 
-        Assert.Equal("$returnvalue", activityTag.ReturnValueTag);
+        Assert.Equal(["$returnvalue"], activityTag.ReturnValueTag.Select(x => x.Name));
     }
 
     [Fact]
@@ -73,11 +73,11 @@ public class ActivityTagTest
         Assert.Equal(new() { { "Abc", new(true, false) }, { "_abc", new(false, false) }, { "Now", new(true, true) } },
             typeMethods.Context.PropertyOrField);
 
-        Assert.Equal(["Abc", "_abc"], typeMethods.Context.Tags);
+        Assert.Equal(["_abc", "Abc"], typeMethods.Context.Tags.Select(x => x.Name));
 
         Assert.Equal(2, typeMethods.MethodContexts.Count);
 
-        var dic = new Dictionary<string, ActivityTagSource>
+        var dic = new Dictionary<ActivityTag, ActivityTagSource>
         {
             ["abc"] = new("abc", ActivityTagFrom.Argument),
             ["age"] = new("age", ActivityTagFrom.Argument),
@@ -89,7 +89,7 @@ public class ActivityTagTest
         Assert.Equal(dic, activityTag.InTags);
         Assert.Empty(activityTag.UnknownTag);
         Assert.Empty(activityTag.OutTags);
-        Assert.Null(activityTag.ReturnValueTag);
+        Assert.Empty(activityTag.ReturnValueTag);
 
         dic.Remove("_abc");
 
@@ -98,7 +98,7 @@ public class ActivityTagTest
         Assert.Equal(dic, activityTag.InTags);
         Assert.Empty(activityTag.UnknownTag);
         Assert.Empty(activityTag.OutTags);
-        Assert.Null(activityTag.ReturnValueTag);
+        Assert.Empty(activityTag.ReturnValueTag);
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public class ActivityTagTest
 
         Assert.Equal(2, typeMethods.MethodContexts.Count);
 
-        var dic = new Dictionary<string, ActivityTagSource>
+        var dic = new Dictionary<ActivityTag, ActivityTagSource>
         {
             ["abc"] = new("abc", ActivityTagFrom.Argument),
             ["def"] = new("age", ActivityTagFrom.Argument),

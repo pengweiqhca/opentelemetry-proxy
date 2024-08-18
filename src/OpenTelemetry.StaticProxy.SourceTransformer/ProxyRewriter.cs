@@ -174,7 +174,7 @@ internal sealed class ProxyRewriter(
                     SyntaxFactory.SeparatedList<ExpressionSyntax>(new SyntaxNodeOrToken[]
                     {
                         SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression,
-                            SyntaxFactory.Literal(tag.Key)),
+                            SyntaxFactory.Literal(tag.Key.Name)),
                         SyntaxFactory.Token(SyntaxKind.CommaToken),
                         GetTagValue(tag.Value, type)
                             .WithLeadingWhiteSpace()
@@ -219,7 +219,7 @@ internal sealed class ProxyRewriter(
         MethodDeclarationSyntax method;
         int indent;
 
-        if (string.IsNullOrWhiteSpace(context.ReturnValueTag) && context.OutTags.Count < 1 ||
+        if (context.ReturnValueTag.Count < 1 && context.OutTags.Count < 1 ||
             node.ExpressionBody is { Expression: ThrowExpressionSyntax })
             method = AddLineNumber(node, Expression2Return(node, out indent));
         else
@@ -310,24 +310,34 @@ internal sealed class ProxyRewriter(
         return method.WithBody(SyntaxFactory.Block(bodyStatements).WithNewLine());
     }
 
-    private static ExpressionSyntax SetTag(ExpressionSyntax variable, Dictionary<string, ActivityTagSource> inTags,
+    private static ExpressionSyntax SetTag(ExpressionSyntax variable, Dictionary<ActivityTag, ActivityTagSource> inTags,
         TypeDeclarationSyntax type) => inTags.Aggregate(variable, (current, tag) =>
         SyntaxFactory.InvocationExpression(SyntaxFactory.MemberAccessExpression(
                 SyntaxKind.SimpleMemberAccessExpression, current, SyntaxFactory.IdentifierName("SetTag")))
             .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList([
                 SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
-                    SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(tag.Key))),
+                    SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(tag.Key.Name))),
                 SyntaxFactory.Argument(GetTagValue(tag.Value, type)).WithLeadingWhiteSpace()
             ]))));
 
-    private static ExpressionSyntax SetTag(ExpressionSyntax variable, Dictionary<string, ActivityTagSource> inTags,
-        Dictionary<string, ActivityTagSource> outTags, TypeDeclarationSyntax type) =>
+    private static ExpressionSyntax SetReturnValueTag(ExpressionSyntax variable, HashSet<ActivityTag> inTags,
+        ExpressionSyntax ret) => inTags.Aggregate(variable, (current, tag) =>
+        SyntaxFactory.InvocationExpression(SyntaxFactory.MemberAccessExpression(
+                SyntaxKind.SimpleMemberAccessExpression, current, SyntaxFactory.IdentifierName("SetTag")))
+            .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList([
+                SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
+                    SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(tag.Name))),
+                SyntaxFactory.Argument(ret).WithLeadingWhiteSpace()
+            ]))));
+
+    private static ExpressionSyntax SetTag(ExpressionSyntax variable, Dictionary<ActivityTag, ActivityTagSource> inTags,
+        Dictionary<ActivityTag, ActivityTagSource> outTags, TypeDeclarationSyntax type) =>
         outTags.Aggregate(variable, (current, tag) =>
             SyntaxFactory.InvocationExpression(SyntaxFactory.MemberAccessExpression(
                     SyntaxKind.SimpleMemberAccessExpression, current, SyntaxFactory.IdentifierName("SetTag")))
                 .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList([
                     SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression,
-                        SyntaxFactory.Literal(inTags.ContainsKey(tag.Key) ? tag.Key + "$out" : tag.Key))),
+                        SyntaxFactory.Literal(inTags.ContainsKey(tag.Key) ? tag.Key.Name + "$out" : tag.Key.Name))),
                     SyntaxFactory.Argument(GetTagValue(tag.Value, type)).WithLeadingWhiteSpace()
                 ]))));
 
@@ -414,20 +424,11 @@ internal sealed class ProxyRewriter(
                 .WithNewLine(Math.Max(0, ret.GetColumnNumber() - 14)) // Try to keep the same column number
                 .RestoreLineNumber(line ?? node.GetLineNumber());
 
-            var returnExpression = SetTag(variable, context.InTags, context.OutTags, type);
-            if (!string.IsNullOrWhiteSpace(context.ReturnValueTag))
-                returnExpression = SyntaxFactory.InvocationExpression(
-                        SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
-                            returnExpression, SyntaxFactory.IdentifierName("SetTag")))
-                    .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList([
-                        SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
-                            SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(context.ReturnValueTag!))),
-                        SyntaxFactory.Argument(retVariable).WithLeadingWhiteSpace()
-                    ])));
+            var returnExpression = SetReturnValueTag(SetTag(variable, context.InTags, context.OutTags, type),
+                context.ReturnValueTag, retVariable);
 
             var setTagStatement = SyntaxFactory.IfStatement(SyntaxFactory.BinaryExpression(
-                        SyntaxKind.NotEqualsExpression,
-                        variable.WithTrailingWhiteSpace(),
+                        SyntaxKind.NotEqualsExpression, variable.WithTrailingWhiteSpace(),
                         SyntaxFactory.LiteralExpression(SyntaxKind.NullLiteralExpression).WithLeadingWhiteSpace()),
                     SyntaxFactory.ExpressionStatement(returnExpression).WithLeadingWhiteSpace())
                 .WithNewLine(node.GetColumnNumber());

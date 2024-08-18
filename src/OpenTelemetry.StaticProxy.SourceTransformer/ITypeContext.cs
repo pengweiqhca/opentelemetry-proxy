@@ -6,7 +6,7 @@ internal interface ITypeContext
 
     Dictionary<string, MemberType> PropertyOrField { get; }
 
-    HashSet<string> Tags { get; }
+    HashSet<ActivityTag> Tags { get; }
 }
 
 internal record struct MemberType(bool IsStatic, bool IsProperty);

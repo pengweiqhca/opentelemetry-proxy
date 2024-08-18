@@ -90,7 +90,7 @@ internal sealed class ProxyVisitor(
         var typeName = node.GetTypeName();
 
         if (typeContext == null && attribute != null)
-            typeContext = ParseActivityName(attribute, typeName, typeSyntaxContext, node.GetLineNumber());
+            typeContext = ParseActivityName(attribute, typeName, typeSyntaxContext);
 
         typeContexts[typeFullName] = new(typeContext ??=
                 new NoAttributeTypeContext(typeSyntaxContext.Methods, typeSyntaxContext.PropertyOrField),
@@ -209,7 +209,7 @@ internal sealed class ProxyVisitor(
     #region ActivityName
 
     private TypeActivityNameContext? ParseActivityName(AttributeSyntax attribute, string typeName,
-        TypeSyntaxContext typeContext, ILineNumber line)
+        TypeSyntaxContext typeContext)
     {
         var context = new TypeActivityNameContext(typeName, typeContext.Methods, typeContext.PropertyOrField);
 
@@ -253,11 +253,13 @@ internal sealed class ProxyVisitor(
 
     #region ActivityTag
 
-    private IEnumerable<string> GetActivityTags(IEnumerable<AttributeListSyntax> attributes)
+    private IEnumerable<ActivityTag> GetActivityTags(IEnumerable<AttributeListSyntax> attributes)
     {
         var attr = attributes.SelectMany(x => x.Attributes).FirstOrDefault(attr => attr.Is("ActivityTags"));
 
-        return attr?.ArgumentList == null ? [] : attr.ArgumentList.Arguments.SelectMany(GetValues<string>);
+        return attr?.ArgumentList == null
+            ? []
+            : ActivityTag.Parse(attr.ArgumentList.Arguments.SelectMany(GetValues<string>));
     }
 
     private void ProcessActivityTags(MethodDeclarationSyntax method, ITypeContext typeContext,
@@ -269,66 +271,79 @@ internal sealed class ProxyVisitor(
 
         var activityContext = methodContext as ActivityContext;
         if (activityContext != null && !isVoid)
-            foreach (var attributeList in method.AttributeLists)
+            foreach (var name in GetActivityTagValue("$returnvalue", method.AttributeLists.Where(attributeList =>
+                         attributeList.Target != null && attributeList.Target.Identifier.ToString() == "return")))
             {
-                if (attributeList.Target == null || attributeList.Target.Identifier.ToString() != "return" ||
-                    GetActivityTagValue("$returnvalue", attributeList) is not { } name) continue;
-
-                methodContext.UnknownTag.Remove(activityContext.ReturnValueTag = name);
-
-                break;
+                methodContext.UnknownTag.Remove(name);
+                activityContext.ReturnValueTag.Add(name);
             }
 
         foreach (var parameter in method.ParameterList.Parameters)
         {
             var parameterName = parameter.Identifier.ToString();
 
-            if (GetActivityTagValue(parameterName, parameter.AttributeLists) is { } tag)
-                methodContext.UnknownTag.Remove(parameterName);
-            else if (methodContext.UnknownTag.Remove(parameterName))
-                tag = parameterName;
-            else continue;
+            var activityTags = GetActivityTagValue(parameterName, parameter.AttributeLists).ToArray();
+            if (methodContext.UnknownTag.Remove(new(parameterName)) && activityTags.Length < 1)
+                activityTags = [new(parameterName)];
+            else if (activityTags.Length < 1) continue;
 
-            if (parameter.IsRef())
-            {
-                if (activityContext != null)
+            foreach (var tag in activityTags)
+                if (parameter.IsRef())
+                {
+                    if (activityContext != null)
+                        activityContext.OutTags[tag] = new(parameterName, ActivityTagFrom.Argument);
+
+                    methodContext.InTags[tag] = new(parameterName, ActivityTagFrom.Argument);
+                }
+                else if (!parameter.IsOut())
+                    methodContext.InTags[tag] = new(parameterName, ActivityTagFrom.Argument);
+                else if (activityContext != null)
                     activityContext.OutTags[tag] = new(parameterName, ActivityTagFrom.Argument);
-
-                methodContext.InTags[tag] = new(parameterName, ActivityTagFrom.Argument);
-            }
-            else if (!parameter.IsOut())
-                methodContext.InTags[tag] = new(parameterName, ActivityTagFrom.Argument);
-            else if (activityContext != null)
-                activityContext.OutTags[tag] = new(parameterName, ActivityTagFrom.Argument);
         }
 
         foreach (var tag in methodContext.UnknownTag.ToArray())
         {
-            if (!typeContext.PropertyOrField.TryGetValue(tag, out var type)) continue;
+            if (!typeContext.PropertyOrField.TryGetValue(tag.Name, out var type)) continue;
 
             methodContext.UnknownTag.Remove(tag);
 
             if (type.IsStatic)
-                methodContext.InTags[tag] = new(tag, ActivityTagFrom.StaticFieldOrProperty);
+                methodContext.InTags[tag] = new(tag.Name, ActivityTagFrom.StaticFieldOrProperty);
             else if (!methodContext.IsStatic)
-                methodContext.InTags[tag] = new(tag, ActivityTagFrom.InstanceFieldOrProperty);
+                methodContext.InTags[tag] = new(tag.Name, ActivityTagFrom.InstanceFieldOrProperty);
         }
 
-        if (activityContext != null && !isVoid &&
-            string.IsNullOrWhiteSpace(activityContext.ReturnValueTag) &&
-            methodContext.UnknownTag.Remove("$returnvalue"))
-            activityContext.ReturnValueTag = "$returnvalue";
+        if (activityContext == null || isVoid) return;
+
+        foreach (var tag in methodContext.UnknownTag.Where(activityTag => activityTag.Name == "$returnvalue").ToList())
+        {
+            methodContext.UnknownTag.Remove(tag);
+            activityContext.ReturnValueTag.Add(tag);
+        }
     }
 
-    private string? GetActivityTagValue(string memberName, IEnumerable<AttributeListSyntax> attributes) => attributes
-        .Select(attr => GetActivityTagValue(memberName, attr)).FirstOrDefault(name => name != null);
+    private IEnumerable<ActivityTag> GetActivityTagValue(string memberName, IEnumerable<AttributeListSyntax> attributes)
+    {
+        foreach (var attr in attributes.SelectMany(attr => attr.Attributes)
+                     .Where(static attr => attr.Is("ActivityTag")))
+            if (attr.ArgumentList == null) yield return new(memberName);
+            else
+            {
+                var name = memberName;
 
-    private string? GetActivityTagValue(string memberName, AttributeListSyntax attributes) =>
-        attributes.Attributes.FirstOrDefault(static attr => attr.Is("ActivityTag")) is not { } attr
-            ? null
-            : attr.ArgumentList is { Arguments: [var arg, ..] } && TryGetRequiredValue(arg, out var name)
-                ? name
-                : memberName;
+                string? expression = null;
+                foreach (var arg in attr.ArgumentList.Arguments)
+                    if (arg.NameEquals == null)
+                    {
+                        if (TryGetRequiredValue(arg, out var value) && !string.IsNullOrWhiteSpace(value))
+                            name = value;
+                    }
+                    else if (arg.NameEquals.Name.ToString().Equals("Expression", StringComparison.Ordinal))
+                        expression = GetKindValue(arg);
+
+                yield return new(name, expression);
+            }
+    }
 
     #endregion
 
