@@ -5,7 +5,7 @@
     <RootNamespace>OpenTelemetry.StaticProxy.SourceTransformer</RootNamespace>
     <TargetFramework>netstandard2.0</TargetFramework>
 
-    <!--<MetalamaDebugTransformedCode>true</MetalamaDebugTransformedCode>-->
+    <MetalamaDebugTransformedCode>true</MetalamaDebugTransformedCode>
     <!--<MetalamaDebugCompiler>true</MetalamaDebugCompiler>-->
   </PropertyGroup>
 

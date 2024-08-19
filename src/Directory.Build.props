@@ -7,7 +7,7 @@
     <EnableNETAnalyzers>True</EnableNETAnalyzers>
     <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
 
-    <VersionSuffix Condition="'$(VersionSuffix)' == ''">-preview.1</VersionSuffix>
+    <VersionSuffix Condition="'$(VersionSuffix)' == ''">-preview.2</VersionSuffix>
     <AssemblyVersion>3.1</AssemblyVersion>
     <StaticProxyVersion>$(AssemblyVersion).0</StaticProxyVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>

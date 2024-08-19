@@ -9,13 +9,13 @@ internal sealed class NoAttributeTypeContext(
 
     public Dictionary<string, MemberType> PropertyOrField { get; } = propertyOrField;
 
-    public HashSet<ActivityTag> Tags { get; } = [];
+    public Dictionary<ActivityTag, string> Tags { get; } = [];
 
     public ITypeContext ToImplicateActivitySource(string typeFullName)
     {
         var context = new ImplicateActivitySourceContext(typeFullName, Methods, PropertyOrField);
 
-        context.Tags.UnionWith(Tags);
+        foreach (var tag in Tags) context.Tags[tag.Key] = tag.Value;
 
         return context;
     }

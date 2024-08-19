@@ -12,11 +12,13 @@ public class ActivityTagTest
         var context = Assert.IsAssignableFrom<MethodActivityNameContext>(
             Assert.Single(Assert.Single(results).MethodContexts.Values));
 
-        Assert.Equal(["test"], context.UnknownTag.Select(x => x.Name));
+        Assert.Equal(["test"], context.UnknownTag.Select(x => x.Value));
 
-        Assert.Equal(
-            new() { ["abc"] = new("abc", ActivityTagFrom.Argument), ["def"] = new("age", ActivityTagFrom.Argument), },
-            context.InTags);
+        Assert.Equal(new()
+        {
+            [new("abc")] = new("abc", ActivityTagFrom.ArgumentOrLocalVariable),
+            [new("def")] = new("age", ActivityTagFrom.ArgumentOrLocalVariable),
+        }, context.InTags);
     }
 
     [Fact]
@@ -32,33 +34,38 @@ public class ActivityTagTest
 
         var dic = new Dictionary<ActivityTag, ActivityTagSource>
         {
-            ["a2"] = new("a", ActivityTagFrom.Argument),
-            ["b"] = new("b", ActivityTagFrom.Argument),
-            ["d"] = new("d", ActivityTagFrom.Argument),
-            ["e"] = new("e", ActivityTagFrom.Argument),
-            ["Now"] = new("Now", ActivityTagFrom.InstanceFieldOrProperty),
-            ["_now"] = new("_now", ActivityTagFrom.InstanceFieldOrProperty),
+            [new("a2")] = new("a", ActivityTagFrom.ArgumentOrLocalVariable),
+            [new("b")] = new("b", ActivityTagFrom.ArgumentOrLocalVariable),
+            [new("d")] = new("d", ActivityTagFrom.ArgumentOrLocalVariable),
+            [new("e")] = new("e", ActivityTagFrom.ArgumentOrLocalVariable),
+            [new("Now")] = new("Now", ActivityTagFrom.InstanceFieldOrProperty),
+            [new("_now")] = new("_now", ActivityTagFrom.InstanceFieldOrProperty),
         };
 
         var activityTag = Assert.IsAssignableFrom<ActivityContext>(typeMethods.MethodContexts.Values.First());
+
         Assert.Equal(dic, activityTag.InTags);
         Assert.Empty(activityTag.UnknownTag);
-        Assert.Equal(new() { ["c"] = new("c", ActivityTagFrom.Argument), ["d"] = new("d", ActivityTagFrom.Argument), },
-            activityTag.OutTags);
+        Assert.Equal(new()
+        {
+            [new("c")] = new("c", ActivityTagFrom.ArgumentOrLocalVariable),
+            [new("d")] = new("d", ActivityTagFrom.ArgumentOrLocalVariable),
+            [new("ghi")] = ActivityTagSource.ReturnValue,
+        }, activityTag.OutTags);
 
-        Assert.Equal(["ghi"], activityTag.ReturnValueTag.Select(x => x.Name));
-
-        dic.Remove("_now");
-        dic.Remove("Now");
+        dic.Remove(new("_now"));
+        dic.Remove(new("Now"));
 
         activityTag = Assert.IsAssignableFrom<ActivityContext>(typeMethods.MethodContexts.Values.ElementAt(1));
 
         Assert.Equal(dic, activityTag.InTags);
         Assert.Empty(activityTag.UnknownTag);
-        Assert.Equal(new() { ["c"] = new("c", ActivityTagFrom.Argument), ["d"] = new("d", ActivityTagFrom.Argument), },
-            activityTag.OutTags);
-
-        Assert.Equal(["$returnvalue"], activityTag.ReturnValueTag.Select(x => x.Name));
+        Assert.Equal(new()
+        {
+            [new("c")] = new("c", ActivityTagFrom.ArgumentOrLocalVariable),
+            [new("d")] = new("d", ActivityTagFrom.ArgumentOrLocalVariable),
+            [new("$returnvalue")] = ActivityTagSource.ReturnValue,
+        }, activityTag.OutTags);
     }
 
     [Fact]
@@ -70,35 +77,37 @@ public class ActivityTagTest
 
         var typeMethods = Assert.Single(results);
 
-        Assert.Equal(new() { { "Abc", new(true, false) }, { "_abc", new(false, false) }, { "Now", new(true, true) } },
-            typeMethods.Context.PropertyOrField);
+        Assert.Equal(new()
+        {
+            { "Abc", new(true, false) },
+            { "_abc", new(false, false) },
+            { "Now", new(true, true) }
+        }, typeMethods.Context.PropertyOrField);
 
-        Assert.Equal(["_abc", "Abc"], typeMethods.Context.Tags.Select(x => x.Name));
+        Assert.Equal(["_abc", "Abc"], typeMethods.Context.Tags.Select(x => x.Value));
 
         Assert.Equal(2, typeMethods.MethodContexts.Count);
 
         var dic = new Dictionary<ActivityTag, ActivityTagSource>
         {
-            ["abc"] = new("abc", ActivityTagFrom.Argument),
-            ["age"] = new("age", ActivityTagFrom.Argument),
-            ["Abc"] = new("Abc", ActivityTagFrom.StaticFieldOrProperty),
-            ["_abc"] = new("_abc", ActivityTagFrom.InstanceFieldOrProperty),
+            [new("abc")] = new("abc", ActivityTagFrom.ArgumentOrLocalVariable),
+            [new("age")] = new("age", ActivityTagFrom.ArgumentOrLocalVariable),
+            [new("Abc")] = new("Abc", ActivityTagFrom.StaticFieldOrProperty),
+            [new("_abc")] = new("_abc", ActivityTagFrom.InstanceFieldOrProperty),
         };
 
         var activityTag = Assert.IsAssignableFrom<ActivityContext>(typeMethods.MethodContexts.Values.First());
         Assert.Equal(dic, activityTag.InTags);
         Assert.Empty(activityTag.UnknownTag);
         Assert.Empty(activityTag.OutTags);
-        Assert.Empty(activityTag.ReturnValueTag);
 
-        dic.Remove("_abc");
+        dic.Remove(new("_abc"));
 
         activityTag = Assert.IsAssignableFrom<ActivityContext>(typeMethods.MethodContexts.Values.ElementAt(1));
 
         Assert.Equal(dic, activityTag.InTags);
         Assert.Empty(activityTag.UnknownTag);
         Assert.Empty(activityTag.OutTags);
-        Assert.Empty(activityTag.ReturnValueTag);
     }
 
     [Fact]
@@ -117,10 +126,10 @@ public class ActivityTagTest
 
         var dic = new Dictionary<ActivityTag, ActivityTagSource>
         {
-            ["abc"] = new("abc", ActivityTagFrom.Argument),
-            ["def"] = new("age", ActivityTagFrom.Argument),
-            ["Abc"] = new("Abc", ActivityTagFrom.StaticFieldOrProperty),
-            ["_abc"] = new("_abc", ActivityTagFrom.InstanceFieldOrProperty),
+            [new("abc")] = new("abc", ActivityTagFrom.ArgumentOrLocalVariable),
+            [new("def")] = new("age", ActivityTagFrom.ArgumentOrLocalVariable),
+            [new("Abc")] = new("Abc", ActivityTagFrom.StaticFieldOrProperty),
+            [new("_abc")] = new("_abc", ActivityTagFrom.InstanceFieldOrProperty),
         };
 
         var activityTag = Assert.IsAssignableFrom<ActivityContext>(typeMethods.MethodContexts.Values.First());
@@ -128,11 +137,39 @@ public class ActivityTagTest
         Assert.Empty(activityTag.UnknownTag);
         Assert.Empty(activityTag.OutTags);
 
-        dic.Remove("_abc");
+        dic.Remove(new("_abc"));
 
         activityTag = Assert.IsAssignableFrom<ActivityContext>(typeMethods.MethodContexts.Values.ElementAt(1));
         Assert.Equal(dic, activityTag.InTags);
         Assert.Empty(activityTag.UnknownTag);
         Assert.Empty(activityTag.OutTags);
+    }
+
+    [Fact]
+    public async Task ExpressionTest()
+    {
+        var test = new ProxyRewriterTest("ActivityTagTestClass5");
+
+        var results = await test.VisitAsync().ConfigureAwait(false);
+
+        var context = Assert.IsAssignableFrom<ActivityContext>(
+            Assert.Single(Assert.Single(results).MethodContexts.Values));
+
+        Assert.Empty(context.UnknownTag);
+
+        Assert.Equal(new()
+        {
+            [new("abc.TotalSeconds", "$.TotalSeconds")] = new("abc", ActivityTagFrom.ArgumentOrLocalVariable),
+            [new("str")] = new("str", ActivityTagFrom.ArgumentOrLocalVariable),
+            [new("def", "$?.Length")] = new("str", ActivityTagFrom.ArgumentOrLocalVariable),
+        }, context.InTags);
+
+        Assert.Equal(new()
+        {
+            [new("$returnvalue.Second", "$.Second")] = ActivityTagSource.ReturnValue,
+            [new("$returnvalue.Day", "$.Day")] = ActivityTagSource.ReturnValue,
+            [new("ret1", "$.Hour")] = ActivityTagSource.ReturnValue,
+            [new("ret2", "$.Minute")] = ActivityTagSource.ReturnValue,
+        }, context.OutTags);
     }
 }

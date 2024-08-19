@@ -1,6 +1,6 @@
 namespace OpenTelemetry.Proxy;
 
-[AttributeUsage(AttributeTargets.Parameter | AttributeTargets.ReturnValue)]
+[AttributeUsage(AttributeTargets.Parameter | AttributeTargets.ReturnValue, AllowMultiple = true)]
 public class ActivityTagAttribute : Attribute
 {
     public ActivityTagAttribute() { }
@@ -10,5 +10,5 @@ public class ActivityTagAttribute : Attribute
     public string? Name { get; }
 
     /// <summary>$.SomeProperty</summary>
-    public string? Expression { get; }
+    public string? Expression { get; set; }
 }

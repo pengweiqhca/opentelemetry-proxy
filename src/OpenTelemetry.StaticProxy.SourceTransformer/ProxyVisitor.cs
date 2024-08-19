@@ -96,7 +96,8 @@ internal sealed class ProxyVisitor(
                 new NoAttributeTypeContext(typeSyntaxContext.Methods, typeSyntaxContext.PropertyOrField),
             typeName, typeFullName, node);
 
-        typeContext.Tags.UnionWith(GetActivityTags(attributes));
+        foreach (var activityTag in GetActivityTags(attributes))
+            typeContext.Tags[activityTag.Item1] = activityTag.Item2;
     }
 
     #endregion
@@ -173,8 +174,8 @@ internal sealed class ProxyVisitor(
 
         context.IsStatic = method.IsStatic();
 
-        context.UnknownTag.UnionWith(typeMethods.Context.Tags);
-        context.UnknownTag.UnionWith(GetActivityTags(attributes));
+        foreach (var tag in typeMethods.Context.Tags) context.UnknownTag[tag.Key] = tag.Value;
+        foreach (var tag in GetActivityTags(attributes)) context.UnknownTag[tag.Item1] = tag.Item2;
 
         ProcessActivityTags(method, typeMethods.Context, context);
 
@@ -253,7 +254,7 @@ internal sealed class ProxyVisitor(
 
     #region ActivityTag
 
-    private IEnumerable<ActivityTag> GetActivityTags(IEnumerable<AttributeListSyntax> attributes)
+    private IEnumerable<Tuple<ActivityTag, string>> GetActivityTags(IEnumerable<AttributeListSyntax> attributes)
     {
         var attr = attributes.SelectMany(x => x.Attributes).FirstOrDefault(attr => attr.Is("ActivityTags"));
 
@@ -271,54 +272,53 @@ internal sealed class ProxyVisitor(
 
         var activityContext = methodContext as ActivityContext;
         if (activityContext != null && !isVoid)
-            foreach (var name in GetActivityTagValue("$returnvalue", method.AttributeLists.Where(attributeList =>
+            foreach (var tag in GetActivityTagValue("$returnvalue", method.AttributeLists.Where(attributeList =>
                          attributeList.Target != null && attributeList.Target.Identifier.ToString() == "return")))
             {
-                methodContext.UnknownTag.Remove(name);
-                activityContext.ReturnValueTag.Add(name);
+                methodContext.UnknownTag.Remove(tag);
+                activityContext.OutTags[tag] = ActivityTagSource.ReturnValue;
             }
 
         foreach (var parameter in method.ParameterList.Parameters)
         {
             var parameterName = parameter.Identifier.ToString();
+            var source = new ActivityTagSource(parameterName, ActivityTagFrom.ArgumentOrLocalVariable);
 
-            var activityTags = GetActivityTagValue(parameterName, parameter.AttributeLists).ToArray();
-            if (methodContext.UnknownTag.Remove(new(parameterName)) && activityTags.Length < 1)
-                activityTags = [new(parameterName)];
-            else if (activityTags.Length < 1) continue;
-
-            foreach (var tag in activityTags)
+            foreach (var tag in GetActivityTagValue(parameterName, parameter.AttributeLists).Union(methodContext
+                         .UnknownTag.Where(kv => kv.Value == parameterName).Select(kv => kv.Key)).ToList())
+            {
                 if (parameter.IsRef())
                 {
-                    if (activityContext != null)
-                        activityContext.OutTags[tag] = new(parameterName, ActivityTagFrom.Argument);
+                    if (activityContext != null) activityContext.OutTags[tag] = source;
 
-                    methodContext.InTags[tag] = new(parameterName, ActivityTagFrom.Argument);
+                    methodContext.InTags[tag] = source;
                 }
-                else if (!parameter.IsOut())
-                    methodContext.InTags[tag] = new(parameterName, ActivityTagFrom.Argument);
-                else if (activityContext != null)
-                    activityContext.OutTags[tag] = new(parameterName, ActivityTagFrom.Argument);
+                else if (!parameter.IsOut()) methodContext.InTags[tag] = source;
+                else if (activityContext != null) activityContext.OutTags[tag] = source;
+
+                methodContext.UnknownTag.Remove(tag);
+            }
         }
 
         foreach (var tag in methodContext.UnknownTag.ToArray())
         {
-            if (!typeContext.PropertyOrField.TryGetValue(tag.Name, out var type)) continue;
+            if (!typeContext.PropertyOrField.TryGetValue(tag.Value, out var type)) continue;
 
-            methodContext.UnknownTag.Remove(tag);
+            methodContext.UnknownTag.Remove(tag.Key);
 
             if (type.IsStatic)
-                methodContext.InTags[tag] = new(tag.Name, ActivityTagFrom.StaticFieldOrProperty);
+                methodContext.InTags[tag.Key] = new(tag.Value, ActivityTagFrom.StaticFieldOrProperty);
             else if (!methodContext.IsStatic)
-                methodContext.InTags[tag] = new(tag.Name, ActivityTagFrom.InstanceFieldOrProperty);
+                methodContext.InTags[tag.Key] = new(tag.Value, ActivityTagFrom.InstanceFieldOrProperty);
         }
 
         if (activityContext == null || isVoid) return;
 
-        foreach (var tag in methodContext.UnknownTag.Where(activityTag => activityTag.Name == "$returnvalue").ToList())
+        foreach (var tag in methodContext.UnknownTag.Where(kv => kv.Value == "$returnvalue").Select(kv => kv.Key)
+                     .ToList())
         {
             methodContext.UnknownTag.Remove(tag);
-            activityContext.ReturnValueTag.Add(tag);
+            activityContext.OutTags[tag] = ActivityTagSource.ReturnValue;
         }
     }
 
@@ -339,7 +339,7 @@ internal sealed class ProxyVisitor(
                             name = value;
                     }
                     else if (arg.NameEquals.Name.ToString().Equals("Expression", StringComparison.Ordinal))
-                        expression = GetKindValue(arg);
+                        expression = GetValue<string>(arg);
 
                 yield return new(name, expression);
             }

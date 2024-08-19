@@ -4,7 +4,9 @@ using OpenTelemetry;
 using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.Tests.Common;
 using System.Reflection;
-using ActivityName = System.Tuple<string?, System.Collections.Generic.IReadOnlyCollection<System.Collections.Generic.KeyValuePair<string, object?>>?, long>;
+using ActivityName =
+    System.Tuple<string?, System.Collections.Generic.IReadOnlyCollection<
+        System.Collections.Generic.KeyValuePair<string, object?>>?, long>;
 
 namespace AssemblyToProcess;
 
@@ -57,6 +59,7 @@ public static partial class TestClass
     }
 
     [Activity]
+    [return: ActivityTag("ret", Expression = "$.Hour")]
     public static DateTime VoidMethod2()
     {
         var now = DateTime.Now;
@@ -70,6 +73,7 @@ public static partial class TestClass
     {
         var holder = typeof(InnerActivityAccessor).GetProperty("Activity", BindingFlags.NonPublic | BindingFlags.Static)
             ?.GetValue(null);
+
         if (holder == null) return new(null, default, 0);
 
         var nameHolder = Assert.IsAssignableFrom<Delegate>(holder.GetPropertyValue("OnStart")).Target;

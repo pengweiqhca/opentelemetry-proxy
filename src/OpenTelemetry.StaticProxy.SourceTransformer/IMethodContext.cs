@@ -4,7 +4,7 @@ internal interface IMethodContext;
 
 internal interface IMethodTagContext : IMethodContext
 {
-    HashSet<ActivityTag> UnknownTag { get; }
+    Dictionary<ActivityTag, string> UnknownTag { get; }
 
     Dictionary<ActivityTag, ActivityTagSource> InTags { get; }
 

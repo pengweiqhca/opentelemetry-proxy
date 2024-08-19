@@ -25,5 +25,5 @@ internal class ImplicateActivitySourceContext(
 
     public Dictionary<string, MemberType> PropertyOrField { get; } = propertyOrField;
 
-    public HashSet<ActivityTag> Tags { get; } = [];
+    public Dictionary<ActivityTag, string> Tags { get; } = [];
 }

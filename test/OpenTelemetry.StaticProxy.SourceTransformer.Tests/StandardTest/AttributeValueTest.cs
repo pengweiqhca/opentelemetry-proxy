@@ -16,7 +16,7 @@ public class AttributeValueTest
 
         Assert.Equal("Test", context.ActivityName);
         Assert.Equal(3, context.MaxUsableTimes);
-        Assert.Equal(["abc", "de"], context.Tags.Select(x => x.Name));
+        Assert.Equal(["abc", "de"], context.Tags.Select(x => x.Value));
     }
 
     [Fact]
@@ -30,7 +30,7 @@ public class AttributeValueTest
 
         Assert.Equal("Test", context.ActivitySourceName);
         Assert.Equal("default", context.Kind);
-        Assert.Equal(["abc", "TestName"], context.Tags.Select(x => x.Name));
+        Assert.Equal(["abc", "TestName"], context.Tags.Select(x => x.Value));
     }
 
     [Fact]
@@ -56,6 +56,6 @@ public class AttributeValueTest
 #else
         Assert.Equal("default", context.Kind);
 #endif
-        Assert.Equal(["abc", "TestName"], context.Tags.Select(x => x.Name));
+        Assert.Equal(["abc", "TestName"], context.Tags.Select(x => x.Value));
     }
 }

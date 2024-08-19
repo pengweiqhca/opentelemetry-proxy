@@ -9,9 +9,7 @@ internal sealed class ActivityContext(string activitySourceName, string activity
 
     public string Kind { get; set; } = "default";
 
-    public HashSet<ActivityTag> ReturnValueTag { get; } = [];
-
-    public HashSet<ActivityTag> UnknownTag { get; } = [];
+    public Dictionary<ActivityTag, string> UnknownTag { get; } = [];
 
     public Dictionary<ActivityTag, ActivityTagSource> InTags { get; } = [];
 

@@ -10,7 +10,7 @@ internal abstract class ActivityNameContext(string activityName)
 internal sealed class MethodActivityNameContext(string activityName)
     : ActivityNameContext(activityName), IMethodTagContext
 {
-    public HashSet<ActivityTag> UnknownTag { get; } = [];
+    public Dictionary<ActivityTag, string> UnknownTag { get; } = [];
 
     public Dictionary<ActivityTag, ActivityTagSource> InTags { get; } = [];
 
@@ -27,5 +27,5 @@ internal sealed class TypeActivityNameContext(
 
     public Dictionary<string, MemberType> PropertyOrField { get; } = propertyOrField;
 
-    public HashSet<ActivityTag> Tags { get; } = [];
+    public Dictionary<ActivityTag, string> Tags { get; } = [];
 }
