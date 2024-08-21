@@ -16,7 +16,7 @@ public readonly struct ImplicitActivityContext(ImplicitActivityType type)
 
     public Action<IInvocation, Activity>? AfterProceed { get; init; }
 
-    public string? ReturnValueTagName { get; init; }
+    public Action<Activity, object>? SetReturnValueTag { get; init; }
 
     public ImplicitActivityContext(string? activitySourceName, ActivityKind activityKind)
         : this(ImplicitActivityType.Activity)

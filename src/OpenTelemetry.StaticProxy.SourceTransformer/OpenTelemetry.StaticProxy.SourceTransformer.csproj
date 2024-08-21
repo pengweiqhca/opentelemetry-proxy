@@ -9,6 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="../Shared/ActivityTag.cs" />
+
     <InternalsVisibleTo Include="OpenTelemetry.StaticProxy.SourceTransformer.Tests" />
 
     <PackageReference Include="Metalama.Compiler.Sdk" Version="$(MetalamaVersion)" />

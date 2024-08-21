@@ -1,10 +1,13 @@
 ﻿using Microsoft.Extensions.Internal;
 using OpenTelemetry.Proxy;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using GetTags =
     System.Func<Castle.DynamicProxy.IInvocation, System.Collections.Generic.IReadOnlyCollection<
         System.Collections.Generic.KeyValuePair<string, object?>>?>;
+using Tags =
+    (System.Collections.Generic.Dictionary<OpenTelemetry.ActivityTag, System.Linq.Expressions.Expression> In,
+    System.Collections.Generic.Dictionary<OpenTelemetry.ActivityTag, System.Linq.Expressions.Expression> Out,
+    System.Tuple<System.Collections.Generic.HashSet<OpenTelemetry.ActivityTag>, System.Type>? Return);
 
 namespace OpenTelemetry.DynamicProxy;
 
@@ -78,7 +81,7 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
         if (proxyMethod is ActivityMethod activityMethod)
             return new ActivityInvoker(GetActivitySource(type), activityMethod.ActivityName, activityMethod.Kind,
                 activityMethod.SuppressInstrumentation,
-                SetActivityTags(type, method, out var returnValueTagName), returnValueTagName);
+                SetActivityTags(type, method, out var setReturnValueTag), setReturnValueTag);
 
         if (proxyMethod is ActivityNameMethod activityNameMethod)
             return new ActivityNameInvoker(activityNameMethod.ActivityName, activityNameMethod.MaxUsableTimes,
@@ -91,12 +94,12 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
                 ? new ActivityInvoker(GetActivitySource(type, context.ActivitySourceName),
                     ActivityInvokerHelper.GetActivityName(method, type, null, context.ActivityBaseName),
                     context.ActivityKind, context.SuppressInstrumentation,
-                    (context.BeforeProceed, context.AfterProceed), context.ReturnValueTagName)
+                    (context.BeforeProceed, context.AfterProceed), context.SetReturnValueTag)
                 : new(GetActivitySource(type, context.ActivitySourceName),
                     ActivityInvokerHelper.GetActivityName(method, type, null, context.ActivityBaseName),
                     context.ActivityKind, context.SuppressInstrumentation,
-                    SetActivityTags(type, method, out var returnValueTagName),
-                    context.ReturnValueTagName ?? returnValueTagName);
+                    SetActivityTags(type, method, out var setReturnValueTag),
+                    context.SetReturnValueTag ?? setReturnValueTag);
 
         return context.Type == ImplicitActivityType.ActivityName
             ? new ActivityNameInvoker(ActivityInvokerHelper.GetActivityName(method, type, null), 1,
@@ -110,103 +113,106 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
                 type.Assembly.GetName().Version?.ToString()), activitySourceName);
 
     private static (Action<IInvocation, Activity>?, Action<IInvocation, Activity>?) SetActivityTags(Type type,
-        MethodInfo method, out string? returnValueTagName)
+        MethodInfo method, out Action<Activity, object>? setReturnValueTag)
     {
         var invocation = Expression.Parameter(typeof(IInvocation), "invocation");
         var activity = Expression.Parameter(typeof(Activity), "activity");
 
-        var activityTags = GetActivityTags(type, method,
-            GetTags(method.GetCustomAttribute<ActivityTagsAttribute>(),
-                type.GetCustomAttribute<ActivityTagsAttribute>()),
-            invocation, out returnValueTagName);
-
-        var activityInTags = activityTags.Where(static t => t.Value.Direction.HasFlag(TagPosition.Start)).ToList();
-        var activityOutTags = activityTags.Where(static t => t.Value.Direction.HasFlag(TagPosition.End)).ToList();
+        var (activityInTags, activityOutTags, returnTags) =
+            GetActivityTags(type, method, GetTags(method, type), invocation);
 
         var start = activityInTags.Count < 1
             ? null
             : Expression.Lambda<Action<IInvocation, Activity>>(Expression.Block(activityInTags.Select(kv =>
-            {
-                var value = kv.Value.Value;
-                if (value.Type.IsValueType || value.Type.IsGenericParameter)
-                    value = Expression.Convert(value, typeof(object));
-
-                return Expression.Call(SetTagEnumerable, activity, Expression.Constant(kv.Key), value);
-            })), invocation, activity);
+                SetTag(activity, kv.Key.TagName, kv.Key.Expression, kv.Value))), invocation, activity);
 
         var end = activityOutTags.Count < 1
             ? null
             : Expression.Lambda<Action<IInvocation, Activity>>(Expression.Block(activityOutTags.Select(kv =>
-            {
-                var value = kv.Value.Value;
-                if (value.Type.IsValueType || value.Type.IsGenericParameter)
-                    value = Expression.Convert(value, typeof(object));
+                SetTag(activity, activityInTags.ContainsKey(kv.Key) ? kv.Key.TagName + "$out" : kv.Key.TagName,
+                    kv.Key.Expression, kv.Value))), invocation, activity);
 
-                var key = kv.Value.Direction.HasFlag(TagPosition.Start) ? kv.Key + "$out" : kv.Key;
+        if (returnTags?.Item1 == null || returnTags.Item1.Count < 1) setReturnValueTag = null;
+        else
+        {
+            var ret = Expression.Parameter(typeof(object));
 
-                return Expression.Call(SetTagEnumerable, activity, Expression.Constant(key), value);
-            })), invocation, activity);
+            setReturnValueTag = Expression.Lambda<Action<Activity, object>>(Expression.Block(returnTags.Item1.Select(
+                tag => SetTag(activity, tag.TagName, tag.Expression, ret))), activity, ret).Compile();
+        }
 
         return (start?.Compile(), end?.Compile());
     }
+#pragma warning disable CA1859
+    private static Expression SetTag(Expression activity, string tagName, string? expression, Expression from) =>
+        Expression.Call(SetTagEnumerable, activity, Expression.Constant(tagName), GetExpression(expression, from));
+#pragma warning restore CA1859
+    private static Expression GetExpression(string? expression, Expression from) =>
+        from.Type.IsValueType || from.Type.IsGenericParameter ? Expression.Convert(from, typeof(object)) : from;
 
     private static GetTags? CreateActivityTags(Type type, MethodInfo method)
     {
         var invocation = Expression.Parameter(typeof(IInvocation), "invocation");
 
-        var activityTags = GetActivityTags(type, method, GetTags(method.GetCustomAttribute<ActivityTagsAttribute>(),
-                method.DeclaringType?.GetCustomAttribute<ActivityTagsAttribute>()), invocation, out _)
-            .Where(static activityTag => activityTag.Value.Direction.HasFlag(TagPosition.Start)).ToList();
+        var (activityTags, _, _) = GetActivityTags(type, method, GetTags(method, type), invocation);
 
         var start = activityTags.Count < 1
             ? null
             : Expression.Lambda<GetTags>(Expression.NewArrayInit(typeof(KeyValuePair<string, object>),
-                activityTags.Select(static kv =>
-                {
-                    var value = kv.Value.Value;
-                    if (value.Type.IsValueType || value.Type.IsGenericParameter)
-                        value = Expression.Convert(value, typeof(object));
-
-                    return Expression.New(KeyValuePairCtor, Expression.Constant(kv.Key), value);
-                })), invocation);
+                activityTags.Select(static kv => Expression.New(KeyValuePairCtor, Expression.Constant(kv.Key.TagName),
+                    GetExpression(kv.Key.Expression, kv.Value)))), invocation);
 
         return start?.Compile();
     }
 
-    public static HashSet<string> GetTags(ActivityTagsAttribute? methodTags, ActivityTagsAttribute? typeTags)
+    internal static Dictionary<ActivityTag, string> GetTags(MethodInfo method, Type? type)
     {
-        var tags1 = methodTags?.Tags;
-        var tags2 = typeTags?.Tags;
+        var tags1 = method.GetCustomAttribute<ActivityTagsAttribute>()?.Tags;
+        var tags2 = type?.GetCustomAttribute<ActivityTagsAttribute>()?.Tags;
 
-        if (tags1 == null || tags1.Length < 1) return tags2 == null ? [] : [..tags2];
+        var dic = new Dictionary<ActivityTag, string>();
 
-        return tags2 == null || tags2.Length < 1 ? [..tags1] : [..tags1, ..tags2];
+        return tags1 == null || tags1.Length < 1
+            ? tags2 == null ? dic : Convert(dic, ActivityTag.Parse(tags2))
+            : tags2 == null || tags2.Length < 1
+                ? Convert(dic, ActivityTag.Parse(tags1))
+                : Convert(Convert(dic, ActivityTag.Parse(tags1)), ActivityTag.Parse(tags2));
+
+        static Dictionary<ActivityTag, string> Convert(Dictionary<ActivityTag, string> dic,
+            IEnumerable<Tuple<ActivityTag, string>> tags)
+        {
+            foreach (var (tag, value) in tags) dic[tag] = value;
+
+            return dic;
+        }
     }
 
-    internal static Dictionary<string, ActivityTagValue> GetActivityTags(Type type, MethodInfo method,
-        HashSet<string> tags, Expression invocation, out string? returnValueTagName)
+    internal static Tags GetActivityTags(Type type, MethodInfo method, Dictionary<ActivityTag, string> tags,
+        Expression invocation)
     {
-        var isVoid = !(method.ReturnType != typeof(void) &&
-            (!CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo) ||
-                awaitableInfo.AwaitableInfo.AwaiterGetResultMethod.ReturnType != typeof(void)));
-
-        if (isVoid) returnValueTagName = null;
-        else
+        Type? returnType = null;
+        if (method.ReturnType != typeof(void))
         {
-            isVoid = false;
-
-            var attr = method.ReturnParameter?.GetCustomAttribute<ActivityTagAttribute>();
-
-            if (attr == null) returnValueTagName = null;
-            else
+            if (CoercedAwaitableInfo.IsTypeAwaitable(method.ReturnType, out var awaitableInfo))
             {
-                returnValueTagName = string.IsNullOrWhiteSpace(attr.Name) ? "$returnvalue" : attr.Name!;
+                returnType = awaitableInfo.AwaitableInfo.AwaiterGetResultMethod.ReturnType;
 
-                tags.Remove(returnValueTagName);
+                if (returnType == typeof(void)) returnType = null;
             }
+            else returnType = method.ReturnType;
         }
 
-        var list = new Dictionary<string, ActivityTagValue>();
+        var inTags = new Dictionary<ActivityTag, Expression>();
+        var outTags = new Dictionary<ActivityTag, Expression>();
+        var returnTags = returnType == null ? null : new HashSet<ActivityTag>();
+
+        if (returnTags != null)
+            foreach (var tag in GetActivityTags("$returnvalue",
+                         method.ReturnParameter?.GetCustomAttributes<ActivityTagAttribute>() ?? []))
+            {
+                tags.Remove(tag);
+                returnTags.Add(tag);
+            }
 
         const BindingFlags bindingFlags =
             BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
@@ -216,53 +222,44 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
         var index = 0;
         foreach (var parameter in method.GetParameters())
         {
-            if (TryGetName(tags, parameter.GetCustomAttribute<ActivityTagAttribute>(),
-                    parameter.Name, out var name))
-                list[name] = new(Expression.Call(invocation, GetArgumentValue, Expression.Constant(index)),
-                    GetTagPosition(parameter));
+            var parameterName = parameter.Name;
+
+            var expression = Expression.Call(invocation, GetArgumentValue, Expression.Constant(index));
+
+            foreach (var tag in GetActivityTags(parameterName, parameter.GetCustomAttributes<ActivityTagAttribute>())
+                         .Union(tags.Where(kv => kv.Value == parameterName).Select(kv => kv.Key)).ToList())
+            {
+                if (parameter.IsOut) outTags[tag] = expression;
+                else if (parameter is { IsIn: false, ParameterType.IsByRef: true })
+                {
+                    inTags[tag] = expression;
+                    outTags[tag] = expression;
+                }
+                else inTags[tag] = expression;
+
+                tags.Remove(tag);
+            }
 
             index++;
         }
 
         foreach (var tag in tags.ToArray())
-            if (type.GetProperty(tag, bindingFlags) is { } property)
+            if (type.GetProperty(tag.Value, bindingFlags) is { } property)
             {
-                if (property.GetMethod != null && TryGetName(tags, null, property.Name, out var name))
-                    list[name] = new(Expression.Property(property.GetMethod.IsStatic ? null : target, property));
+                if (property.GetMethod != null)
+                    inTags[tag.Key] = Expression.Property(property.GetMethod.IsStatic ? null : target, property);
             }
-            else if (type.GetField(tag, bindingFlags) is { } field)
-                if (TryGetName(tags, null, field.Name, out var name))
-                    list[name] = new(Expression.Field(field.IsStatic ? null : target, field));
+            else if (type.GetField(tag.Value, bindingFlags) is { } field)
+                inTags[tag.Key] = Expression.Field(field.IsStatic ? null : target, field);
 
-        if (!isVoid && string.IsNullOrWhiteSpace(returnValueTagName) && tags.Remove("$returnvalue"))
-            returnValueTagName = "$returnvalue";
+        returnTags?.UnionWith(tags.Where(kv => kv.Value == "$returnvalue").Select(x => x.Key));
 
-        return list;
-
-        static TagPosition GetTagPosition(ParameterInfo parameter) => parameter.IsOut
-            ? TagPosition.End
-            : parameter is { IsIn: false, ParameterType.IsByRef: true }
-                ? TagPosition.All
-                : TagPosition.Start;
+        return (inTags, outTags, returnType == null ? null : new(returnTags!, returnType));
     }
 
-    private static bool TryGetName(HashSet<string> tags, ActivityTagAttribute? attr, string? memberName,
-        [NotNullWhen(true)] out string? name)
-    {
-        name = null;
-
-        if (attr == null)
-        {
-            if (string.IsNullOrWhiteSpace(memberName) || !tags.Contains(memberName!)) return false;
-
-            name = memberName;
-        }
-        else name = string.IsNullOrWhiteSpace(attr.Name) ? memberName : attr.Name!;
-
-        if (!string.IsNullOrWhiteSpace(memberName)) tags.Remove(memberName!);
-
-        return !string.IsNullOrWhiteSpace(name);
-    }
+    private static IEnumerable<ActivityTag> GetActivityTags(string memberName,
+        IEnumerable<ActivityTagAttribute> attributes) => attributes.Select(attr =>
+        new ActivityTag(string.IsNullOrWhiteSpace(attr.Name) ? memberName : attr.Name!, attr.Expression));
 
     public void Dispose()
     {
@@ -275,8 +272,3 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
         GC.SuppressFinalize(this);
     }
 }
-
-[Flags]
-internal enum TagPosition { Start = 1, End = 2, All = Start | End }
-
-internal record struct ActivityTagValue(Expression Value, TagPosition Direction = TagPosition.Start);

@@ -3,7 +3,6 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using Mono.Collections.Generic;
-using OpenTelemetry.Proxy;
 using System.Diagnostics.CodeAnalysis;
 
 namespace OpenTelemetry.StaticProxy.Fody;

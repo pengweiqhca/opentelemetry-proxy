@@ -1,6 +1,6 @@
-﻿namespace OpenTelemetry.StaticProxy.SourceTransformer;
+﻿namespace OpenTelemetry;
 
-public record ActivityTag(string TagName, string? Expression = null)
+internal record ActivityTag(string TagName, string? Expression = null)
 {
     public static IEnumerable<Tuple<ActivityTag, string>> Parse(IEnumerable<string> tags)
     {

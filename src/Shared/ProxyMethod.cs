@@ -1,4 +1,4 @@
-﻿namespace OpenTelemetry.Proxy;
+﻿namespace OpenTelemetry;
 
 internal interface IProxyMethod;
 

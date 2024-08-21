@@ -9,7 +9,7 @@ public class ActivityInvoker(
     ActivityKind kind,
     bool suppressInstrumentation,
     (Action<IInvocation, Activity>? BeforeProceed, Action<IInvocation, Activity>? AfterProceed) setTags,
-    string? returnValueTagName) : ActivityNameInvoker
+    Action<Activity, object>? setReturnValueTag) : ActivityNameInvoker
 {
     public string ActivitySourceName { get; } = activitySource.Name;
 
@@ -48,7 +48,7 @@ public class ActivityInvoker(
         var func = ActivityInvokerHelper.Convert(invocation.Method.ReturnType);
         if (func == null)
         {
-            if (returnValueTagName != null) activity.SetTagEnumerable(returnValueTagName, invocation.ReturnValue);
+            setReturnValueTag?.Invoke(activity, invocation.ReturnValue);
 
             activity.Dispose();
 
@@ -57,29 +57,29 @@ public class ActivityInvoker(
 
         var awaiter = func(invocation.ReturnValue).GetAwaiter();
 
-        if (awaiter.IsCompleted) ActivityAwaiter.OnCompleted(activity, awaiter, returnValueTagName);
+        if (awaiter.IsCompleted) ActivityAwaiter.OnCompleted(activity, awaiter, setReturnValueTag);
         else
         {
             Activity.Current = activity.Parent;
 
-            awaiter.UnsafeOnCompleted(new ActivityAwaiter(activity, awaiter, returnValueTagName).OnCompleted);
+            awaiter.UnsafeOnCompleted(new ActivityAwaiter(activity, awaiter, setReturnValueTag).OnCompleted);
         }
     }
 
     private sealed class ActivityAwaiter(
         Activity activity,
         ObjectMethodExecutorAwaitable.Awaiter awaiter,
-        string? returnValueTagName)
+        Action<Activity, object>? setReturnValueTag)
     {
-        public void OnCompleted() => OnCompleted(activity, awaiter, returnValueTagName);
+        public void OnCompleted() => OnCompleted(activity, awaiter, setReturnValueTag);
 
-        public static void OnCompleted(Activity activity, ObjectMethodExecutorAwaitable.Awaiter awaiter, string? returnValueTagName)
+        public static void OnCompleted(Activity activity, ObjectMethodExecutorAwaitable.Awaiter awaiter, Action<Activity, object>? setReturnValueTag)
         {
             try
             {
                 var result = awaiter.GetResult();
 
-                if (returnValueTagName != null) activity.SetTagEnumerable(returnValueTagName, result);
+                setReturnValueTag?.Invoke(activity, result);
             }
             catch (Exception ex)
             {

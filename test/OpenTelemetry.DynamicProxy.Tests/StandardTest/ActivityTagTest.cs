@@ -9,121 +9,124 @@ public class ActivityTagTest
     [Fact]
     public void ActivityTagsTest()
     {
-        var tags = TestHelper.GetActivityTags<ActivityTagTestClass1>(x => x.TestMethod1, out var returnValueTagName);
-
-        Assert.Equal("$returnvalue", returnValueTagName);
+        var (inTags, outTags, returnTags) = TestHelper.GetActivityTags<ActivityTagTestClass1>(x => x.TestMethod1);
 
         Assert.Equal(new()
         {
-            ["abc"] = (TagPosition.Start, "invocation.GetArgumentValue(0)"),
-            ["def"] = (TagPosition.Start, "invocation.GetArgumentValue(1)")
-        }, tags);
+            [new("abc")] = ("invocation.GetArgumentValue(0)"),
+            [new("def")] = ("invocation.GetArgumentValue(1)")
+        }, inTags);
+
+        Assert.Empty(outTags);
+
+        Assert.NotNull(returnTags);
+        Assert.Equal(new("$returnvalue"), Assert.Single(returnTags.Item1));
     }
 
     [Fact]
     public void ReturnValueTest()
     {
-        var tags = TestHelper.GetActivityTags<ActivityTagTestClass2>(x => x.InstanceMethod, out var returnValueTagName);
-
-        Assert.Equal("ghi", returnValueTagName);
+        var (inTags, outTags, returnTags) =
+            TestHelper.GetActivityTags<ActivityTagTestClass2>(x => x.InstanceMethod);
 
         Assert.Equal(new()
         {
-            ["a2"] = (TagPosition.Start, "invocation.GetArgumentValue(0)"),
-            ["b"] = (TagPosition.Start, "invocation.GetArgumentValue(2)"),
-            ["c"] = (TagPosition.End, "invocation.GetArgumentValue(3)"),
-            ["d"] = (TagPosition.All, "invocation.GetArgumentValue(4)"),
-            ["e"] = (TagPosition.Start, "invocation.GetArgumentValue(5)"),
+            [new("a2")] = "invocation.GetArgumentValue(0)",
+            [new("b")] = "invocation.GetArgumentValue(2)",
+            [new("d")] = "invocation.GetArgumentValue(4)",
+            [new("e")] = "invocation.GetArgumentValue(5)",
 #if NETFRAMEWORK
-            ["_now"] = (TagPosition.Start, "Convert(invocation.InvocationTarget)._now"),
+            [new("_now")] = ("Convert(invocation.InvocationTarget)._now"),
 #else
-            ["_now"] = (TagPosition.Start, "Convert(invocation.InvocationTarget, ActivityTagTestClass2)._now"),
+            [new("_now")] = ("Convert(invocation.InvocationTarget, ActivityTagTestClass2)._now"),
 #endif
 #if NETFRAMEWORK
-            ["Now"] = (TagPosition.Start, "Convert(invocation.InvocationTarget).Now")
+            [new("Now")] = ("Convert(invocation.InvocationTarget).Now")
 #else
-            ["Now"] = (TagPosition.Start, "Convert(invocation.InvocationTarget, ActivityTagTestClass2).Now")
+            [new("Now")] = ("Convert(invocation.InvocationTarget, ActivityTagTestClass2).Now")
 #endif
-        }, tags);
+        }, inTags);
+
+        Assert.Equal(new()
+        {
+            [new("c")] = ("invocation.GetArgumentValue(3)"),
+            [new("d")] = ("invocation.GetArgumentValue(4)"),
+        }, outTags);
+
+        Assert.NotNull(returnTags);
+        Assert.Equal(new("ghi"), Assert.Single(returnTags.Item1));
     }
 
     [Fact]
     public void TypeHaveTagsTest()
     {
-        var dic = new Dictionary<string, (TagPosition Direction, string Expression)>
+        var (inTags, outTags, returnTags) =
+            TestHelper.GetActivityTags<ActivityTagTestClass3>(x => x.InstanceMethod);
+
+        Assert.Equal(new()
         {
-            ["abc"] = (TagPosition.Start, "invocation.GetArgumentValue(0)"),
-            ["age"] = (TagPosition.Start, "invocation.GetArgumentValue(1)"),
-            ["Abc"] = (TagPosition.Start, "ActivityTagTestClass3.Abc"),
+            [new("abc")] = ("invocation.GetArgumentValue(0)"),
+            [new("age")] = ("invocation.GetArgumentValue(1)"),
+            [new("Abc")] = ("ActivityTagTestClass3.Abc"),
 #if NETFRAMEWORK
-            ["_abc"] = (TagPosition.Start, "Convert(invocation.InvocationTarget)._abc")
+            [new("_abc")] = ("Convert(invocation.InvocationTarget)._abc")
 #else
-            ["_abc"] = (TagPosition.Start, "Convert(invocation.InvocationTarget, ActivityTagTestClass3)._abc")
+            [new("_abc")] = ("Convert(invocation.InvocationTarget, ActivityTagTestClass3)._abc")
 #endif
-        };
+        }, inTags);
 
-        Assert.Equal(dic, TestHelper.GetActivityTags<ActivityTagTestClass3>(x => x.InstanceMethod, out var returnValueTagName));
-
-        Assert.Null(returnValueTagName);
+        Assert.Empty(outTags);
+        Assert.Null(returnTags);
     }
 
     [Fact]
     public void TypeNoTagsTest()
     {
-        var dic = new Dictionary<string, (TagPosition Direction, string Expression)>
-        {
-            ["abc"] = (TagPosition.Start, "invocation.GetArgumentValue(0)"),
-            ["def"] = (TagPosition.Start, "invocation.GetArgumentValue(1)"),
-            ["Abc"] = (TagPosition.Start, "ActivityTagTestClass4.Abc"),
-#if NETFRAMEWORK
-            ["_abc"] = (TagPosition.Start, "Convert(invocation.InvocationTarget)._abc")
-#else
-            ["_abc"] = (TagPosition.Start, "Convert(invocation.InvocationTarget, ActivityTagTestClass4)._abc")
-#endif
-        };
+        var (inTags, outTags, returnTags) =
+            TestHelper.GetActivityTags<ActivityTagTestClass4>(x => x.InstanceMethod);
 
-        Assert.Equal(dic, TestHelper.GetActivityTags<ActivityTagTestClass4>(x => x.InstanceMethod, out _));
+        Assert.Equal(new()
+        {
+            [new("abc")] = ("invocation.GetArgumentValue(0)"),
+            [new("def")] = ("invocation.GetArgumentValue(1)"),
+            [new("Abc")] = ("ActivityTagTestClass4.Abc"),
+#if NETFRAMEWORK
+            [new("_abc")] = ("Convert(invocation.InvocationTarget)._abc")
+#else
+            [new("_abc")] = ("Convert(invocation.InvocationTarget, ActivityTagTestClass4)._abc")
+#endif
+        }, inTags);
+
+        Assert.Empty(outTags);
+        Assert.Null(returnTags);
     }
 
     [Fact]
     public void GetActivityTags()
     {
-        HashSet<string> tags = ["_now", "Now", "e", Guid.NewGuid().ToString("N")];
+        var tags = new[] { "_now", "Now", "e", Guid.NewGuid().ToString("N") }.ToDictionary(x => new ActivityTag(x),
+            x => x);
+
         var invocation = Expression.Parameter(typeof(IInvocation), "invocation");
 
-        var activityTags = ActivityInvokerFactory.GetActivityTags(typeof(ActivityTagTestClass2),
-            typeof(ActivityTagTestClass2).GetMethod(nameof(ActivityTagTestClass2.InstanceMethod))!, tags, invocation,
-            out var returnValueTagName).ToArray();
+        (IReadOnlyDictionary<ActivityTag, Expression> inTags, IReadOnlyDictionary<ActivityTag, Expression> outTags,
+            var returnTags) = ActivityInvokerFactory.GetActivityTags(typeof(ActivityTagTestClass2),
+            typeof(ActivityTagTestClass2).GetMethod(nameof(ActivityTagTestClass2.InstanceMethod))!, tags, invocation);
 
-        Assert.Equal("ghi", returnValueTagName);
-        Assert.Equal(7, activityTags.Length);
+        Assert.NotNull(returnTags);
+        Assert.Equal(new("ghi"), Assert.Single(returnTags.Item1));
 
-        AssertNameAndPosition(activityTags[0], "a2", TagPosition.Start);
-        AssertCallExpression(activityTags[0].Value.Value, invocation, 0);
+        Assert.Equal(6, inTags.Count);
+        Assert.Equal(2, outTags.Count);
 
-        AssertNameAndPosition(activityTags[1], "b", TagPosition.Start);
-        AssertCallExpression(activityTags[1].Value.Value, invocation, 2);
-
-        AssertNameAndPosition(activityTags[2], "c", TagPosition.End);
-        AssertCallExpression(activityTags[2].Value.Value, invocation, 3);
-
-        AssertNameAndPosition(activityTags[3], "d", TagPosition.All);
-        AssertCallExpression(activityTags[3].Value.Value, invocation, 4);
-
-        AssertNameAndPosition(activityTags[4], "e", TagPosition.Start);
-        AssertCallExpression(activityTags[4].Value.Value, invocation, 5);
-
-        AssertNameAndPosition(activityTags[5], "_now", TagPosition.Start);
-        AssertConvertExpression(AssertMemberExpression(activityTags[5].Value.Value, "_now"));
-
-        AssertNameAndPosition(activityTags[6], "Now", TagPosition.Start);
-        AssertConvertExpression(AssertMemberExpression(activityTags[6].Value.Value, "Now"));
-
-        static void AssertNameAndPosition(KeyValuePair<string, ActivityTagValue> activityTag, string name, TagPosition position)
-        {
-            Assert.Equal(name, activityTag.Key);
-            Assert.Equal(position, activityTag.Value.Direction);
-        }
+        AssertCallExpression(Assert.Contains(new("a2"), inTags), invocation, 0);
+        AssertCallExpression(Assert.Contains(new("b"), inTags), invocation, 2);
+        AssertCallExpression(Assert.Contains(new("c"), outTags), invocation, 3);
+        AssertCallExpression(Assert.Contains(new("d"), inTags), invocation, 4);
+        AssertCallExpression(Assert.Contains(new("d"), outTags), invocation, 4);
+        AssertCallExpression(Assert.Contains(new("e"), inTags), invocation, 5);
+        AssertConvertExpression(AssertMemberExpression(Assert.Contains(new("_now"), inTags), "_now"));
+        AssertConvertExpression(AssertMemberExpression(Assert.Contains(new("Now"), inTags), "Now"));
 
         static void AssertConvertExpression(Expression? expression)
         {

@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Internal;
 using Mono.Cecil;
 using Mono.Cecil.Rocks;
-using OpenTelemetry.Proxy;
 using System.Text.RegularExpressions;
 
 namespace OpenTelemetry.StaticProxy.Fody;
