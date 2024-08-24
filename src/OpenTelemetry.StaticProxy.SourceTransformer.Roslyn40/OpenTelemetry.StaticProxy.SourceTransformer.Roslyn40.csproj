@@ -1,20 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <AssemblyName>OpenTelemetry.StaticProxy.SourceTransformer</AssemblyName>
     <AssemblyVersion>$(StaticProxyVersion)</AssemblyVersion>
-    <DefineConstants>$(DefineConstants);CollectionExpression</DefineConstants>
     <IsPackable>false</IsPackable>
     <DebugType>embedded</DebugType>
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="../Shared/ActivityTag.cs" />
-
-    <InternalsVisibleTo Include="OpenTelemetry.StaticProxy.SourceTransformer.Tests" />
+    <Compile Include="../OpenTelemetry.StaticProxy.SourceTransformer/*.cs" />
 
     <PackageReference Include="Metalama.Compiler.Sdk" Version="$(MetalamaVersion)" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(CodeAnalysisVersion)" />
   </ItemGroup>
 
 </Project>
