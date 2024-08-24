@@ -372,9 +372,15 @@ internal sealed class ProxyVisitor(
 
     private IEnumerable<T> GetValues<T>(AttributeArgumentSyntax arg)
     {
-        var expressions = arg.Expression is ImplicitArrayCreationExpressionSyntax array
-            ? array.Initializer.Expressions
-            : arg.Expression.TryConvertCollectionExpression();
+        var expressions = arg.Expression switch
+        {
+            ImplicitArrayCreationExpressionSyntax array => array.Initializer.Expressions,
+#if CollectionExpression
+            CollectionExpressionSyntax collection => collection.Elements.OfType<ExpressionElementSyntax>()
+                .Select(x => x.Expression),
+#endif
+            _ => Enumerable.Repeat(arg.Expression, 1)
+        };
 
         var semanticModel = compilation.GetSemanticModel(arg.SyntaxTree);
 
