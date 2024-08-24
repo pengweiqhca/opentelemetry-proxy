@@ -1,62 +1,11 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Collections;
-using System.Linq.Expressions;
 
 namespace OpenTelemetry.StaticProxy.SourceTransformer;
 
 internal static class SyntaxExtensions
 {
-    private static readonly Tuple<Type, Func<ExpressionSyntax, IEnumerable<ExpressionSyntax>>>? CollectionExpression;
-
-    static SyntaxExtensions()
-    {
-        var type1 = typeof(ImplicitArrayCreationExpressionSyntax).Assembly.GetType(
-            "Microsoft.CodeAnalysis.CSharp.Syntax.CollectionExpressionSyntax");
-
-        var type2 = typeof(ImplicitArrayCreationExpressionSyntax).Assembly.GetType(
-            "Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionElementSyntax");
-
-        if (type1 == null || type2 == null) return;
-
-        var property1 = type1.GetProperty("Elements");
-        if (property1 == null || !typeof(IEnumerable).IsAssignableFrom(property1.PropertyType)) return;
-
-        var property2 = type2.GetProperty("Expression");
-        if (property2 == null || !typeof(ExpressionSyntax).IsAssignableFrom(property2.PropertyType)) return;
-
-        var method1 = typeof(Enumerable).GetMethod(nameof(Enumerable.OfType))?.MakeGenericMethod(type2);
-        var method2 = typeof(Queryable).GetMethods()
-            .FirstOrDefault(m => m.Name == nameof(Queryable.AsQueryable) && m.IsGenericMethod)
-            ?.MakeGenericMethod(type2);
-
-        var method3 = typeof(Queryable).GetMethods().FirstOrDefault(m =>
-                m.Name == nameof(Queryable.Select) &&
-                m.GetParameters()[1].ParameterType.GetGenericArguments()[0].GetGenericArguments().Length == 2)
-            ?.MakeGenericMethod(type2, typeof(ExpressionSyntax));
-
-        if (method1 == null || method2 == null || method3 == null) return;
-
-        var p1 = Expression.Parameter(typeof(ExpressionSyntax));
-        var p2 = Expression.Parameter(type2);
-
-        var lambdaExpression = Expression.Lambda(Expression.Property(p2, property2), p2);
-
-        var queryable = Expression.Call(method2, Expression.Call(method1, Expression.Convert(Expression.Property(Expression.Convert(p1, type1), property1), typeof(IEnumerable))));
-
-        var expression = Expression.Lambda<Func<ExpressionSyntax, IEnumerable<ExpressionSyntax>>>(Expression.Call(method3, queryable, Expression.Constant(lambdaExpression)), p1);
-
-        /*arg.Expression is CollectionExpressionSyntax collection
-            ? collection.Elements.OfType<ExpressionElementSyntax>().AsQueryable().Select(x => x.Expression)*/
-        CollectionExpression = new(type1, expression.Compile());
-    }
-
-    public static IEnumerable<ExpressionSyntax> TryConvertCollectionExpression(this ExpressionSyntax expression) =>
-        CollectionExpression != null && CollectionExpression.Item1.IsInstanceOfType(expression)
-            ? CollectionExpression.Item2(expression)
-            : [expression];
-
     public static bool Is(this AttributeSyntax attribute, string attributeName)
     {
         var name = attribute.Name.ToString();
