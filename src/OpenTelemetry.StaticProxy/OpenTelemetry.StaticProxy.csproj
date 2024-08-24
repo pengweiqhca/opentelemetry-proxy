@@ -22,8 +22,10 @@
     <ProjectReference Include="..\OpenTelemetry.Proxy\OpenTelemetry.Proxy.csproj" />
     <ProjectReference Include="..\OpenTelemetry.StaticProxy.Fody\OpenTelemetry.StaticProxy.Fody.csproj" PrivateAssets="All" />
     <ProjectReference Include="..\OpenTelemetry.StaticProxy.SourceTransformer\OpenTelemetry.StaticProxy.SourceTransformer.csproj" PrivateAssets="All" />
+    <ProjectReference Include="..\OpenTelemetry.StaticProxy.SourceTransformer.Roslyn40\OpenTelemetry.StaticProxy.SourceTransformer.Roslyn40.csproj" PrivateAssets="All" />
 
-		<None Include="..\OpenTelemetry.StaticProxy.SourceTransformer\bin\$(Configuration)\netstandard2.0\OpenTelemetry.StaticProxy.SourceTransformer.dll" PackagePath="analyzers\dotnet\cs" Pack="true" Visible="false" />
+		<None Include="..\OpenTelemetry.StaticProxy.SourceTransformer\bin\$(Configuration)\netstandard2.0\OpenTelemetry.StaticProxy.SourceTransformer.dll" PackagePath="analyzers\dotnet\roslyn4.7\cs" Pack="true" Visible="false" />
+		<None Include="..\OpenTelemetry.StaticProxy.SourceTransformer.Roslyn40\bin\$(Configuration)\netstandard2.0\OpenTelemetry.StaticProxy.SourceTransformer.dll" PackagePath="analyzers\dotnet\roslyn4.0\cs" Pack="true" Visible="false" />
 
     <None Update="tools\*.ps1" PackagePath="tools\" Pack="true" />
 	</ItemGroup>

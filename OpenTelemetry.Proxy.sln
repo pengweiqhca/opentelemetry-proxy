@@ -60,6 +60,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenTelemetry.StaticProxy.S
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenTelemetry.Proxy.Tests.Common", "test\OpenTelemetry.Proxy.Tests.Common\OpenTelemetry.Proxy.Tests.Common.csproj", "{B9BB18A2-6314-47C8-94EF-16AE3934A116}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenTelemetry.StaticProxy.SourceTransformer.Roslyn40", "src\OpenTelemetry.StaticProxy.SourceTransformer.Roslyn40\OpenTelemetry.StaticProxy.SourceTransformer.Roslyn40.csproj", "{EDF7C5A2-3112-4743-BD1D-A4DA66FAF248}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -130,6 +132,10 @@ Global
 		{B9BB18A2-6314-47C8-94EF-16AE3934A116}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B9BB18A2-6314-47C8-94EF-16AE3934A116}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B9BB18A2-6314-47C8-94EF-16AE3934A116}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EDF7C5A2-3112-4743-BD1D-A4DA66FAF248}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EDF7C5A2-3112-4743-BD1D-A4DA66FAF248}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EDF7C5A2-3112-4743-BD1D-A4DA66FAF248}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EDF7C5A2-3112-4743-BD1D-A4DA66FAF248}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -151,6 +157,7 @@ Global
 		{518A4A22-CED1-49D1-9FB4-255C7DAAE95D} = {3EDC5428-8807-4638-938C-A3AE3D7AA262}
 		{793613F8-B47D-41C2-A657-F730E68503AF} = {2F4707CE-56BC-4148-847C-D9875C5C3EC4}
 		{B9BB18A2-6314-47C8-94EF-16AE3934A116} = {2F4707CE-56BC-4148-847C-D9875C5C3EC4}
+		{EDF7C5A2-3112-4743-BD1D-A4DA66FAF248} = {3EDC5428-8807-4638-938C-A3AE3D7AA262}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A1DF9CB4-8A59-4F99-A61A-D67C19908FD8}
