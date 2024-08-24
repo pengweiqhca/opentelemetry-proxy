@@ -2,7 +2,6 @@
 
   <PropertyGroup>
     <NoWarn>$(NoWarn);IDE2000</NoWarn>
-    <RootNamespace>OpenTelemetry.StaticProxy.SourceTransformer</RootNamespace>
     <TargetFramework>netstandard2.0</TargetFramework>
 
     <!--<MetalamaDebugTransformedCode>true</MetalamaDebugTransformedCode>-->

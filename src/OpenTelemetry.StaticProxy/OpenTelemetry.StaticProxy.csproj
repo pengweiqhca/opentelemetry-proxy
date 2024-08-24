@@ -1,31 +1,24 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Automatically generate activity by defined [Activity] on compile. Install `Metalama.Compiler` or `Fody` to emit code.</Description>
+    <Description>Automatically generate activity by defined [Activity] on compile. Install `Metalama.Compiler` to emit code.</Description>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <IncludeSymbols>false</IncludeSymbols>
     <NoWarn>$(NoWarn);NU5100</NoWarn>
-    <PackageTags>$(PackageTags), ILWeaving, Fody, Cecil, AOP, Metalama, Source Generator</PackageTags>
+    <PackageTags>$(PackageTags), Activity, AOP, Metalama, Source Generator</PackageTags>
     <TargetFrameworks>net472;netstandard2.1</TargetFrameworks>
     <Version>$(StaticProxyVersion)$(VersionSuffix)</Version>
-    <!-- https://github.com/Fody/Home/blob/master/pages/addin-packaging.md -->
-    <WeaverDirPath>..\OpenTelemetry.StaticProxy.Fody\bin\$(Configuration)</WeaverDirPath>
-    <WeaverFile>$(WeaverDirPath)\netstandard2.0\OpenTelemetry.StaticProxy.Fody.dll</WeaverFile>
-    <XcfFile>$(WeaverDirPath)\netstandard2.0\OpenTelemetry.StaticProxy.Fody.xcf</XcfFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="$(XcfFile)" PackagePath="weaver" Pack="True" Visible="false" Condition="Exists($(XcfFile))" />
-    <None Include="$(WeaverFile)" PackagePath="weaver" Pack="True" Visible="false" />
     <None Include="_._" PackagePath="lib\net472;lib\netstandard2.1" Pack="True" />
 
     <ProjectReference Include="..\OpenTelemetry.Proxy\OpenTelemetry.Proxy.csproj" />
-    <ProjectReference Include="..\OpenTelemetry.StaticProxy.Fody\OpenTelemetry.StaticProxy.Fody.csproj" PrivateAssets="All" />
     <ProjectReference Include="..\OpenTelemetry.StaticProxy.SourceTransformer\OpenTelemetry.StaticProxy.SourceTransformer.csproj" PrivateAssets="All" />
     <ProjectReference Include="..\OpenTelemetry.StaticProxy.SourceTransformer.Roslyn40\OpenTelemetry.StaticProxy.SourceTransformer.Roslyn40.csproj" PrivateAssets="All" />
 
-		<None Include="..\OpenTelemetry.StaticProxy.SourceTransformer\bin\$(Configuration)\netstandard2.0\OpenTelemetry.StaticProxy.SourceTransformer.dll" PackagePath="analyzers\dotnet\roslyn4.7\cs" Pack="true" Visible="false" />
-		<None Include="..\OpenTelemetry.StaticProxy.SourceTransformer.Roslyn40\bin\$(Configuration)\netstandard2.0\OpenTelemetry.StaticProxy.SourceTransformer.dll" PackagePath="analyzers\dotnet\roslyn4.0\cs" Pack="true" Visible="false" />
+		<None Include="..\OpenTelemetry.StaticProxy.SourceTransformer\bin\$(Configuration)\netstandard2.0\OpenTelemetry.StaticProxy.dll" PackagePath="analyzers\dotnet\roslyn4.7\cs" Pack="true" Visible="false" />
+		<None Include="..\OpenTelemetry.StaticProxy.SourceTransformer.Roslyn40\bin\$(Configuration)\netstandard2.0\OpenTelemetry.StaticProxy.dll" PackagePath="analyzers\dotnet\roslyn4.0\cs" Pack="true" Visible="false" />
 
     <None Update="tools\*.ps1" PackagePath="tools\" Pack="true" />
 	</ItemGroup>

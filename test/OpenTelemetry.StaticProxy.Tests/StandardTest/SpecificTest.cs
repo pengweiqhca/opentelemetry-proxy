@@ -1,4 +1,4 @@
-﻿namespace OpenTelemetry.StaticProxy.SourceTransformer.Tests.StandardTest;
+﻿namespace OpenTelemetry.StaticProxy.Tests.StandardTest;
 
 public class SpecificTest
 {

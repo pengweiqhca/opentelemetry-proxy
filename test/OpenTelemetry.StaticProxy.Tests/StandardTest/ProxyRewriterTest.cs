@@ -4,10 +4,11 @@ using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Testing;
 using Microsoft.CodeAnalysis.Testing.Model;
 using OpenTelemetry.Proxy;
+using OpenTelemetry.StaticProxy;
 using System.Collections.Immutable;
 using System.Reflection;
 
-namespace OpenTelemetry.StaticProxy.SourceTransformer.Tests.StandardTest;
+namespace OpenTelemetry.StaticProxy.Tests.StandardTest;
 
 internal class ProxyRewriterTest : AnalyzerTest<DefaultVerifier>
 {

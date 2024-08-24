@@ -1,13 +1,13 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace OpenTelemetry.StaticProxy.SourceTransformer;
+namespace OpenTelemetry.StaticProxy;
 
 internal sealed class TypeSyntaxContext
 {
     public List<TypeDeclarationSyntax> Types { get; } = [];
 
-    public MethodSyntaxContexts Methods { get; } = new();
+    public MethodSyntaxContexts Methods { get; } = [];
 
     public Dictionary<string, MemberType> PropertyOrField { get; } = [];
 }

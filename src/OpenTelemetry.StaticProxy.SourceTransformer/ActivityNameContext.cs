@@ -1,4 +1,4 @@
-﻿namespace OpenTelemetry.StaticProxy.SourceTransformer;
+﻿namespace OpenTelemetry.StaticProxy;
 
 internal abstract class ActivityNameContext(string activityName)
 {

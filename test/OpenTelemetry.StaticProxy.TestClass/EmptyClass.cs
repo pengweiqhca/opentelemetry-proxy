@@ -1,6 +1,6 @@
 ﻿using OpenTelemetry.Proxy;
 
-namespace OpenTelemetry.StaticProxy.SourceTransformer;
+namespace OpenTelemetry.StaticProxy;
 
 
 

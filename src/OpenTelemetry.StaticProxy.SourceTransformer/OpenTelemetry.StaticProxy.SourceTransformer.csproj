@@ -1,6 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <AssemblyName>OpenTelemetry.StaticProxy</AssemblyName>
+    <RootNamespace>OpenTelemetry.StaticProxy</RootNamespace>
     <AssemblyVersion>$(StaticProxyVersion)</AssemblyVersion>
     <DefineConstants>$(DefineConstants);CollectionExpression</DefineConstants>
     <IsPackable>false</IsPackable>
@@ -9,7 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="OpenTelemetry.StaticProxy.SourceTransformer.Tests" />
+    <InternalsVisibleTo Include="OpenTelemetry.StaticProxy.Tests" />
 
     <PackageReference Include="Metalama.Compiler.Sdk" Version="$(MetalamaVersion)" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(CodeAnalysisVersion)" />

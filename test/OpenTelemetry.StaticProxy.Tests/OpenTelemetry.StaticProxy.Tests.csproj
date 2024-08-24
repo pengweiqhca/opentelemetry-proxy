@@ -1,15 +1,23 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>net472;net6.0</TargetFrameworks>
+    <CodeAnalysisTestingVersion>1.*</CodeAnalysisTestingVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Moq" Version="4.*" />
+    <Compile Remove="StandardFiles\**" />
+    <None Include="StandardFiles\**" CopyToOutputDirectory="PreserveNewest" />
+
+    <None Include="..\OpenTelemetry.Proxy.StandardFiles\*.cs" Link="StandardFiles\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzer.Testing" Version="$(CodeAnalysisTestingVersion)" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="$(CodeAnalysisVersion)" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.*" PrivateAssets="None" />
 
-    <ProjectReference Include="..\..\src\OpenTelemetry.StaticProxy.Fody\OpenTelemetry.StaticProxy.Fody.csproj" />
-    <ProjectReference Include="..\AssemblyToProcess\AssemblyToProcess.csproj" />
+    <ProjectReference Include="..\..\src\OpenTelemetry.Proxy\OpenTelemetry.Proxy.csproj" />
+    <ProjectReference Include="..\..\src\OpenTelemetry.StaticProxy.SourceTransformer\OpenTelemetry.StaticProxy.SourceTransformer.csproj" />
+    <ProjectReference Include="..\OpenTelemetry.StaticProxy.TestClass\OpenTelemetry.StaticProxy.TestClass.csproj" />
   </ItemGroup>
 
 </Project>
