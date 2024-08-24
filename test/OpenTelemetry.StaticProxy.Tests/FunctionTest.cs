@@ -142,7 +142,7 @@ public class FunctionTest
 
         Assert.Equal(144, stackFrame.GetFileLineNumber());
         Assert.Equal(Path.GetFullPath(
-            "../../../../AssemblyToProcess/TestClass.cs"), stackFrame.GetFileName());
+            "../../../../OpenTelemetry.StaticProxy.TestClass/TestClass.cs"), stackFrame.GetFileName());
         Assert.Equal(9, stackFrame.GetFileColumnNumber());
 
         var activity = Assert.Single(list);
