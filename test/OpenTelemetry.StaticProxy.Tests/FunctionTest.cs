@@ -3,6 +3,7 @@ using Microsoft.FSharp.Control;
 using Microsoft.FSharp.Core;
 using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.Tests.Common;
+using OpenTelemetry.StaticProxy;
 using System.Reflection;
 using Xunit.Sdk;
 using ActivityName =
@@ -10,7 +11,7 @@ using ActivityName =
         System.Collections.Generic.KeyValuePair<string, object?>>?, long>;
 using TestClass = AssemblyToProcess.TestClass;
 
-namespace OpenTelemetry.StaticProxy.SourceTransformer.Tests;
+namespace OpenTelemetry.StaticProxy.Tests;
 
 public class FunctionTest
 {
@@ -140,7 +141,8 @@ public class FunctionTest
         var stackFrame = new EnhancedStackTrace(ex).GetFrame(0);
 
         Assert.Equal(148, stackFrame.GetFileLineNumber());
-        Assert.Equal(Path.GetFullPath("../../../../AssemblyToProcess/TestClass.cs"), stackFrame.GetFileName());
+        Assert.Equal(Path.GetFullPath(
+            "../../../../OpenTelemetry.StaticProxy.TestClass/TestClass.cs"), stackFrame.GetFileName());
         Assert.Equal(9, stackFrame.GetFileColumnNumber());
 
         var activity = Assert.Single(list);

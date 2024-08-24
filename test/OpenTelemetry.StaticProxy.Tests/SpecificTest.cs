@@ -1,4 +1,4 @@
-﻿namespace OpenTelemetry.StaticProxy.SourceTransformer.Tests;
+﻿namespace OpenTelemetry.StaticProxy.Tests;
 
 public class SpecificTest
 {
@@ -16,7 +16,7 @@ public class SpecificTest
         Assert.NotNull(fileName);
 
         Assert.Equal(Path.GetFullPath(
-                "../../../../OpenTelemetry.StaticProxy.SourceTransformer.TestClass/KeepLineNumberTestClass.cs"),
+                "../../../../OpenTelemetry.StaticProxy.TestClass/KeepLineNumberTestClass.cs"),
             fileName);
 
         using var sr = new StreamReader(fileName);
@@ -53,7 +53,7 @@ public class SpecificTest
         Assert.NotNull(fileName);
 
         Assert.Equal(Path.GetFullPath(
-                "../../../../OpenTelemetry.StaticProxy.SourceTransformer.TestClass/KeepLineNumberTestClass.cs"),
+                "../../../../OpenTelemetry.StaticProxy.TestClass/KeepLineNumberTestClass.cs"),
             fileName);
 
         using var sr = new StreamReader(fileName);

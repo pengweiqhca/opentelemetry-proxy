@@ -1,6 +1,6 @@
 ﻿namespace OpenTelemetry;
 
-internal record ActivityTag(string TagName, string? Expression = null)
+internal sealed record ActivityTag(string TagName, string? Expression = null)
 {
     public static IEnumerable<Tuple<ActivityTag, string>> Parse(IEnumerable<string> tags)
     {

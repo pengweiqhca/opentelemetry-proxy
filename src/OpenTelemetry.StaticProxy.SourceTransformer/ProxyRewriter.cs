@@ -1,8 +1,9 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using OpenTelemetry.StaticProxy;
 
-namespace OpenTelemetry.StaticProxy.SourceTransformer;
+namespace OpenTelemetry.StaticProxy;
 
 internal sealed class ProxyRewriter(
     ProxyRewriterContext proxyRewriterContext,

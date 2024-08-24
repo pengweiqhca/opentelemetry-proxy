@@ -1,7 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <AssemblyName>OpenTelemetry.StaticProxy.SourceTransformer</AssemblyName>
+    <AssemblyName>OpenTelemetry.StaticProxy</AssemblyName>
+    <RootNamespace>OpenTelemetry.StaticProxy</RootNamespace>
     <AssemblyVersion>$(StaticProxyVersion)</AssemblyVersion>
     <IsPackable>false</IsPackable>
     <DebugType>embedded</DebugType>
@@ -9,6 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="../Shared/ActivityTag.cs" />
+
     <Compile Include="../OpenTelemetry.StaticProxy.SourceTransformer/*.cs" />
 
     <PackageReference Include="Metalama.Compiler.Sdk" Version="$(MetalamaVersion)" />

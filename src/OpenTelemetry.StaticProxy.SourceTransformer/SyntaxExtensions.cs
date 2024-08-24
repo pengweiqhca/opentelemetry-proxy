@@ -2,7 +2,7 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace OpenTelemetry.StaticProxy.SourceTransformer;
+namespace OpenTelemetry.StaticProxy;
 
 internal static class SyntaxExtensions
 {

@@ -1,6 +1,6 @@
 ﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace OpenTelemetry.StaticProxy.SourceTransformer;
+namespace OpenTelemetry.StaticProxy;
 
 internal sealed class TypeMethods(
     ITypeContext context,

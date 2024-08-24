@@ -19,10 +19,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.DynamicProxy"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.Proxy", "src\OpenTelemetry.Proxy\OpenTelemetry.Proxy.csproj", "{8FBFF91C-7BB4-4F0A-A86B-E9CFE75CA6D2}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.StaticProxy.Fody", "src\OpenTelemetry.StaticProxy.Fody\OpenTelemetry.StaticProxy.Fody.csproj", "{9D963441-9D3A-4507-ABB8-E9431B9C2777}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.StaticProxy.Fody.Tests", "test\OpenTelemetry.StaticProxy.Fody.Tests\OpenTelemetry.StaticProxy.Fody.Tests.csproj", "{1EE0D196-C383-46AE-9DFA-F1F11987FFEF}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{3EDC5428-8807-4638-938C-A3AE3D7AA262}"
 	ProjectSection(SolutionItems) = preProject
 		src\Directory.Build.props = src\Directory.Build.props
@@ -48,15 +44,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.StaticProxy.D
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.StaticProxy", "src\OpenTelemetry.StaticProxy\OpenTelemetry.StaticProxy.csproj", "{10A0AD65-E503-407A-858A-389FC8B08F22}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AssemblyToProcess", "test\AssemblyToProcess\AssemblyToProcess.csproj", "{41BA616D-A29B-47EF-A979-4B5E23852DA3}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.StaticProxy.Tests", "test\OpenTelemetry.StaticProxy.Tests\OpenTelemetry.StaticProxy.Tests.csproj", "{73509ACB-9DA3-476F-A2E1-6F79C10086C0}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.StaticProxy.SourceTransformer", "src\OpenTelemetry.StaticProxy.SourceTransformer\OpenTelemetry.StaticProxy.SourceTransformer.csproj", "{518A4A22-CED1-49D1-9FB4-255C7DAAE95D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.StaticProxy.SourceTransformer.Tests", "test\OpenTelemetry.StaticProxy.SourceTransformer.Tests\OpenTelemetry.StaticProxy.SourceTransformer.Tests.csproj", "{BA34C694-132D-467F-82E7-4A7219FB1240}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTelemetry.StaticProxy.Tests", "test\OpenTelemetry.StaticProxy.Tests\OpenTelemetry.StaticProxy.Tests.csproj", "{BA34C694-132D-467F-82E7-4A7219FB1240}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenTelemetry.StaticProxy.SourceTransformer.TestClass", "test\OpenTelemetry.StaticProxy.SourceTransformer.TestClass\OpenTelemetry.StaticProxy.SourceTransformer.TestClass.csproj", "{793613F8-B47D-41C2-A657-F730E68503AF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenTelemetry.StaticProxy.TestClass", "test\OpenTelemetry.StaticProxy.TestClass\OpenTelemetry.StaticProxy.TestClass.csproj", "{793613F8-B47D-41C2-A657-F730E68503AF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenTelemetry.Proxy.Tests.Common", "test\OpenTelemetry.Proxy.Tests.Common\OpenTelemetry.Proxy.Tests.Common.csproj", "{B9BB18A2-6314-47C8-94EF-16AE3934A116}"
 EndProject
@@ -84,14 +76,6 @@ Global
 		{8FBFF91C-7BB4-4F0A-A86B-E9CFE75CA6D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8FBFF91C-7BB4-4F0A-A86B-E9CFE75CA6D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8FBFF91C-7BB4-4F0A-A86B-E9CFE75CA6D2}.Release|Any CPU.Build.0 = Release|Any CPU
-		{9D963441-9D3A-4507-ABB8-E9431B9C2777}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{9D963441-9D3A-4507-ABB8-E9431B9C2777}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{9D963441-9D3A-4507-ABB8-E9431B9C2777}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{9D963441-9D3A-4507-ABB8-E9431B9C2777}.Release|Any CPU.Build.0 = Release|Any CPU
-		{1EE0D196-C383-46AE-9DFA-F1F11987FFEF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1EE0D196-C383-46AE-9DFA-F1F11987FFEF}.Release|Any CPU.Build.0 = Release|Any CPU
-		{1EE0D196-C383-46AE-9DFA-F1F11987FFEF}.Debug|Any CPU.ActiveCfg = Release|Any CPU
-		{1EE0D196-C383-46AE-9DFA-F1F11987FFEF}.Debug|Any CPU.Build.0 = Release|Any CPU
 		{32C63373-98BA-48AD-96D5-B08FB0D026C5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{32C63373-98BA-48AD-96D5-B08FB0D026C5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{32C63373-98BA-48AD-96D5-B08FB0D026C5}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -112,14 +96,6 @@ Global
 		{10A0AD65-E503-407A-858A-389FC8B08F22}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{10A0AD65-E503-407A-858A-389FC8B08F22}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{10A0AD65-E503-407A-858A-389FC8B08F22}.Release|Any CPU.Build.0 = Release|Any CPU
-		{41BA616D-A29B-47EF-A979-4B5E23852DA3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{41BA616D-A29B-47EF-A979-4B5E23852DA3}.Release|Any CPU.Build.0 = Release|Any CPU
-		{41BA616D-A29B-47EF-A979-4B5E23852DA3}.Debug|Any CPU.ActiveCfg = Release|Any CPU
-		{41BA616D-A29B-47EF-A979-4B5E23852DA3}.Debug|Any CPU.Build.0 = Release|Any CPU
-		{73509ACB-9DA3-476F-A2E1-6F79C10086C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{73509ACB-9DA3-476F-A2E1-6F79C10086C0}.Release|Any CPU.Build.0 = Release|Any CPU
-		{73509ACB-9DA3-476F-A2E1-6F79C10086C0}.Debug|Any CPU.ActiveCfg = Release|Any CPU
-		{73509ACB-9DA3-476F-A2E1-6F79C10086C0}.Debug|Any CPU.Build.0 = Release|Any CPU
 		{518A4A22-CED1-49D1-9FB4-255C7DAAE95D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{518A4A22-CED1-49D1-9FB4-255C7DAAE95D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{518A4A22-CED1-49D1-9FB4-255C7DAAE95D}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -145,15 +121,11 @@ Global
 		{EFC06121-31D1-43C5-BFF8-4F4BC787C094} = {2F4707CE-56BC-4148-847C-D9875C5C3EC4}
 		{7356959A-44B7-46EA-B898-1121F14C4900} = {3EDC5428-8807-4638-938C-A3AE3D7AA262}
 		{8FBFF91C-7BB4-4F0A-A86B-E9CFE75CA6D2} = {3EDC5428-8807-4638-938C-A3AE3D7AA262}
-		{9D963441-9D3A-4507-ABB8-E9431B9C2777} = {3EDC5428-8807-4638-938C-A3AE3D7AA262}
-		{1EE0D196-C383-46AE-9DFA-F1F11987FFEF} = {2F4707CE-56BC-4148-847C-D9875C5C3EC4}
 		{32C63373-98BA-48AD-96D5-B08FB0D026C5} = {2F4707CE-56BC-4148-847C-D9875C5C3EC4}
 		{FCE0BE4D-E709-4AEA-8DE0-9119BAA78872} = {513A2B43-4F20-4013-961A-6644DB084610}
 		{ED3DB13B-7AA4-43AA-A659-72B137C7466E} = {513A2B43-4F20-4013-961A-6644DB084610}
 		{CA2403D4-F810-478C-89EC-5A100E30EF1D} = {513A2B43-4F20-4013-961A-6644DB084610}
 		{10A0AD65-E503-407A-858A-389FC8B08F22} = {3EDC5428-8807-4638-938C-A3AE3D7AA262}
-		{41BA616D-A29B-47EF-A979-4B5E23852DA3} = {2F4707CE-56BC-4148-847C-D9875C5C3EC4}
-		{73509ACB-9DA3-476F-A2E1-6F79C10086C0} = {2F4707CE-56BC-4148-847C-D9875C5C3EC4}
 		{518A4A22-CED1-49D1-9FB4-255C7DAAE95D} = {3EDC5428-8807-4638-938C-A3AE3D7AA262}
 		{793613F8-B47D-41C2-A657-F730E68503AF} = {2F4707CE-56BC-4148-847C-D9875C5C3EC4}
 		{B9BB18A2-6314-47C8-94EF-16AE3934A116} = {2F4707CE-56BC-4148-847C-D9875C5C3EC4}

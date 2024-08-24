@@ -1,7 +1,7 @@
 ﻿using Metalama.Compiler;
 using Microsoft.CodeAnalysis;
 
-namespace OpenTelemetry.StaticProxy.SourceTransformer;
+namespace OpenTelemetry.StaticProxy;
 
 [Transformer]
 public class ProxyTransformer : ISourceTransformer

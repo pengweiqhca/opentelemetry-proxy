@@ -1,9 +1,10 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using OpenTelemetry.StaticProxy;
 using System.Diagnostics.CodeAnalysis;
 
-namespace OpenTelemetry.StaticProxy.SourceTransformer;
+namespace OpenTelemetry.StaticProxy;
 
 internal sealed class ProxyVisitor(
     Compilation compilation,
@@ -409,7 +410,7 @@ internal sealed class ProxyVisitor(
         "OTSP001",
         "Unrecognized attribute argument",
         "Unrecognized attribute argument expression '{0}'",
-        "OpenTelemetry.StaticProxy.SourceTransformer",
+        "OpenTelemetry.StaticProxy",
         DiagnosticSeverity.Error,
         true);
 
@@ -417,7 +418,7 @@ internal sealed class ProxyVisitor(
         "OTSP002",
         "Invalid attribute argument value",
         "Excepted attribute argument is not null, or remove this argument value",
-        "OpenTelemetry.StaticProxy.SourceTransformer",
+        "OpenTelemetry.StaticProxy",
         DiagnosticSeverity.Error,
         true);
 
@@ -425,7 +426,7 @@ internal sealed class ProxyVisitor(
         "OTSP003",
         "Invalid attribute argument type",
         "Excepted attribute argument type is '{0}' but found '{1}'",
-        "OpenTelemetry.StaticProxy.SourceTransformer",
+        "OpenTelemetry.StaticProxy",
         DiagnosticSeverity.Error,
         true);
 

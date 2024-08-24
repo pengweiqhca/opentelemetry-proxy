@@ -1,7 +1,8 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Testing;
+using OpenTelemetry.StaticProxy;
 
-namespace OpenTelemetry.StaticProxy.SourceTransformer.Tests.StandardTest;
+namespace OpenTelemetry.StaticProxy.Tests.StandardTest;
 
 public class AttributeValueTest
 {
@@ -42,7 +43,7 @@ public class AttributeValueTest
             "OTSP001",
             "Unrecognized attribute argument",
             "Unrecognized attribute argument expression '{0}'",
-            "OpenTelemetry.StaticProxy.SourceTransformer",
+            "OpenTelemetry.StaticProxy",
             DiagnosticSeverity.Error,
             true)).WithSpan(6, 30, 6, 34).WithArguments("Kind"));
 #endif

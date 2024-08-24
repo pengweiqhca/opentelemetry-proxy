@@ -1,4 +1,4 @@
-﻿namespace OpenTelemetry.StaticProxy.SourceTransformer;
+namespace OpenTelemetry.StaticProxy;
 
 internal sealed class ActivityContext(string activitySourceName, string activityName)
     : IMethodTagContext
