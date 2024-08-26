@@ -1,5 +1,4 @@
 ﻿using Castle.DynamicProxy;
-using OpenTelemetry.Proxy;
 using System.Linq.Expressions;
 using System.Reflection;
 using Tags =

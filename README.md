@@ -39,17 +39,39 @@ To add tags to activity, it defined on type or method.
 
 ## About DynamicProxy and StaticProxy
 
-|                  | DynamicProxy                | StaticProxy / Fody        | StaticProxy / Metalama                        |
-| ---------------- | --------------------------- | ------------------------- | --------------------------------------------- |
-| AOT              | ❌                           | ✔️                         | ✔️                                             |
-| Work in          | Runtime                     | Compile time (IL rewrite) | Compile time (Syntax tree)                    |
-| Possible problem | No                          | Runtime error.            | Compile error.                                |
-| Support scenario | interface or virtual method | Any method with a body.   | Any method with a body except local function. |
-| Work order (ASC) | 3                           | 2                         | 1                                             |
-| Performance      | ⭐⭐⭐                         | ⭐⭐⭐⭐⭐                     | ⭐⭐⭐⭐⭐                                         |
-| Limit            |                             | Not support `#line`       |                                               |
+|                  | DynamicProxy                                                 | StaticProxy                     |
+| ---------------- | ------------------------------------------------------------ | ------------------------------- |
+| AOT              | ❌                                                            | ✔️                               |
+| Work in          | Runtime                                                      | Compiling                       |
+| Support scenario | interface or virtual method                                  | Any method with a body of type. |
+| Work order (ASC) | 2                                                            | 1                               |
+| Performance      | ⭐⭐⭐                                                          | ⭐⭐⭐⭐⭐                           |
+| Expression       | Default: public property, field or parameterless method.<br />DynamicExpressionParser: see [DynamicExpresso.Core]() | Any valid code.                 |
+
+## Tag expression
+
+Must start with `$` on `[ActivityTag]`
+
+### DynamicProxy
+
+> Parse expression on runtime.
+
+#### Default
+
+Public property, field or parameterless method only.
+
+#### DynamicExpressionParser
+
+See [DynamicExpresso.Core](https://github.com/dynamicexpresso/DynamicExpresso)
+
+### StaticProxy
+
+> Parse expression on compiling.
+
+Any valid code.
 
 ## QA
+
 ### How to get ActivitySource name?
 `ActivitySourceAttribute.GetActivitySourceName(typeof(YourType))`
 
@@ -63,3 +85,4 @@ IActivityInvokerFactory invokerFactory = ...
 var proxyType = generator.CreateClassProxy<YourType>(new ActivityInterceptor(invokerFactory));
 ```
 See [demo](https://github.com/pengweiqhca/opentelemetry-proxy/blob/main/demo/OpenTelemetry.DynamicProxy.Demo/ServiceCollectionExtensions.cs#L13).
+~~~~~~~~~~~~

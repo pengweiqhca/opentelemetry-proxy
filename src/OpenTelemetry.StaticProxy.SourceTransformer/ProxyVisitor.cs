@@ -1,7 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using OpenTelemetry.StaticProxy;
 using System.Diagnostics.CodeAnalysis;
 
 namespace OpenTelemetry.StaticProxy;

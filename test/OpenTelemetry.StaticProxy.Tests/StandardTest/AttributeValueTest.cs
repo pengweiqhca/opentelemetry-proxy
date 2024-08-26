@@ -1,6 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Testing;
-using OpenTelemetry.StaticProxy;
 
 namespace OpenTelemetry.StaticProxy.Tests.StandardTest;
 

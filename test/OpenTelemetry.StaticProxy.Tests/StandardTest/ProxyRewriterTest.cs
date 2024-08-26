@@ -4,7 +4,6 @@ using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Testing;
 using Microsoft.CodeAnalysis.Testing.Model;
 using OpenTelemetry.Proxy;
-using OpenTelemetry.StaticProxy;
 using System.Collections.Immutable;
 using System.Reflection;
 

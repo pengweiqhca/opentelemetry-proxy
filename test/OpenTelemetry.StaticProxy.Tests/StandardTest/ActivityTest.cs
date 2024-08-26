@@ -1,6 +1,4 @@
-﻿using OpenTelemetry.StaticProxy;
-
-namespace OpenTelemetry.StaticProxy.Tests.StandardTest;
+﻿namespace OpenTelemetry.StaticProxy.Tests.StandardTest;
 
 public class ActivityTest
 {

@@ -12,13 +12,12 @@ using Tags =
 namespace OpenTelemetry.DynamicProxy;
 
 /// <summary>Instance should be singleton.</summary>
-public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
+public class ActivityInvokerFactory(IExpressionParser? parser = null) : IActivityInvokerFactory, IDisposable
 {
+    private readonly IExpressionParser _parser = parser ?? new DefaultExpressionParser();
+
     private static readonly ConstructorInfo KeyValuePairCtor =
         typeof(KeyValuePair<string, object?>).GetConstructors().Single();
-
-    private static readonly MethodInfo SetTagEnumerable =
-        typeof(ActivityExtensions).GetMethod(nameof(ActivityExtensions.SetTagEnumerable))!;
 
     private static readonly MethodInfo GetArgumentValue =
         typeof(IInvocation).GetMethod(nameof(IInvocation.GetArgumentValue))!;
@@ -73,8 +72,8 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
 
     private IActivityInvoker? CreateActivityInvoker(Type type, MethodInfo method, ImplicitActivityContext context)
     {
-        // If it has been processed by fody, invoke directly.
-        if (type.Assembly.IsDefined(typeof(ProxyHasGeneratedAttribute))) return null;
+        // If it has been processed by metalama, invoke directly.
+        if (type.IsDefined(typeof(ProxyHasGeneratedAttribute)) && !type.IsInterface) return null;
 
         var proxyMethod = ActivityInvokerHelper.GetProxyMethod(method, type);
 
@@ -112,7 +111,7 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
             new(ActivitySourceAttribute.GetActivitySourceName(type, name),
                 type.Assembly.GetName().Version?.ToString()), activitySourceName);
 
-    private static (Action<IInvocation, Activity>?, Action<IInvocation, Activity>?) SetActivityTags(Type type,
+    private (Action<IInvocation, Activity>?, Action<IInvocation, Activity>?) SetActivityTags(Type type,
         MethodInfo method, out Action<Activity, object>? setReturnValueTag)
     {
         var invocation = Expression.Parameter(typeof(IInvocation), "invocation");
@@ -124,12 +123,14 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
         var start = activityInTags.Count < 1
             ? null
             : Expression.Lambda<Action<IInvocation, Activity>>(Expression.Block(activityInTags.Select(kv =>
-                SetTag(activity, kv.Key.TagName, kv.Key.Expression, kv.Value))), invocation, activity);
+                    ExpressionHelper.SetTag(_parser, activity, kv.Key.TagName, kv.Key.Expression, kv.Value))),
+                invocation, activity);
 
         var end = activityOutTags.Count < 1
             ? null
             : Expression.Lambda<Action<IInvocation, Activity>>(Expression.Block(activityOutTags.Select(kv =>
-                SetTag(activity, activityInTags.ContainsKey(kv.Key) ? kv.Key.TagName + "$out" : kv.Key.TagName,
+                ExpressionHelper.SetTag(_parser, activity,
+                    activityInTags.ContainsKey(kv.Key) ? kv.Key.TagName + "$out" : kv.Key.TagName,
                     kv.Key.Expression, kv.Value))), invocation, activity);
 
         if (returnTags?.Item1 == null || returnTags.Item1.Count < 1) setReturnValueTag = null;
@@ -138,19 +139,16 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
             var ret = Expression.Parameter(typeof(object));
 
             setReturnValueTag = Expression.Lambda<Action<Activity, object>>(Expression.Block(returnTags.Item1.Select(
-                tag => SetTag(activity, tag.TagName, tag.Expression, ret))), activity, ret).Compile();
+                tag => ExpressionHelper.SetTag(activity, tag.TagName, ExpressionHelper.IsExpression(tag.Expression)
+                    ? ExpressionHelper.ConvertToObject(_parser.Parse(Expression.Convert(ret, returnTags.Item2),
+                        tag.Expression))
+                    : ret))), activity, ret).Compile();
         }
 
         return (start?.Compile(), end?.Compile());
     }
-#pragma warning disable CA1859
-    private static Expression SetTag(Expression activity, string tagName, string? expression, Expression from) =>
-        Expression.Call(SetTagEnumerable, activity, Expression.Constant(tagName), GetExpression(expression, from));
-#pragma warning restore CA1859
-    private static Expression GetExpression(string? expression, Expression from) =>
-        from.Type.IsValueType || from.Type.IsGenericParameter ? Expression.Convert(from, typeof(object)) : from;
 
-    private static GetTags? CreateActivityTags(Type type, MethodInfo method)
+    private GetTags? CreateActivityTags(Type type, MethodInfo method)
     {
         var invocation = Expression.Parameter(typeof(IInvocation), "invocation");
 
@@ -159,8 +157,8 @@ public class ActivityInvokerFactory : IActivityInvokerFactory, IDisposable
         var start = activityTags.Count < 1
             ? null
             : Expression.Lambda<GetTags>(Expression.NewArrayInit(typeof(KeyValuePair<string, object>),
-                activityTags.Select(static kv => Expression.New(KeyValuePairCtor, Expression.Constant(kv.Key.TagName),
-                    GetExpression(kv.Key.Expression, kv.Value)))), invocation);
+                activityTags.Select(kv => Expression.New(KeyValuePairCtor, Expression.Constant(kv.Key.TagName),
+                    ExpressionHelper.ParseExpression(_parser, kv.Key.Expression, kv.Value)))), invocation);
 
         return start?.Compile();
     }

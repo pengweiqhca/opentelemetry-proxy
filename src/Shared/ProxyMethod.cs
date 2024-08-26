@@ -18,19 +18,14 @@ internal sealed class ActivityNameMethod(string activityName, int maxUsableTimes
 
 internal sealed class ActivityMethod(
     string activityName,
-#if Fody
-    int kind,
-#else
     ActivityKind kind,
-#endif
-    bool suppressInstrumentation) : IProxyMethod
+    bool suppressInstrumentation)
+    : IProxyMethod
 {
     public string ActivityName { get; } = activityName;
-#if Fody
-    public int Kind { get; } = kind;
-#else
+
     public ActivityKind Kind { get; } = kind;
-#endif
+
     public bool SuppressInstrumentation { get; } = suppressInstrumentation;
 }
 

@@ -1,9 +1,7 @@
-﻿using AssemblyToProcess;
-using Microsoft.FSharp.Control;
+﻿using Microsoft.FSharp.Control;
 using Microsoft.FSharp.Core;
 using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.Tests.Common;
-using OpenTelemetry.StaticProxy;
 using System.Reflection;
 using Xunit.Sdk;
 using ActivityName =

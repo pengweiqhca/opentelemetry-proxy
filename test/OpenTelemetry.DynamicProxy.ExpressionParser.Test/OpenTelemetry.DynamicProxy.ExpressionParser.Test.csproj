@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <SignAssembly>false</SignAssembly>
+    <TargetFrameworks>net472;net6.0</TargetFrameworks>
+
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OpenTelemetry.DynamicProxy.ExpressionParser\OpenTelemetry.DynamicProxy.ExpressionParser.csproj" />
+  </ItemGroup>
+
+</Project>
