@@ -45,8 +45,7 @@ internal sealed class ProxyRewriter(
 
         var hasMethod = methods.Keys.Select(m => m.GetDeclaringType()).Any(t => t == node);
 
-        if (!types.TryGetValue(node, out var context) ||
-            context is not IActivitySourceContext activitySourceContext)
+        if (!types.TryGetValue(node, out var context) || context is not IActivitySourceContext activitySourceContext)
             return AddLineNumber(node, type);
 
         type = AddActivitySource(type, activitySourceContext.ActivitySourceName);
