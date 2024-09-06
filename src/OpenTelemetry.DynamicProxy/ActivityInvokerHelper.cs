@@ -71,31 +71,3 @@ internal static class ActivityInvokerHelper
                     Expression.Convert(param, type)), param).Compile();
         });
 }
-
-internal interface IProxyMethod;
-
-internal sealed class SuppressInstrumentationMethod : IProxyMethod
-{
-    private SuppressInstrumentationMethod() { }
-
-    public static SuppressInstrumentationMethod Instance { get; } = new();
-}
-
-internal sealed class ActivityNameMethod(string activityName, int maxUsableTimes) : IProxyMethod
-{
-    public string ActivityName { get; } = activityName;
-
-    public int MaxUsableTimes { get; } = maxUsableTimes;
-}
-
-internal sealed class ActivityMethod(
-    string activityName,
-    ActivityKind kind,
-    bool suppressInstrumentation) : IProxyMethod
-{
-    public string ActivityName { get; } = activityName;
-
-    public ActivityKind Kind { get; } = kind;
-
-    public bool SuppressInstrumentation { get; } = suppressInstrumentation;
-}

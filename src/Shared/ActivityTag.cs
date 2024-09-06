@@ -1,4 +1,8 @@
-﻿namespace OpenTelemetry;
+﻿#if DynamicProxy
+namespace OpenTelemetry.DynamicProxy;
+#else
+namespace OpenTelemetry.StaticProxy;
+#endif
 
 internal sealed record ActivityTag(string TagName, string? Expression = null)
 {

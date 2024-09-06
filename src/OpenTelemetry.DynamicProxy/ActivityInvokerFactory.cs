@@ -5,9 +5,9 @@ using GetTags =
     System.Func<Castle.DynamicProxy.IInvocation, System.Collections.Generic.IReadOnlyCollection<
         System.Collections.Generic.KeyValuePair<string, object?>>?>;
 using Tags =
-    (System.Collections.Generic.Dictionary<OpenTelemetry.ActivityTag, System.Linq.Expressions.Expression> In,
-    System.Collections.Generic.Dictionary<OpenTelemetry.ActivityTag, System.Linq.Expressions.Expression> Out,
-    System.Tuple<System.Collections.Generic.HashSet<OpenTelemetry.ActivityTag>, System.Type>? Return);
+    (System.Collections.Generic.Dictionary<OpenTelemetry.DynamicProxy.ActivityTag, System.Linq.Expressions.Expression> In,
+    System.Collections.Generic.Dictionary<OpenTelemetry.DynamicProxy.ActivityTag, System.Linq.Expressions.Expression> Out,
+    System.Tuple<System.Collections.Generic.HashSet<OpenTelemetry.DynamicProxy.ActivityTag>, System.Type>? Return);
 
 namespace OpenTelemetry.DynamicProxy;
 

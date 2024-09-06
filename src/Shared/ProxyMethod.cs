@@ -1,4 +1,8 @@
-﻿namespace OpenTelemetry;
+﻿#if DynamicProxy
+namespace OpenTelemetry.DynamicProxy;
+#else
+namespace OpenTelemetry.StaticProxy;
+#endif
 
 internal interface IProxyMethod;
 

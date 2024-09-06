@@ -2,9 +2,9 @@
 using System.Linq.Expressions;
 using System.Reflection;
 using Tags =
-    (System.Collections.Generic.Dictionary<OpenTelemetry.ActivityTag, string> In,
-    System.Collections.Generic.Dictionary<OpenTelemetry.ActivityTag, string> Out,
-    System.Tuple<System.Collections.Generic.HashSet<OpenTelemetry.ActivityTag>, System.Type>? Return);
+    (System.Collections.Generic.Dictionary<OpenTelemetry.DynamicProxy.ActivityTag, string> In,
+    System.Collections.Generic.Dictionary<OpenTelemetry.DynamicProxy.ActivityTag, string> Out,
+    System.Tuple<System.Collections.Generic.HashSet<OpenTelemetry.DynamicProxy.ActivityTag>, System.Type>? Return);
 
 namespace OpenTelemetry.DynamicProxy.Tests.StandardTest;
 
