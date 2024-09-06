@@ -13,7 +13,7 @@ public static class InnerActivityAccessor
     internal static void ActivityStarted(Activity activity)
     {
         if (Holder.Value is not { } holder || !holder.OnActivityStart(activity)) return;
-        
+
         if (holder.HasOnEnd()) ActivityTable.Add(activity, holder);
         else holder.Clear();
     }
@@ -67,21 +67,26 @@ public static class InnerActivityAccessor
 
     internal sealed class ActivityHolder(Func<Activity, bool>? onStart, Func<Activity, bool>? onEnd)
     {
-        public bool HasOnEnd() => onEnd != null;
+        private Func<Activity, bool>? _onEnd = onEnd;
+
+        public bool HasOnEnd() => _onEnd != null;
 
         public void Clear()
         {
-            onStart = null;
-            onEnd = null;
+            OnStart = null;
+            _onEnd = null;
         }
 
-        public Func<Activity, bool>? OnStart => onStart;
+        public Func<Activity, bool>? OnStart { get; private set; } = onStart;
 
         [StackTraceHidden]
-        public bool OnActivityStart(Activity data) => onStart == null || onStart(data);
+        public bool OnActivityStart(Activity data) => Invoke(OnStart, data);
 
         [StackTraceHidden]
-        public bool OnActivityEnd(Activity data) => onEnd == null || onEnd(data);
+        public bool OnActivityEnd(Activity data) => Invoke(_onEnd, data);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool Invoke(Func<Activity, bool>? func, Activity data) => func == null || func(data);
     }
 
     private sealed class Disposable(ActivityHolder holder) : IDisposable

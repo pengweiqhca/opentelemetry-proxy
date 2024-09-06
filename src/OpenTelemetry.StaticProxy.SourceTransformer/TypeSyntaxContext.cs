@@ -62,7 +62,7 @@ internal sealed class TypeSyntaxContexts
 }
 
 // Implementation, Definition
-public class MethodSyntaxContexts : Dictionary<MethodDeclarationSyntax, MethodDeclarationSyntax?>
+internal sealed class MethodSyntaxContexts : Dictionary<MethodDeclarationSyntax, MethodDeclarationSyntax?>
 {
     public Dictionary<IMethodSymbol, MethodDeclarationSyntax> I2D { get; } = [];
 }
