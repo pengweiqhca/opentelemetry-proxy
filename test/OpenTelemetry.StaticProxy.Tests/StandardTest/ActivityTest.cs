@@ -82,7 +82,7 @@ public class ActivityTest
         var typeMethods = Assert.Single(results);
 
         Assert.Equal("OpenTelemetry.Proxy.StandardFiles.ActivityTestClass3",
-            Assert.IsType<ImplicateActivitySourceContext>(typeMethods.Context).ActivitySourceName);
+            Assert.IsType<TypeActivityName2Context>(typeMethods.Context).ActivitySourceName);
 
         var activityContext = Assert.IsAssignableFrom<ActivityContext>(Assert.Single(typeMethods.MethodContexts.Values));
 

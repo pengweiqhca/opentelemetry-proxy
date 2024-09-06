@@ -145,8 +145,14 @@ internal sealed class ProxyVisitor(
         {
             context = ProcessActivity(typeMethods, method, attr1);
 
-            if (typeMethods.Context is NoAttributeTypeContext noAttributeTypeContext)
-                typeMethods.Context = noAttributeTypeContext.ToImplicateActivitySource(typeMethods.TypeFullName);
+            typeMethods.Context = typeMethods.Context switch
+            {
+                NoAttributeTypeContext noAttributeTypeContext =>
+                    noAttributeTypeContext.ToImplicateActivitySource(typeMethods.TypeFullName),
+                TypeActivityNameContext activityNameContext =>
+                    activityNameContext.ToImplicateActivitySource(typeMethods.TypeFullName),
+                _ => typeMethods.Context
+            };
         }
         else if (attr2 == null || (context = ParseActivityName(attr2, method,
                      typeMethods.Context is ActivityNameContext anc ? anc.ActivityName : typeMethods.TypeName)) == null)

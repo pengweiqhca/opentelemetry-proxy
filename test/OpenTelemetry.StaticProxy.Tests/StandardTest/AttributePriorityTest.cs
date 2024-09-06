@@ -20,7 +20,7 @@ public class AttributePriorityTest
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 
-        Assert.IsType<TypeActivityNameContext>(Assert.Single(results).Context);
+        Assert.IsType<TypeActivityName2Context>(Assert.Single(results).Context);
         Assert.IsType<ActivityContext>(Assert.Single(results[0].MethodContexts.Values));
     }
 }
