@@ -29,7 +29,6 @@ public class ActivityTest
 
         Assert.True(activityContext.SuppressInstrumentation);
         Assert.Equal("TestMethod", activityContext.ActivityName);
-        Assert.Equal(activitySourceContext.ActivitySourceName, activityContext.ActivitySourceName);
 #if NETFRAMEWORK
         Assert.Equal("(System.Diagnostics.ActivityKind)" + (int)ActivityKind.Server, activityContext.Kind);
 #else
@@ -39,7 +38,6 @@ public class ActivityTest
 
         Assert.False(activityContext.SuppressInstrumentation);
         Assert.Equal("ActivityTestClass1.TestMethod4", activityContext.ActivityName);
-        Assert.Equal(activitySourceContext.ActivitySourceName, activityContext.ActivitySourceName);
 #if NETFRAMEWORK
         Assert.Equal("(System.Diagnostics.ActivityKind)" + (int)ActivityKind.Client, activityContext.Kind);
 #else
@@ -68,7 +66,6 @@ public class ActivityTest
 
         Assert.True(activityContext.SuppressInstrumentation);
         Assert.Equal("ActivityTestClass2`1.TestMethod1", activityContext.ActivityName);
-        Assert.Equal(activitySourceContext.ActivitySourceName, activityContext.ActivitySourceName);
         Assert.Equal("default", activityContext.Kind);
     }
 
@@ -87,6 +84,5 @@ public class ActivityTest
         var activityContext = Assert.IsAssignableFrom<ActivityContext>(Assert.Single(typeMethods.MethodContexts.Values));
 
         Assert.Equal("ActivityTestClass3.TestMethod1", activityContext.ActivityName);
-        Assert.Equal("OpenTelemetry.Proxy.StandardFiles.ActivityTestClass3", activityContext.ActivitySourceName);
     }
 }

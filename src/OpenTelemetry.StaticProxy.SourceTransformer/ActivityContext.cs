@@ -1,10 +1,7 @@
 namespace OpenTelemetry.StaticProxy;
 
-internal sealed class ActivityContext(string activitySourceName, string activityName)
-    : IMethodTagContext
+internal sealed class ActivityContext(string activityName) : IMethodTagContext
 {
-    public string ActivitySourceName { get; } = activitySourceName;
-
     public string ActivityName { get; set; } = activityName;
 
     public string Kind { get; set; } = "default";

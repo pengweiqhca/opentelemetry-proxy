@@ -143,13 +143,13 @@ internal sealed class ProxyVisitor(
 
         if (attr1 != null)
         {
-            context = ProcessActivity(typeMethods, method, attr1);
+            context = ProcessActivity(typeMethods.TypeName, method, attr1);
 
             typeMethods.Context = typeMethods.Context switch
             {
                 NoAttributeTypeContext noAttributeTypeContext =>
                     noAttributeTypeContext.ToImplicateActivitySource(typeMethods.TypeFullName),
-                TypeActivityNameContext activityNameContext =>
+                TypeActivityNameContext activityNameContext and not IActivitySourceContext =>
                     activityNameContext.ToImplicateActivitySource(typeMethods.TypeFullName),
                 _ => typeMethods.Context
             };
@@ -167,8 +167,7 @@ internal sealed class ProxyVisitor(
                 },
                 ActivitySourceContext typeContext
                     when typeContext.IncludeNonAsyncStateMachineMethod || method.IsAsync() =>
-                    new ActivityContext(typeContext.ActivitySourceName,
-                        GetActivityName(method, null, typeMethods.TypeName))
+                    new ActivityContext(GetActivityName(method, null, typeMethods.TypeName))
                     {
                         Kind = typeContext.Kind,
                         SuppressInstrumentation = typeContext.SuppressInstrumentation,
@@ -188,15 +187,13 @@ internal sealed class ProxyVisitor(
         typeMethods.AddMethod(method, context);
     }
 
-    private ActivityContext ProcessActivity(TypeMethods typeMethods, MethodDeclarationSyntax method,
+    private ActivityContext ProcessActivity(string typeName, MethodDeclarationSyntax method,
         AttributeSyntax attribute)
     {
-        var context = new ActivityContext(typeMethods.Context is ActivitySourceContext tc
-            ? tc.ActivitySourceName
-            : typeMethods.TypeFullName, GetActivityName(method, null, typeMethods.TypeName));
+        var context = new ActivityContext(GetActivityName(method, null, typeName));
 
         if (attribute.ArgumentList == null)
-            context.ActivityName = GetActivityName(method, null, typeMethods.TypeName);
+            context.ActivityName = GetActivityName(method, null, typeName);
         else
             foreach (var arg in attribute.ArgumentList.Arguments)
                 if (arg.NameEquals == null)
