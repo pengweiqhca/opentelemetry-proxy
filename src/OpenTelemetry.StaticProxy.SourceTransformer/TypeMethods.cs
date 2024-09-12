@@ -2,6 +2,7 @@
 
 namespace OpenTelemetry.StaticProxy;
 
+[DebuggerDisplay("{TypeFullName} ({MethodContexts.Count})")]
 internal sealed class TypeMethods(
     ITypeContext context,
     string typeName,
