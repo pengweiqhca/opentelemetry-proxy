@@ -109,12 +109,12 @@ internal sealed class ProxyVisitor(
         if (node.GetDeclaringType() is { } typeSyntax &&
             types.FullNames.TryGetValue(typeSyntax, out var fullName) &&
             typeContexts.TryGetValue(fullName, out var typeContext))
-            GetProxyMethodContext(typeContext, node);
+            DetectProxyMethodContext(typeContext, node);
 
         return base.VisitMethodDeclaration(node);
     }
 
-    private void GetProxyMethodContext(TypeMethods typeMethods, MethodDeclarationSyntax method)
+    private void DetectProxyMethodContext(TypeMethods typeMethods, MethodDeclarationSyntax method)
     {
         AttributeSyntax? attr1 = null;
         AttributeSyntax? attr2 = null;
@@ -137,7 +137,10 @@ internal sealed class ProxyVisitor(
             else if (attr.Is("ActivityName")) attr2 = attr;
         }
 
-        if (typeMethods.TypeNode is not InterfaceDeclarationSyntax && !method.IsPublic()) return;
+        // If the method is not public and does not have the [Activity] or [ActivityName] attribute, it will be skip.
+        if (attr1 == null && attr2 == null &&
+            typeMethods.TypeNode is not InterfaceDeclarationSyntax &&
+            !method.IsPublic()) return;
 
         IMethodTagContext? context;
 

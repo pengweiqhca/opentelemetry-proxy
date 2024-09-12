@@ -5,7 +5,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
 
     <MetalamaDebugTransformedCode>true</MetalamaDebugTransformedCode>
-    <!--<MetalamaDebugCompiler>true</MetalamaDebugCompiler>-->
+    <MetalamaDebugCompiler>true</MetalamaDebugCompiler>
   </PropertyGroup>
 
   <ItemGroup>

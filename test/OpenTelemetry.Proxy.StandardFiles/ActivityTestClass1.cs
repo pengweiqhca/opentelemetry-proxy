@@ -17,4 +17,6 @@ public class ActivityTestClass1
     public async Task TestMethod4() => await Task.CompletedTask.ConfigureAwait(false);
 
     public Task TestMethod5() => Task.CompletedTask;
+
+    private Task TestMethod6() => Task.CompletedTask;
 }
