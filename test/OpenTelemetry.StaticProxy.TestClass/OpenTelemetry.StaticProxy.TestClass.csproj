@@ -4,8 +4,8 @@
     <NoWarn>$(NoWarn);IDE2000</NoWarn>
     <TargetFramework>netstandard2.0</TargetFramework>
 
-    <MetalamaDebugTransformedCode>true</MetalamaDebugTransformedCode>
-    <MetalamaDebugCompiler>true</MetalamaDebugCompiler>
+    <!--<MetalamaDebugTransformedCode>true</MetalamaDebugTransformedCode>
+    <MetalamaDebugCompiler>true</MetalamaDebugCompiler>-->
   </PropertyGroup>
 
   <ItemGroup>
