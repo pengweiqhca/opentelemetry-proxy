@@ -66,20 +66,24 @@ public class InnerActivityContext
     private Activity? _activity;
     private bool _disposed;
 
-    internal bool OnStart(Activity activity) => Interlocked.CompareExchange(ref _activity, activity, null) == null;
+    internal bool OnStart(Activity data)
+    {
+        if (Interlocked.CompareExchange(ref _activity, data, null) != null) return false;
+
+        if (_time is not { } startTimeUtc) return true;
+
+        var diff = (data.StartTimeUtc - startTimeUtc).TotalMilliseconds;
+
+        if (diff > 1) data.SetTag("_StartTimeOffset_", diff);
+
+        data.SetStartTime(startTimeUtc.UtcDateTime);
+
+        return true;
+    }
 
     internal bool OnEnd(Activity data)
     {
-        if (_activity != data|| _disposed) return false;
-
-        if (_time is { } startTimeUtc)
-        {
-            var diff = (data.StartTimeUtc - startTimeUtc).TotalMilliseconds;
-
-            if (diff > 1) data.SetTag("_StartTimeOffset_", diff);
-
-            data.SetStartTime(startTimeUtc.UtcDateTime);
-        }
+        if (_activity != data || _disposed) return false;
 
         if (Name != null) data.DisplayName = Name;
 
