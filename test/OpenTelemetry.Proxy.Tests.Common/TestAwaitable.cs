@@ -35,7 +35,7 @@ public class TestAwaitable
         foreach (var callback in _onCompletedCallbacks) callback();
     }
 
-    public TestAwaiter<bool> GetAwaiter() => new(this, () => this._result);
+    public TestAwaiter<bool> GetAwaiter() => new(this, () => _result);
 
     public readonly struct TestAwaiter<TResult>(TestAwaitable owner, Func<TResult> result) : INotifyCompletion
     {

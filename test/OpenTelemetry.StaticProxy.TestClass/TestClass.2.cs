@@ -19,7 +19,7 @@ public static partial class TestClass
     [ActivityName]
     public static bool Using(out DateTimeOffset now)
     {
-        using (InnerActivityAccessor.SetContext("Using")) now = DateTimeOffset.Now;
+        using (InnerActivityAccessor.SetActivityName("Using")) now = DateTimeOffset.Now;
 
         return true;
     }

@@ -163,27 +163,30 @@ internal sealed class ProxyRewriter(
         ExpressionSyntax dictionaryCreation;
         if (context.InTags.Count > 0)
         {
-            var initializerExpressions = new SyntaxNodeOrToken[context.InTags.Count * 2];
+            var initializerExpressions = new SyntaxNodeOrToken[context.InTags.Count * 2 - 1];
 
             var index = 0;
-            foreach (var tag in context.InTags)
+            foreach (var item in context.InTags.Select(tag => SyntaxFactory.InitializerExpression(
+                         SyntaxKind.ComplexElementInitializerExpression,
+                         SyntaxFactory.SeparatedList<ExpressionSyntax>(new SyntaxNodeOrToken[]
+                         {
+                             SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression,
+                                 SyntaxFactory.Literal(tag.Key.TagName)).WithLeadingWhiteSpace(),
+                             SyntaxFactory.Token(SyntaxKind.CommaToken),
+                             GetTagValue(type, tag.Value, tag.Key.Expression).WithWhiteSpace()
+                         }))))
             {
-                initializerExpressions[index++] = SyntaxFactory.InitializerExpression(
-                    SyntaxKind.ComplexElementInitializerExpression,
-                    SyntaxFactory.SeparatedList<ExpressionSyntax>(new SyntaxNodeOrToken[]
-                    {
-                        SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression,
-                            SyntaxFactory.Literal(tag.Key.TagName)),
-                        SyntaxFactory.Token(SyntaxKind.CommaToken),
-                        GetTagValue(type, tag.Value, tag.Key.Expression).WithLeadingWhiteSpace()
-                    }));
+                if (index > 0)
+                    initializerExpressions[index++] =
+                        SyntaxFactory.Token(SyntaxKind.CommaToken).WithTrailingWhiteSpace();
 
-                initializerExpressions[index++] = SyntaxFactory.Token(SyntaxKind.CommaToken)
-                    .WithTrailingWhiteSpace();
+                initializerExpressions[index++] = index == initializerExpressions.Length
+                    ? item.WithWhiteSpace()
+                    : item.WithLeadingWhiteSpace();
             }
 
             dictionaryCreation = SyntaxFactory.ObjectCreationExpression(
-                    SyntaxFactory.ParseTypeName("System.Collections.Generic.Dictionary<string, object?>"))
+                    SyntaxFactory.ParseTypeName("System.Collections.Generic.Dictionary<string, object?>")).WithTrailingWhiteSpace()
                 .WithNewKeyword(SyntaxFactory.Token(SyntaxKind.NewKeyword).WithWhiteSpace())
                 .WithInitializer(SyntaxFactory.InitializerExpression(
                     SyntaxKind.CollectionInitializerExpression,
@@ -197,15 +200,27 @@ internal sealed class ProxyRewriter(
             .WithExpression(SyntaxFactory.InvocationExpression(SyntaxFactory.MemberAccessExpression(
                     SyntaxKind.SimpleMemberAccessExpression,
                     SyntaxFactory.ParseTypeName("OpenTelemetry.Proxy.InnerActivityAccessor"),
-                    SyntaxFactory.IdentifierName("SetContext")))
-                .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList([
-                    SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression,
-                        SyntaxFactory.Literal(context.ActivityName))),
-                    SyntaxFactory.Argument(dictionaryCreation),
-                    SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(context.AdjustStartTime
-                        ? SyntaxKind.TrueLiteralExpression
-                        : SyntaxKind.FalseLiteralExpression)).WithLeadingWhiteSpace()
-                ])))).WithNewLine(indent).HiddenLineNumber();
+                    SyntaxFactory.IdentifierName("SetActivityContext")))
+                .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(
+                    SyntaxFactory.Argument(SyntaxFactory.ObjectCreationExpression(
+                            SyntaxFactory.ParseTypeName("OpenTelemetry.Proxy.InnerActivityContext").WithWhiteSpace())
+                        .WithInitializer(SyntaxFactory.InitializerExpression(SyntaxKind.ObjectInitializerExpression,
+                            SyntaxFactory.SeparatedList<ExpressionSyntax>(new SyntaxNodeOrToken[]
+                            {
+                                SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression,
+                                    SyntaxFactory.IdentifierName("AdjustStartTime").WithWhiteSpace(),
+                                    SyntaxFactory.LiteralExpression(context.AdjustStartTime
+                                        ? SyntaxKind.TrueLiteralExpression
+                                        : SyntaxKind.FalseLiteralExpression).WithLeadingWhiteSpace()),
+                                SyntaxFactory.Token(SyntaxKind.CommaToken),
+                                SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression,
+                                    SyntaxFactory.IdentifierName("Name").WithWhiteSpace(),
+                                    SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression,
+                                        SyntaxFactory.Literal(context.ActivityName)).WithLeadingWhiteSpace()),
+                                SyntaxFactory.Token(SyntaxKind.CommaToken),
+                                SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression,
+                                    SyntaxFactory.IdentifierName("Tags").WithWhiteSpace(), dictionaryCreation.WithTrailingWhiteSpace())
+                            })))))))).WithNewLine(indent).HiddenLineNumber();
 
         return method.WithBody(SyntaxFactory.Block(usingStatement).WithNewLine());
     }
@@ -326,7 +341,9 @@ internal sealed class ProxyRewriter(
                     SyntaxKind.SimpleMemberAccessExpression, current, SyntaxFactory.IdentifierName("SetTag")))
                 .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList([
                     SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression,
-                        SyntaxFactory.Literal(inTags.ContainsKey(tag.Key) ? tag.Key.TagName + "$out" : tag.Key.TagName))),
+                        SyntaxFactory.Literal(inTags.ContainsKey(tag.Key)
+                            ? tag.Key.TagName + "$out"
+                            : tag.Key.TagName))),
                     SyntaxFactory.Argument(GetTagValue(type, tag.Value, tag.Key.Expression)).WithLeadingWhiteSpace()
                 ]))));
 

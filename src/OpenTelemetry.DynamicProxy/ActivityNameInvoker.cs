@@ -22,7 +22,12 @@ public class ActivityNameInvoker : IActivityInvoker
     {
         var disposable = _activityName == null
             ? SuppressInstrumentationScope.Begin()
-            : InnerActivityAccessor.SetContext(_activityName,  _getTags?.Invoke(invocation), _adjustStartTime);
+            : InnerActivityAccessor.SetActivityContext(new()
+            {
+                AdjustStartTime = _adjustStartTime,
+                Name = _activityName,
+                Tags = _getTags?.Invoke(invocation)
+            });
 
         try
         {

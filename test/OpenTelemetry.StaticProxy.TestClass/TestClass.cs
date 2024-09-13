@@ -43,7 +43,7 @@ public static partial class TestClass
     public static TestAwaitable<bool> SuppressInstrumentationScopeAwaitable() => new(SuppressInstrumentationScope);
 
     [ActivityName(AdjustStartTime = true)]
-    public static InnerActivityContext? GetActivityName([ActivityTag] int delay) => InternalGetActivityName();
+    public static InnerActivityContext? GetActivityName([ActivityTag] int delay, [ActivityTag] string name) => InternalGetActivityName();
 
     [Activity]
     public static T? GenericMethod<T>() => default;
@@ -67,19 +67,23 @@ public static partial class TestClass
 
     private static InnerActivityContext? InternalGetActivityName()
     {
-        var holder = typeof(InnerActivityAccessor).GetProperty("Activity", BindingFlags.NonPublic | BindingFlags.Static)
+        var holder = typeof(InnerActivityAccessor).GetField("Holder", BindingFlags.NonPublic | BindingFlags.Static)
             ?.GetValue(null);
 
-        return holder == null
+        if (holder == null) return null;
+
+        var value = holder.GetPropertyValue("Value");
+
+        return value == null
             ? null
-            : Assert.IsAssignableFrom<Delegate>(holder.GetPropertyValue("OnStart")).Target as InnerActivityContext;
+            : Assert.IsAssignableFrom<Delegate>(value.GetPropertyValue("OnStart")).Target as InnerActivityContext;
     }
 
     [ActivityName(AdjustStartTime = true)]
     [ActivityTags(nameof(delay))]
-    public static async ValueTask<InnerActivityContext?> GetActivityNameAsync(int delay)
+    public static async ValueTask<InnerActivityContext?> GetActivityNameAsync(int delay, [ActivityTag] string name)
     {
-        await Task.Delay(100).ConfigureAwait(false);
+        await Task.Delay(delay).ConfigureAwait(false);
 
         return InternalGetActivityName();
     }

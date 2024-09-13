@@ -63,29 +63,31 @@ public class FunctionTest
 
     [Fact]
     public Task GetActivityName() => ActivityNameTest(nameof(TestClass.TestClass.GetActivityName),
-        static instance => new((InnerActivityContext?)instance), new() { { "delay", 200 } });
+        static instance => new((InnerActivityContext?)instance));
 
     [Fact]
     public Task GetActivityNameAsync() => ActivityNameTest(nameof(TestClass.TestClass.GetActivityNameAsync),
-        static instance => (ValueTask<InnerActivityContext?>)instance, new() { { "delay", 200 } });
+        static instance => (ValueTask<InnerActivityContext?>)instance);
 
     [Fact]
     public Task GetActivityNameAwaitable() =>
-        Assert.ThrowsAsync<IsAssignableFromException>(async () => await TestClass.TestClass.GetActivityNameAwaitable(1));
+        Assert.ThrowsAsync<IsAssignableFromException>(async () =>
+            await TestClass.TestClass.GetActivityNameAwaitable(1));
 
     private static async Task ActivityNameTest(string methodName,
-        Func<object, ValueTask<InnerActivityContext?>> func, Dictionary<string, object?> tags)
+        Func<object, ValueTask<InnerActivityContext?>> func)
     {
         var method = typeof(TestClass.TestClass).GetMethod(methodName);
 
         Assert.NotNull(method);
 
-        var context = await func(method.Invoke(null, [200])!).ConfigureAwait(false);
+        var context = await func(method.Invoke(null, [200, "123"])!).ConfigureAwait(false);
 
         Assert.NotNull(context);
 
         Assert.Equal($"{nameof(TestClass.TestClass)}.{methodName}", context.Name);
-        Assert.Equal(tags, context.Tags);
+        Assert.NotNull(context.Tags);
+        Assert.Contains(context.Tags, kv => kv is { Key: "delay", Value: 200 });
         Assert.True(context.AdjustStartTime);
     }
 
@@ -140,6 +142,7 @@ public class FunctionTest
         Assert.Equal(142, stackFrame.GetFileLineNumber());
         Assert.Equal(Path.GetFullPath(
             "../../../../OpenTelemetry.StaticProxy.TestClass/TestClass.cs"), stackFrame.GetFileName());
+
         Assert.Equal(9, stackFrame.GetFileColumnNumber());
 
         var activity = Assert.Single(list);

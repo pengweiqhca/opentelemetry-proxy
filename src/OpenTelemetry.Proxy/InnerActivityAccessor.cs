@@ -7,8 +7,6 @@ public static class InnerActivityAccessor
     private static readonly AsyncLocal<ActivityHolder?> Holder = new();
     private static readonly ConditionalWeakTable<Activity, ActivityHolder> ActivityTable = new();
 
-    internal static ActivityHolder? Activity => Holder.Value;
-
     [StackTraceHidden]
     internal static void ActivityStarted(Activity activity)
     {
@@ -79,28 +77,32 @@ public static class InnerActivityAccessor
     }
 
     [StackTraceHidden]
-    public static IDisposable SetContext(string name, IReadOnlyCollection<KeyValuePair<string, object?>>? tags = null,
-        bool adjustStartTime = false) =>
-        SetContext(new InnerActivityContext { Name = name, Tags = tags, AdjustStartTime = adjustStartTime });
+    public static IDisposable SetActivityName(string name) =>
+        SetActivityContext(new() { Name = name });
 
     [StackTraceHidden]
-    public static IDisposable SetContext(string name, string tagName, object? tagValue) =>
-        SetContext(new InnerActivityContext { Name = name, Tags = [new(tagName, tagValue)] });
+    public static IDisposable SetActivityNameAndTags(string name,
+        IReadOnlyCollection<KeyValuePair<string, object?>> tags) =>
+        SetActivityContext(new() { Name = name, Tags = tags });
 
     [StackTraceHidden]
-    public static IDisposable SetContext(IReadOnlyCollection<KeyValuePair<string, object?>> tags) =>
-        SetContext(new InnerActivityContext { Tags = tags });
+    public static IDisposable SetActivityNameAndTag(string name, string tagName, object? tagValue) =>
+        SetActivityContext(new() { Name = name, Tags = [new(tagName, tagValue)] });
 
-    public static IDisposable SetContext(InnerActivityContext context)
+    [StackTraceHidden]
+    public static IDisposable SetActivityTags(IReadOnlyCollection<KeyValuePair<string, object?>> tags) =>
+        SetActivityContext(new() { Tags = tags });
+
+    public static IDisposable SetActivityContext(InnerActivityContext context)
     {
         // If the current holder hava no name, and the new holder only have name, then merge them.
-        if (InnerActivityAccessor.Activity is { OnStart.Target: InnerActivityContext outerContext })
+        if (Holder.Value is { OnStart.Target: InnerActivityContext outerContext })
             context.Merge(outerContext);
 
-        return InnerActivityAccessor.OnActivity(context.OnStart, context.OnEnd);
+        return OnActivity(context.OnStart, context.OnEnd);
     }
 
-    internal sealed class ActivityHolder(Func<Activity, bool>? onStart, Func<Activity, bool>? onEnd)
+    private sealed class ActivityHolder(Func<Activity, bool>? onStart, Func<Activity, bool>? onEnd)
     {
         private Func<Activity, bool>? _onEnd = onEnd;
 
