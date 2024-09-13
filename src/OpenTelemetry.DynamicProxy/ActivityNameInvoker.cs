@@ -5,16 +5,16 @@ namespace OpenTelemetry.DynamicProxy;
 public class ActivityNameInvoker : IActivityInvoker
 {
     private readonly string? _activityName;
-    private readonly int _maxUsableTimes;
+    private readonly bool _adjustStartTime;
     private readonly Func<IInvocation, IReadOnlyCollection<KeyValuePair<string, object?>>?>? _getTags;
 
     public ActivityNameInvoker() { }
 
-    public ActivityNameInvoker(string activityName, int maxUsableTimes,
+    public ActivityNameInvoker(string activityName, bool adjustStartTime,
         Func<IInvocation, IReadOnlyCollection<KeyValuePair<string, object?>>?>? getTags)
     {
         _activityName = activityName;
-        _maxUsableTimes = maxUsableTimes;
+        _adjustStartTime = adjustStartTime;
         _getTags = getTags;
     }
 
@@ -22,7 +22,7 @@ public class ActivityNameInvoker : IActivityInvoker
     {
         var disposable = _activityName == null
             ? SuppressInstrumentationScope.Begin()
-            : ActivityName.SetName(_getTags?.Invoke(invocation), _activityName, _maxUsableTimes);
+            : InnerActivityAccessor.SetContext(_activityName,  _getTags?.Invoke(invocation), _adjustStartTime);
 
         try
         {

@@ -15,7 +15,7 @@ public class AttributeValueTest
         var context = Assert.IsType<TypeActivityNameContext>(Assert.Single(results).Context);
 
         Assert.Equal("Test", context.ActivityName);
-        Assert.Equal(3, context.MaxUsableTimes);
+        Assert.True(context.AdjustStartTime);
         Assert.Equal(["abc", "de"], context.Tags.Select(x => x.Value));
     }
 

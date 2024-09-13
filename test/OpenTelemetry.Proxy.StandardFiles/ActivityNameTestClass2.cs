@@ -7,9 +7,9 @@ public class ActivityNameTestClass2
 {
     public void TestMethod1() { }
 
-    [ActivityName("", MaxUsableTimes = 2)]
+    [ActivityName("", AdjustStartTime = true)]
     public void TestMethod2() { }
 
-    [ActivityName("Test", MaxUsableTimes = 4)]
+    [ActivityName("Test")]
     public void TestMethod3() { }
 }

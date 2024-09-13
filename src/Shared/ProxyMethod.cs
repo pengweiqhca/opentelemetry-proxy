@@ -13,11 +13,11 @@ internal sealed class SuppressInstrumentationMethod : IProxyMethod
     public static SuppressInstrumentationMethod Instance { get; } = new();
 }
 
-internal sealed class ActivityNameMethod(string activityName, int maxUsableTimes) : IProxyMethod
+internal sealed class ActivityNameMethod(string activityName, bool adjustStartTime) : IProxyMethod
 {
     public string ActivityName { get; } = activityName;
 
-    public int MaxUsableTimes { get; } = maxUsableTimes;
+    public bool AdjustStartTime { get; } = adjustStartTime;
 }
 
 internal sealed class ActivityMethod(

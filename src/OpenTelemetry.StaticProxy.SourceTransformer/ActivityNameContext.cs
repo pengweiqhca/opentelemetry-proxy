@@ -4,7 +4,7 @@ internal abstract class ActivityNameContext(string activityName)
 {
     public string ActivityName { get; set; } = activityName;
 
-    public int MaxUsableTimes { get; set; } = 1;
+    public bool AdjustStartTime { get; set; }
 }
 
 internal sealed class MethodActivityNameContext(string activityName)

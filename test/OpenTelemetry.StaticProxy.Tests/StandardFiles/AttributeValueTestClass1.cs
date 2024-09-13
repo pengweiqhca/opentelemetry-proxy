@@ -2,10 +2,10 @@
 
 namespace OpenTelemetry.Proxy.StandardFiles;
 
-[ActivityName("Test", MaxUsableTimes = MaxUsableTimes)]
+[ActivityName("Test", AdjustStartTime = AdjustStartTime)]
 // ReSharper disable once RedundantExplicitParamsArrayCreation
 [ActivityTags(["abc", "d" + "e"])]
 public class AttributeValueTestClass1
 {
-    public const int MaxUsableTimes = 3;
+    public const bool AdjustStartTime = true;
 }

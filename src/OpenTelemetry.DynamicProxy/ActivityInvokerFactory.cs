@@ -83,7 +83,7 @@ public class ActivityInvokerFactory(IExpressionParser? parser = null) : IActivit
                 SetActivityTags(type, method, out var setReturnValueTag), setReturnValueTag);
 
         if (proxyMethod is ActivityNameMethod activityNameMethod)
-            return new ActivityNameInvoker(activityNameMethod.ActivityName, activityNameMethod.MaxUsableTimes,
+            return new ActivityNameInvoker(activityNameMethod.ActivityName, activityNameMethod.AdjustStartTime,
                 CreateActivityTags(type, method));
 
         if (proxyMethod is SuppressInstrumentationMethod) return new ActivityNameInvoker();
@@ -101,7 +101,7 @@ public class ActivityInvokerFactory(IExpressionParser? parser = null) : IActivit
                     context.SetReturnValueTag ?? setReturnValueTag);
 
         return context.Type == ImplicitActivityType.ActivityName
-            ? new ActivityNameInvoker(ActivityInvokerHelper.GetActivityName(method, type, null), 1,
+            ? new ActivityNameInvoker(ActivityInvokerHelper.GetActivityName(method, type, null), false,
                 CreateActivityTags(type, method))
             : null;
     }

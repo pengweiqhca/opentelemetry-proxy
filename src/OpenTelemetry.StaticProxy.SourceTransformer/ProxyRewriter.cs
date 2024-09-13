@@ -196,14 +196,15 @@ internal sealed class ProxyRewriter(
         var usingStatement = SyntaxFactory.UsingStatement(SyntaxFactory.Block(method.Body.Statements).WithNewLine())
             .WithExpression(SyntaxFactory.InvocationExpression(SyntaxFactory.MemberAccessExpression(
                     SyntaxKind.SimpleMemberAccessExpression,
-                    SyntaxFactory.ParseTypeName("OpenTelemetry.Proxy.ActivityName"),
-                    SyntaxFactory.IdentifierName("SetName")))
+                    SyntaxFactory.ParseTypeName("OpenTelemetry.Proxy.InnerActivityAccessor"),
+                    SyntaxFactory.IdentifierName("SetContext")))
                 .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList([
                     SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression,
                         SyntaxFactory.Literal(context.ActivityName))),
                     SyntaxFactory.Argument(dictionaryCreation),
-                    SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression,
-                        SyntaxFactory.Literal(context.MaxUsableTimes))).WithLeadingWhiteSpace()
+                    SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(context.AdjustStartTime
+                        ? SyntaxKind.TrueLiteralExpression
+                        : SyntaxKind.FalseLiteralExpression)).WithLeadingWhiteSpace()
                 ])))).WithNewLine(indent).HiddenLineNumber();
 
         return method.WithBody(SyntaxFactory.Block(usingStatement).WithNewLine());

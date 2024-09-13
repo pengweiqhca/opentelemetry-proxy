@@ -23,7 +23,7 @@ internal static class ActivityInvokerHelper
             return new ActivityMethod(GetActivityName(method, type, attr.ActivityName), attr.Kind,
                 attr.SuppressInstrumentation);
 
-        if (method.GetCustomAttribute<ActivityNameAttribute>() is not { } ana || ana.MaxUsableTimes == 0)
+        if (method.GetCustomAttribute<ActivityNameAttribute>() is not { } ana)
         {
             if (type.GetCustomAttribute<ActivitySourceAttribute>() is { } asa)
             {
@@ -38,15 +38,15 @@ internal static class ActivityInvokerHelper
 
             ana = type.GetCustomAttribute<ActivityNameAttribute>();
 
-            return ana == null || ana.MaxUsableTimes == 0
+            return ana == null
                 ? null
-                : new ActivityNameMethod(GetActivityName(method, type, null, ana.ActivityName), ana.MaxUsableTimes);
+                : new ActivityNameMethod(GetActivityName(method, type, null, ana.ActivityName), ana.AdjustStartTime);
         }
 
         return new ActivityNameMethod(GetActivityName(method, type, ana.ActivityName,
             type.GetCustomAttribute<ActivitySourceAttribute>() == null
                 ? type.GetCustomAttribute<ActivityNameAttribute>()?.ActivityName
-                : null), ana.MaxUsableTimes);
+                : null), ana.AdjustStartTime);
     }
 
     public static string GetActivityName(MethodInfo method, Type type, string? activityName,

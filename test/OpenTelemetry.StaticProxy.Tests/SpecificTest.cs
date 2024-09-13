@@ -1,4 +1,6 @@
-﻿namespace OpenTelemetry.StaticProxy.Tests;
+﻿using OpenTelemetry.StaticProxy.TestClass;
+
+namespace OpenTelemetry.StaticProxy.Tests;
 
 public class SpecificTest
 {

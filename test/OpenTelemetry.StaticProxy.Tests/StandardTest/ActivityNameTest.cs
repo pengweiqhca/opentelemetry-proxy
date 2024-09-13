@@ -12,20 +12,20 @@ public class ActivityNameTest
         var typeMethods = Assert.Single(results);
 
         AssertActivityNameContext(Assert.IsAssignableFrom<ActivityNameContext>(typeMethods.Context),
-            "ActivityNameTestClass1", 3);
+            "ActivityNameTestClass1", true);
 
         var methods = typeMethods.MethodContexts.Values.ToArray();
 
         Assert.Equal(3, methods.Length);
 
         AssertActivityNameContext(Assert.IsAssignableFrom<ActivityNameContext>(Assert.IsAssignableFrom<ActivityNameContext>(methods[0])),
-            "ActivityNameTestClass1.TestMethod1", 3);
+            "ActivityNameTestClass1.TestMethod1", true);
 
         AssertActivityNameContext(Assert.IsAssignableFrom<ActivityNameContext>(Assert.IsAssignableFrom<ActivityNameContext>(methods[1])),
-            "ActivityNameTestClass1.TestMethod2", 2);
+            "ActivityNameTestClass1.TestMethod2", false);
 
         AssertActivityNameContext(Assert.IsAssignableFrom<ActivityNameContext>(Assert.IsAssignableFrom<ActivityNameContext>(methods[2])),
-            "Test", 4);
+            "Test", false);
     }
 
     [Fact]
@@ -38,20 +38,20 @@ public class ActivityNameTest
         var typeMethods = Assert.Single(results);
 
         AssertActivityNameContext(Assert.IsAssignableFrom<ActivityNameContext>(typeMethods.Context),
-            "TestClass", 1);
+            "TestClass", false);
 
         var methods = typeMethods.MethodContexts.Values.ToArray();
 
         Assert.Equal(3, methods.Length);
 
         AssertActivityNameContext(Assert.IsAssignableFrom<ActivityNameContext>(Assert.IsAssignableFrom<ActivityNameContext>(methods[0])),
-            "TestClass.TestMethod1", 1);
+            "TestClass.TestMethod1", false);
 
         AssertActivityNameContext(Assert.IsAssignableFrom<ActivityNameContext>(Assert.IsAssignableFrom<ActivityNameContext>(methods[1])),
-            "TestClass.TestMethod2", 2);
+            "TestClass.TestMethod2", true);
 
         AssertActivityNameContext(Assert.IsAssignableFrom<ActivityNameContext>(Assert.IsAssignableFrom<ActivityNameContext>(methods[2])),
-            "Test", 4);
+            "Test", false);
     }
 
     [Fact]
@@ -70,10 +70,10 @@ public class ActivityNameTest
         Assert.Equal(2, methods.Length);
 
         AssertActivityNameContext(Assert.IsAssignableFrom<ActivityNameContext>(Assert.IsAssignableFrom<ActivityNameContext>(methods[0])),
-            "ActivityNameTestClass3.TestMethod2", 2);
+            "ActivityNameTestClass3.TestMethod2", true);
 
         AssertActivityNameContext(Assert.IsAssignableFrom<ActivityNameContext>(Assert.IsAssignableFrom<ActivityNameContext>(methods[1])),
-            "Test", 4);
+            "Test", false);
     }
 
     [Fact]
@@ -92,15 +92,15 @@ public class ActivityNameTest
         Assert.Equal(2, methods.Length);
 
         AssertActivityNameContext(Assert.IsAssignableFrom<ActivityNameContext>(Assert.IsAssignableFrom<ActivityNameContext>(methods[0])),
-            "ActivityNameTestClass4.TestMethod2", 2);
+            "ActivityNameTestClass4.TestMethod2", false);
 
         AssertActivityNameContext(Assert.IsAssignableFrom<ActivityNameContext>(Assert.IsAssignableFrom<ActivityNameContext>(methods[1])),
-            "Test", 4);
+            "Test", true);
     }
 
-    private static void AssertActivityNameContext(ActivityNameContext context, string activityName, int maxUsableTimes)
+    private static void AssertActivityNameContext(ActivityNameContext context, string activityName, bool adjustStartTime)
     {
         Assert.Equal(activityName, context.ActivityName);
-        Assert.Equal(maxUsableTimes, context.MaxUsableTimes);
+        Assert.Equal(adjustStartTime, context.AdjustStartTime);
     }
 }

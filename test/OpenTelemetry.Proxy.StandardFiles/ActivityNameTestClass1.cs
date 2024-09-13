@@ -2,15 +2,15 @@
 
 namespace OpenTelemetry.Proxy.StandardFiles;
 
-[ActivityName(MaxUsableTimes = 3)]
+[ActivityName(AdjustStartTime = true)]
 public class ActivityNameTestClass1
 {
     public void TestMethod1() { }
 
-    [ActivityName(" ", MaxUsableTimes = 2)]
+    [ActivityName(" ", AdjustStartTime = false)]
     public void TestMethod2() { }
 
-    [ActivityName("Test", MaxUsableTimes = 4)]
+    [ActivityName("Test", AdjustStartTime = false)]
     public void TestMethod3() { }
 
     private void TestMethod4() { }

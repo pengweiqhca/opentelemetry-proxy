@@ -17,7 +17,6 @@
     <InternalsVisibleTo Include="OpenTelemetry.DynamicProxy.Tests" />
 
     <PackageReference Include="Castle.Core" Version="5.1.1" />
-    <PackageReference Include="DynamicExpresso.Core" Version="2.16.1" />
 
     <ProjectReference Include="..\OpenTelemetry.Proxy\OpenTelemetry.Proxy.csproj" />
   </ItemGroup>

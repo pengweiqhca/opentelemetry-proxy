@@ -1,6 +1,6 @@
 ﻿using OpenTelemetry.Proxy;
 
-namespace OpenTelemetry.StaticProxy;
+namespace OpenTelemetry.StaticProxy.TestClass;
 
 
 

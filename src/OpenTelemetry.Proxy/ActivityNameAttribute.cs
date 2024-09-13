@@ -6,11 +6,11 @@ public class ActivityNameAttribute : Attribute
 {
     public ActivityNameAttribute() { }
 
-    public ActivityNameAttribute(string activityName) => ActivityName = string.IsNullOrWhiteSpace(activityName) ? null : activityName;
+    public ActivityNameAttribute(string activityName) =>
+        ActivityName = string.IsNullOrWhiteSpace(activityName) ? null : activityName;
 
     /// <summary>Default value is {Type.Name}.{Method.Name}</summary>
     public string? ActivityName { get; }
 
-    /// <summary>&lt;0: unlimited, 0: ignore, default value is 1.</summary>
-    public int MaxUsableTimes { get; set; } = 1;
+    public bool AdjustStartTime { get; set; }
 }

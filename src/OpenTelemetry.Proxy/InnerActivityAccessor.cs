@@ -12,9 +12,10 @@ public static class InnerActivityAccessor
     [StackTraceHidden]
     internal static void ActivityStarted(Activity activity)
     {
-        if (Holder.Value is not { } holder || !holder.OnActivityStart(activity)) return;
+        if (Holder.Value is not { } holder) return;
 
-        if (holder.HasOnEnd()) ActivityTable.Add(activity, holder);
+        if (holder.OnActivityStart(activity) && holder.HasOnEnd())
+            ActivityTable.Add(activity, holder);
         else holder.Clear();
     }
 
@@ -24,6 +25,18 @@ public static class InnerActivityAccessor
         if (!ActivityTable.TryGetValue(activity, out var holder)) return;
 
         if (holder.OnActivityEnd(activity)) holder.Clear();
+    }
+
+    public static IDisposable OnActivityStart(Action<Activity> onStart) =>
+        OnActivityStart(new Action2Func(onStart).Invoke);
+
+    public static IDisposable OnActivityStart(Func<Activity, bool> onStart)
+    {
+        Holder.Value?.Clear();
+
+        var holder = Holder.Value = new(onStart, null);
+
+        return new Disposable(holder);
     }
 
     public static IDisposable OnActivityEnd(Action<Activity> onEnd) => OnActivityEnd(new Action2Func(onEnd).Invoke);
@@ -63,6 +76,28 @@ public static class InnerActivityAccessor
 
             return true;
         }
+    }
+
+    [StackTraceHidden]
+    public static IDisposable SetContext(string name, IReadOnlyCollection<KeyValuePair<string, object?>>? tags = null,
+        bool adjustStartTime = false) =>
+        SetContext(new InnerActivityContext { Name = name, Tags = tags, AdjustStartTime = adjustStartTime });
+
+    [StackTraceHidden]
+    public static IDisposable SetContext(string name, string tagName, object? tagValue) =>
+        SetContext(new InnerActivityContext { Name = name, Tags = [new(tagName, tagValue)] });
+
+    [StackTraceHidden]
+    public static IDisposable SetContext(IReadOnlyCollection<KeyValuePair<string, object?>> tags) =>
+        SetContext(new InnerActivityContext { Tags = tags });
+
+    public static IDisposable SetContext(InnerActivityContext context)
+    {
+        // If the current holder hava no name, and the new holder only have name, then merge them.
+        if (InnerActivityAccessor.Activity is { OnStart.Target: InnerActivityContext outerContext })
+            context.Merge(outerContext);
+
+        return InnerActivityAccessor.OnActivity(context.OnStart, context.OnEnd);
     }
 
     internal sealed class ActivityHolder(Func<Activity, bool>? onStart, Func<Activity, bool>? onEnd)

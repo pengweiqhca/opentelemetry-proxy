@@ -1,14 +1,10 @@
 ﻿using Fasterflect;
 using Microsoft.FSharp.Control;
-using OpenTelemetry;
 using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.Tests.Common;
 using System.Reflection;
-using ActivityName =
-    System.Tuple<string?, System.Collections.Generic.IReadOnlyCollection<
-        System.Collections.Generic.KeyValuePair<string, object?>>?, long>;
 
-namespace AssemblyToProcess;
+namespace OpenTelemetry.StaticProxy.TestClass;
 
 [ActivitySource(IncludeNonAsyncStateMachineMethod = true)]
 public static partial class TestClass
@@ -46,8 +42,8 @@ public static partial class TestClass
     [NonActivity(true)]
     public static TestAwaitable<bool> SuppressInstrumentationScopeAwaitable() => new(SuppressInstrumentationScope);
 
-    [ActivityName]
-    public static ActivityName GetActivityName([ActivityTag] int delay) => InternalGetActivityName();
+    [ActivityName(AdjustStartTime = true)]
+    public static InnerActivityContext? GetActivityName([ActivityTag] int delay) => InternalGetActivityName();
 
     [Activity]
     public static T? GenericMethod<T>() => default;
@@ -69,25 +65,19 @@ public static partial class TestClass
         return now;
     }
 
-    private static ActivityName InternalGetActivityName()
+    private static InnerActivityContext? InternalGetActivityName()
     {
         var holder = typeof(InnerActivityAccessor).GetProperty("Activity", BindingFlags.NonPublic | BindingFlags.Static)
             ?.GetValue(null);
 
-        if (holder == null) return new(null, default, 0);
-
-        var nameHolder = Assert.IsAssignableFrom<Delegate>(holder.GetPropertyValue("OnStart")).Target;
-
-        Assert.NotNull(nameHolder);
-
-        return new(nameHolder.GetPropertyValue("Name") as string,
-            nameHolder.GetPropertyValue("Tags") as IReadOnlyCollection<KeyValuePair<string, object?>>,
-            Assert.IsType<long>(nameHolder.GetFieldValue("_availableTimes", Flags.NonPublic | Flags.Instance)));
+        return holder == null
+            ? null
+            : Assert.IsAssignableFrom<Delegate>(holder.GetPropertyValue("OnStart")).Target as InnerActivityContext;
     }
 
-    [ActivityName]
+    [ActivityName(AdjustStartTime = true)]
     [ActivityTags(nameof(delay))]
-    public static async ValueTask<ActivityName> GetActivityNameAsync(int delay)
+    public static async ValueTask<InnerActivityContext?> GetActivityNameAsync(int delay)
     {
         await Task.Delay(100).ConfigureAwait(false);
 
@@ -96,7 +86,7 @@ public static partial class TestClass
 
     [ActivityName]
     [ActivityTags(nameof(Now))]
-    public static TestAwaitable<ActivityName> GetActivityNameAwaitable(int delay) =>
+    public static TestAwaitable<InnerActivityContext?> GetActivityNameAwaitable(int delay) =>
         new(InternalGetActivityName);
 
     [Activity]

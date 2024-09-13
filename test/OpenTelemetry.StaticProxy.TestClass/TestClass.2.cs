@@ -1,6 +1,6 @@
 ﻿using OpenTelemetry.Proxy;
 
-namespace AssemblyToProcess;
+namespace OpenTelemetry.StaticProxy.TestClass;
 
 public static partial class TestClass
 {
@@ -19,7 +19,7 @@ public static partial class TestClass
     [ActivityName]
     public static bool Using(out DateTimeOffset now)
     {
-        using (ActivityName.SetName("Using")) now = DateTimeOffset.Now;
+        using (InnerActivityAccessor.SetContext("Using")) now = DateTimeOffset.Now;
 
         return true;
     }

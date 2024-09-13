@@ -2,12 +2,9 @@
 using Microsoft.FSharp.Core;
 using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.Tests.Common;
+using OpenTelemetry.StaticProxy.TestClass;
 using System.Reflection;
 using Xunit.Sdk;
-using ActivityName =
-    System.Tuple<string?, System.Collections.Generic.IReadOnlyCollection<
-        System.Collections.Generic.KeyValuePair<string, object?>>?, long>;
-using TestClass = AssemblyToProcess.TestClass;
 
 namespace OpenTelemetry.StaticProxy.Tests;
 
@@ -18,20 +15,20 @@ public class FunctionTest
     {
         Assert.Null(typeof(EmptyClass2).GetCustomAttribute<ProxyHasGeneratedAttribute>());
 
-        Assert.NotNull(typeof(TestClass).GetCustomAttribute<ProxyHasGeneratedAttribute>());
+        Assert.NotNull(typeof(TestClass.TestClass).GetCustomAttribute<ProxyHasGeneratedAttribute>());
 
-        Assert.NotNull(typeof(TestClass).Assembly.GetCustomAttribute<ProxyHasGeneratedAttribute>());
+        Assert.NotNull(typeof(TestClass.TestClass).Assembly.GetCustomAttribute<ProxyHasGeneratedAttribute>());
     }
 
     [Fact]
     public async Task SuppressInstrumentationScope()
     {
         await SuppressInstrumentationScopeTest(
-                nameof(TestClass.SuppressInstrumentationScope), static instance => new((bool)instance))
+                nameof(TestClass.TestClass.SuppressInstrumentationScope), static instance => new((bool)instance))
             .ConfigureAwait(false);
 
         await SuppressInstrumentationScopeTest(
-                nameof(TestClass.SuppressInstrumentationScope2), static instance => new((bool)instance))
+                nameof(TestClass.TestClass.SuppressInstrumentationScope2), static instance => new((bool)instance))
             .ConfigureAwait(false);
     }
 
@@ -39,25 +36,25 @@ public class FunctionTest
     public async Task SuppressInstrumentationScopeAsync()
     {
         await SuppressInstrumentationScopeTest(
-            nameof(TestClass.SuppressInstrumentationScopeAsync),
+            nameof(TestClass.TestClass.SuppressInstrumentationScopeAsync),
             static instance => new((Task<bool>)instance)).ConfigureAwait(false);
 
         await SuppressInstrumentationScopeTest(
-            nameof(TestClass.SuppressInstrumentationScope2Async),
+            nameof(TestClass.TestClass.SuppressInstrumentationScope2Async),
             static instance => (ValueTask<bool>)instance).ConfigureAwait(false);
 
         await SuppressInstrumentationScopeTest(
-            nameof(TestClass.SuppressInstrumentationScope3Async),
+            nameof(TestClass.TestClass.SuppressInstrumentationScope3Async),
             static instance => new((Task<bool>)instance)).ConfigureAwait(false);
 
         await SuppressInstrumentationScopeTest(
-                nameof(TestClass.SuppressInstrumentationScopeAwaitable), Awaitable2ValueTask<bool>)
+                nameof(TestClass.TestClass.SuppressInstrumentationScopeAwaitable), Awaitable2ValueTask<bool>)
             .ConfigureAwait(false);
     }
 
     private static async Task SuppressInstrumentationScopeTest(string methodName, Func<object, ValueTask<bool>> func)
     {
-        var method = typeof(TestClass).GetMethod(methodName);
+        var method = typeof(TestClass.TestClass).GetMethod(methodName);
 
         Assert.NotNull(method);
 
@@ -65,57 +62,59 @@ public class FunctionTest
     }
 
     [Fact]
-    public Task GetActivityName() => ActivityNameTest(nameof(TestClass.GetActivityName),
-        static instance => new((ActivityName)instance), new() { { "delay", 200 } });
+    public Task GetActivityName() => ActivityNameTest(nameof(TestClass.TestClass.GetActivityName),
+        static instance => new((InnerActivityContext?)instance), new() { { "delay", 200 } });
 
     [Fact]
-    public Task GetActivityNameAsync() => ActivityNameTest(nameof(TestClass.GetActivityNameAsync),
-        static instance => (ValueTask<ActivityName>)instance, new() { { "delay", 200 } });
+    public Task GetActivityNameAsync() => ActivityNameTest(nameof(TestClass.TestClass.GetActivityNameAsync),
+        static instance => (ValueTask<InnerActivityContext?>)instance, new() { { "delay", 200 } });
 
     [Fact]
     public Task GetActivityNameAwaitable() =>
-        Assert.ThrowsAsync<IsAssignableFromException>(async () => await TestClass.GetActivityNameAwaitable(1));
+        Assert.ThrowsAsync<IsAssignableFromException>(async () => await TestClass.TestClass.GetActivityNameAwaitable(1));
 
     private static async Task ActivityNameTest(string methodName,
-        Func<object, ValueTask<ActivityName>> func, Dictionary<string, object?> tags)
+        Func<object, ValueTask<InnerActivityContext?>> func, Dictionary<string, object?> tags)
     {
-        var method = typeof(TestClass).GetMethod(methodName);
+        var method = typeof(TestClass.TestClass).GetMethod(methodName);
 
         Assert.NotNull(method);
 
-        var (activityName, tags2, availableTimes) = await func(method.Invoke(null, [200])!).ConfigureAwait(false);
+        var context = await func(method.Invoke(null, [200])!).ConfigureAwait(false);
 
-        Assert.Equal($"{nameof(TestClass)}.{methodName}", activityName);
-        Assert.Equal(tags, tags2);
-        Assert.Equal(1, availableTimes);
+        Assert.NotNull(context);
+
+        Assert.Equal($"{nameof(TestClass.TestClass)}.{methodName}", context.Name);
+        Assert.Equal(tags, context.Tags);
+        Assert.True(context.AdjustStartTime);
     }
 
     [Fact]
-    public Task GetCurrentActivity() => ActivityTest(nameof(TestClass.GetCurrentActivity),
+    public Task GetCurrentActivity() => ActivityTest(nameof(TestClass.TestClass.GetCurrentActivity),
         static instance => new((Activity?)instance), new() { { "delay", 100 } });
 
     [Fact]
     public async Task GetCurrentActivityAsync()
     {
-        await ActivityTest(nameof(TestClass.GetCurrentActivityAsync),
+        await ActivityTest(nameof(TestClass.TestClass.GetCurrentActivityAsync),
             static instance => new((Task<Activity?>)instance), new() { { "delay", 100 } }).ConfigureAwait(false);
 
-        await ActivityTest(nameof(TestClass.GetCurrentActivity2Async),
+        await ActivityTest(nameof(TestClass.TestClass.GetCurrentActivity2Async),
             static instance => new((Task<Activity?>)instance), new() { { "delay", 100 } }).ConfigureAwait(false);
 
-        await ActivityTest(nameof(TestClass.AwaitGetCurrentActivityAsync),
+        await ActivityTest(nameof(TestClass.TestClass.AwaitGetCurrentActivityAsync),
             static instance => new((Task<Activity?>)instance), new() { { "delay", 100 } }).ConfigureAwait(false);
     }
 
     [Fact]
     public Task GetCurrentActivityFSharpAsync() => ActivityTest(
-        nameof(TestClass.GetCurrentActivityFSharpAsync),
+        nameof(TestClass.TestClass.GetCurrentActivityFSharpAsync),
         static instance => new(FSharpAsync.StartAsTask((FSharpAsync<Activity?>)instance,
             FSharpOption<TaskCreationOptions>.None, FSharpOption<CancellationToken>.None)),
         new() { { "Now", new DateTime(2024, 1, 1) } });
 
     [Fact]
-    public Task GetCurrentActivityAwaitable() => ActivityTest(nameof(TestClass.GetCurrentActivityAwaitable),
+    public Task GetCurrentActivityAwaitable() => ActivityTest(nameof(TestClass.TestClass.GetCurrentActivityAwaitable),
         Awaitable2ValueTask<Activity?>, new() { { "delay", 100 }, { "Now", new DateTime(2024, 1, 1) } });
 
     [Fact]
@@ -125,8 +124,8 @@ public class FunctionTest
 
         using var activityListener = new ActivityListener
         {
-            ShouldListenTo = static activitySource => activitySource.Name == typeof(TestClass).FullName &&
-                activitySource.Version == typeof(TestClass).Assembly.GetName().Version?.ToString(),
+            ShouldListenTo = static activitySource => activitySource.Name == typeof(TestClass.TestClass).FullName &&
+                activitySource.Version == typeof(TestClass.TestClass).Assembly.GetName().Version?.ToString(),
             Sample = static (ref ActivityCreationOptions<System.Diagnostics.ActivityContext> _) =>
                 ActivitySamplingResult.AllData,
             ActivityStarted = list.Add
@@ -134,11 +133,11 @@ public class FunctionTest
 
         ActivitySource.AddActivityListener(activityListener);
 
-        var ex = await Assert.ThrowsAsync<Exception>(TestClass.Exception).ConfigureAwait(false);
+        var ex = await Assert.ThrowsAsync<Exception>(TestClass.TestClass.Exception).ConfigureAwait(false);
 
         var stackFrame = new EnhancedStackTrace(ex).GetFrame(0);
 
-        Assert.Equal(148, stackFrame.GetFileLineNumber());
+        Assert.Equal(142, stackFrame.GetFileLineNumber());
         Assert.Equal(Path.GetFullPath(
             "../../../../OpenTelemetry.StaticProxy.TestClass/TestClass.cs"), stackFrame.GetFileName());
         Assert.Equal(9, stackFrame.GetFileColumnNumber());
@@ -155,8 +154,8 @@ public class FunctionTest
 
         using var activityListener = new ActivityListener
         {
-            ShouldListenTo = static activitySource => activitySource.Name == typeof(TestClass).FullName &&
-                activitySource.Version == typeof(TestClass).Assembly.GetName().Version?.ToString(),
+            ShouldListenTo = static activitySource => activitySource.Name == typeof(TestClass.TestClass).FullName &&
+                activitySource.Version == typeof(TestClass.TestClass).Assembly.GetName().Version?.ToString(),
             Sample = static (ref ActivityCreationOptions<System.Diagnostics.ActivityContext> _) =>
                 ActivitySamplingResult.AllData,
             ActivityStarted = list.Add
@@ -168,7 +167,7 @@ public class FunctionTest
         var c = new Random().Next(10, 100);
         var refC = c;
 
-        var result = TestClass.OutMethod(a, out var b, ref refC, 1, 2, 3);
+        var result = TestClass.TestClass.OutMethod(a, out var b, ref refC, 1, 2, 3);
 
         Assert.Equal(a * a, b);
         Assert.Equal(a * c, refC);
@@ -186,8 +185,8 @@ public class FunctionTest
 
         using var activityListener = new ActivityListener
         {
-            ShouldListenTo = static activitySource => activitySource.Name == typeof(TestClass).FullName &&
-                activitySource.Version == typeof(TestClass).Assembly.GetName().Version?.ToString(),
+            ShouldListenTo = static activitySource => activitySource.Name == typeof(TestClass.TestClass).FullName &&
+                activitySource.Version == typeof(TestClass.TestClass).Assembly.GetName().Version?.ToString(),
             Sample = static (ref ActivityCreationOptions<System.Diagnostics.ActivityContext> _) =>
                 ActivitySamplingResult.AllData,
             ActivityStarted = list.Add
@@ -197,7 +196,7 @@ public class FunctionTest
 
         var value = DateTime.Now.Millisecond;
 
-        var result = await TestClass.ReturnValue(value).ConfigureAwait(false);
+        var result = await TestClass.TestClass.ReturnValue(value).ConfigureAwait(false);
 
         Assert.Equal(value + 1, result);
 
@@ -213,8 +212,8 @@ public class FunctionTest
 
         using var activityListener = new ActivityListener
         {
-            ShouldListenTo = static activitySource => activitySource.Name == typeof(TestClass).FullName &&
-                activitySource.Version == typeof(TestClass).Assembly.GetName().Version?.ToString(),
+            ShouldListenTo = static activitySource => activitySource.Name == typeof(TestClass.TestClass).FullName &&
+                activitySource.Version == typeof(TestClass.TestClass).Assembly.GetName().Version?.ToString(),
             Sample = static (ref ActivityCreationOptions<System.Diagnostics.ActivityContext> _) =>
                 ActivitySamplingResult.AllData,
             ActivityStarted = list.Add
@@ -224,7 +223,7 @@ public class FunctionTest
 
         var value = DateTime.Now.Millisecond;
 
-        var result = await TestClass.ReturnValueAsync(value).ConfigureAwait(false);
+        var result = await TestClass.TestClass.ReturnValueAsync(value).ConfigureAwait(false);
 
         Assert.Equal(value + 1, result);
 
@@ -234,19 +233,19 @@ public class FunctionTest
     }
 
     [Fact]
-    public void UsingTest() => Assert.True(TestClass.Using(out _));
+    public void UsingTest() => Assert.True(TestClass.TestClass.Using(out _));
 
     private static async Task ActivityTest(string methodName, Func<object, ValueTask<Activity?>> func,
         Dictionary<string, object> tags)
     {
-        var method = typeof(TestClass).GetMethod(methodName);
+        var method = typeof(TestClass.TestClass).GetMethod(methodName);
 
         var list = new List<Activity>();
 
         using var activityListener = new ActivityListener
         {
-            ShouldListenTo = static activitySource => activitySource.Name == typeof(TestClass).FullName &&
-                activitySource.Version == typeof(TestClass).Assembly.GetName().Version?.ToString(),
+            ShouldListenTo = static activitySource => activitySource.Name == typeof(TestClass.TestClass).FullName &&
+                activitySource.Version == typeof(TestClass.TestClass).Assembly.GetName().Version?.ToString(),
             Sample = static (ref ActivityCreationOptions<System.Diagnostics.ActivityContext> _) =>
                 ActivitySamplingResult.AllData,
             ActivityStarted = a => list.Add(a)

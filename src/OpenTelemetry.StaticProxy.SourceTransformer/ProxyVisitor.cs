@@ -166,7 +166,7 @@ internal sealed class ProxyVisitor(
                         ? GetActivityName(method, null, typeMethods.TypeName)
                         : $"{typeContext.ActivityName}.{method.GetMethodName()}")
                 {
-                    MaxUsableTimes = typeContext.MaxUsableTimes
+                    AdjustStartTime = typeContext.AdjustStartTime
                 },
                 ActivitySourceContext typeContext
                     when typeContext.IncludeNonAsyncStateMachineMethod || method.IsAsync() =>
@@ -215,7 +215,7 @@ internal sealed class ProxyVisitor(
 
     #region ActivityName
 
-    private TypeActivityNameContext? ParseActivityName(AttributeSyntax attribute, string typeName,
+    private TypeActivityNameContext ParseActivityName(AttributeSyntax attribute, string typeName,
         TypeSyntaxContext typeContext)
     {
         var context = new TypeActivityNameContext(typeName, typeContext.Methods, typeContext.PropertyOrField);
@@ -227,15 +227,15 @@ internal sealed class ProxyVisitor(
             {
                 if (TryGetRequiredValue(arg, out var value)) context.ActivityName = value;
             }
-            else if (arg.NameEquals.Name.ToString().Equals("MaxUsableTimes", StringComparison.Ordinal))
-                context.MaxUsableTimes = GetValue<int>(arg);
+            else if (arg.NameEquals.Name.ToString().Equals("AdjustStartTime", StringComparison.Ordinal))
+                context.AdjustStartTime = GetValue<bool>(arg);
 
         if (string.IsNullOrWhiteSpace(context.ActivityName)) context.ActivityName = typeName;
 
-        return context.MaxUsableTimes == 0 ? null : context;
+        return context;
     }
 
-    private MethodActivityNameContext? ParseActivityName(AttributeSyntax attribute, MethodDeclarationSyntax method,
+    private MethodActivityNameContext ParseActivityName(AttributeSyntax attribute, MethodDeclarationSyntax method,
         string parentName)
     {
         var context = new MethodActivityNameContext(GetActivityName(method, null, parentName));
@@ -247,10 +247,10 @@ internal sealed class ProxyVisitor(
             {
                 if (TryGetRequiredValue(arg, out var value)) context.ActivityName = value;
             }
-            else if (arg.NameEquals.Name.ToString().Equals("MaxUsableTimes", StringComparison.Ordinal))
-                context.MaxUsableTimes = GetValue<int>(arg);
+            else if (arg.NameEquals.Name.ToString().Equals("AdjustStartTime", StringComparison.Ordinal))
+                context.AdjustStartTime = GetValue<bool>(arg);
 
-        return context.MaxUsableTimes == 0 ? null : context;
+        return context;
     }
 
     private static string GetActivityName(MethodDeclarationSyntax method, string? activityName, string typeName) =>
