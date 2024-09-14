@@ -3,7 +3,6 @@
   <PropertyGroup>
     <AssemblyName>OpenTelemetry.StaticProxy</AssemblyName>
     <RootNamespace>OpenTelemetry.StaticProxy</RootNamespace>
-    <AssemblyVersion>$(StaticProxyVersion)</AssemblyVersion>
     <DefineConstants>$(DefineConstants);CollectionExpression</DefineConstants>
     <IsPackable>false</IsPackable>
     <DebugType>embedded</DebugType>
