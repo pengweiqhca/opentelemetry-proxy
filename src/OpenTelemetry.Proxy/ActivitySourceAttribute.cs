@@ -12,11 +12,17 @@ public class ActivitySourceAttribute : Attribute
     /// <summary>Default value is type full name</summary>
     public string? ActivitySourceName { get; }
 
+    /// <summary>
+    /// Gets or sets the relationship between the Activity, its parents, and its children in a Trace.
+    /// </summary>
     public ActivityKind Kind { get; set; }
 
     /// <summary>DynamicProxy: default include all async method of interface or async return type and define [AsyncStateMachine] public or protected virtual method of class. If true, will include all method of interface and all public or protected virtual method of class.<br />StaticProxy: default include async return type and define [AsyncStateMachine] public method. If true, will include all method of class.</summary>
     public bool IncludeNonAsyncStateMachineMethod { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether down stream instrumentation is suppressed (disabled).
+    /// </summary>
     public bool SuppressInstrumentation { get; set; }
 
     public static string GetActivitySourceName(Type type) => GetActivitySourceName(type, null);
