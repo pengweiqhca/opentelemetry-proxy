@@ -6,7 +6,7 @@ using System.Reflection;
 
 namespace OpenTelemetry.StaticProxy.TestClass;
 
-[ActivitySource(IncludeNonAsyncStateMachineMethod = true)]
+[ActivitySource(IncludeNonAsyncStateMachineMethod = true, VariableName = "TestName")]
 public static partial class TestClass
 {
     [NonActivity(true)]
@@ -43,7 +43,8 @@ public static partial class TestClass
     public static TestAwaitable<bool> SuppressInstrumentationScopeAwaitable() => new(SuppressInstrumentationScope);
 
     [ActivityName(AdjustStartTime = true)]
-    public static InnerActivityContext? GetActivityName([ActivityTag] int delay, [ActivityTag] string name) => InternalGetActivityName();
+    public static InnerActivityContext? GetActivityName([ActivityTag] int delay, [ActivityTag] string name) =>
+        InternalGetActivityName();
 
     [Activity]
     public static T? GenericMethod<T>() => default;

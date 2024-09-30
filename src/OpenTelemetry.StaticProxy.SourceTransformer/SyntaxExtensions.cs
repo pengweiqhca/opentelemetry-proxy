@@ -15,6 +15,9 @@ internal static class SyntaxExtensions
         return name == attributeName || name.EndsWith("." + attributeName, StringComparison.Ordinal);
     }
 
+    public static bool Is(this NameEqualsSyntax nameEquals, string name) =>
+        nameEquals.Name.ToString().Equals(name, StringComparison.Ordinal);
+
     public static bool IsPublic(this MemberDeclarationSyntax member) => member.Modifiers.HasModifier("public");
 
     public static bool IsStatic(this MemberDeclarationSyntax member) => member.Modifiers.HasModifier("static");

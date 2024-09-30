@@ -14,5 +14,7 @@ internal sealed class ActivityContext(string activityName) : IMethodTagContext
 
     public bool SuppressInstrumentation { get; set; }
 
+    public string ActivitySourceVariableName { get; set; } = "@ActivitySource@";
+
     public bool IsStatic { get; set; }
 }

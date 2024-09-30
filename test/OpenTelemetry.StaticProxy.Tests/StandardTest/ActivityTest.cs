@@ -15,6 +15,7 @@ public class ActivityTest
 
         Assert.False(activitySourceContext.IncludeNonAsyncStateMachineMethod);
         Assert.False(activitySourceContext.SuppressInstrumentation);
+        Assert.Equal("TestName", activitySourceContext.VariableName);
         Assert.Equal("ActivityTestClass", activitySourceContext.ActivitySourceName);
 #if NETFRAMEWORK
         Assert.Equal("(System.Diagnostics.ActivityKind)" + (int)ActivityKind.Client, activitySourceContext.Kind);

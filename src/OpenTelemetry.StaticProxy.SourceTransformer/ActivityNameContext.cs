@@ -47,4 +47,6 @@ internal sealed class TypeActivityName2Context(
     : TypeActivityNameContext(activityName, methods, propertyOrField), IActivitySourceContext
 {
     public string ActivitySourceName { get; } = activitySourceName;
+
+    public string VariableName => "@ActivitySource@";
 }

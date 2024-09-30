@@ -14,4 +14,6 @@ internal record struct MemberType(bool IsStatic, bool IsProperty);
 internal interface IActivitySourceContext : ITypeContext
 {
     string ActivitySourceName { get; }
+
+    string VariableName { get; }
 }

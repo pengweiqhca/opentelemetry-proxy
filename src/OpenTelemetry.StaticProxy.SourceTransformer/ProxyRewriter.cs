@@ -48,7 +48,7 @@ internal sealed class ProxyRewriter(
         if (!types.TryGetValue(node, out var context) || context is not IActivitySourceContext activitySourceContext)
             return AddLineNumber(node, type);
 
-        type = AddActivitySource(type, activitySourceContext.ActivitySourceName);
+        type = AddActivitySource(type, activitySourceContext.ActivitySourceName, activitySourceContext.VariableName);
 
         if (!proxyRewriterContext.TypeHasAddedAttribute.Add(activitySourceContext.ActivitySourceName))
             return AddLineNumber(node, type);
@@ -76,12 +76,12 @@ internal sealed class ProxyRewriter(
             type.CloseBraceToken.RestoreLineNumber(node.CloseBraceToken.GetLineNumber(node.SyntaxTree)));
     }
 
-    private static TypeDeclarationSyntax AddActivitySource(TypeDeclarationSyntax node, string activitySourceName)
+    private static TypeDeclarationSyntax AddActivitySource(TypeDeclarationSyntax node, string activitySourceName, string variableName)
     {
         var fieldDeclaration = SyntaxFactory.FieldDeclaration(SyntaxFactory.VariableDeclaration(
                     SyntaxFactory.ParseTypeName("System.Diagnostics.ActivitySource"))
                 .WithVariables(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.VariableDeclarator(
-                        SyntaxFactory.Identifier("@ActivitySource@").WithWhiteSpace())
+                        SyntaxFactory.Identifier(variableName).WithWhiteSpace())
                     .WithInitializer(SyntaxFactory.EqualsValueClause(SyntaxFactory.ObjectCreationExpression(
                             SyntaxFactory.ParseTypeName("System.Diagnostics.ActivitySource").WithLeadingWhiteSpace(),
                             SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList([
@@ -257,7 +257,7 @@ internal sealed class ProxyRewriter(
                             SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
                                 SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
                                     SyntaxFactory.ParseExpression(type.GetTypeName(2)).WithLeadingWhiteSpace(),
-                                    SyntaxFactory.IdentifierName("@ActivitySource@")),
+                                    SyntaxFactory.IdentifierName(context.ActivitySourceVariableName)),
                                 SyntaxFactory.IdentifierName("StartActivity")))
                         .WithArgumentList(SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList([
                             SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(

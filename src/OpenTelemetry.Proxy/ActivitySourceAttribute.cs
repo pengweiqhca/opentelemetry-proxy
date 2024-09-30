@@ -25,6 +25,11 @@ public class ActivitySourceAttribute : Attribute
     /// </summary>
     public bool SuppressInstrumentation { get; set; }
 
+    /// <summary>
+    /// Gets or sets the <see cref="ActivitySource" /> variable name, it only works for static proxy. Default value is @ActivitySource@ />.
+    /// </summary>
+    public string? VariableName { get; set; }
+
     public static string GetActivitySourceName(Type type) => GetActivitySourceName(type, null);
 
     internal static string GetActivitySourceName(Type type, string? activitySourceName)

@@ -21,6 +21,18 @@ public class FunctionTest
     }
 
     [Fact]
+    public void VariableNameTest()
+    {
+        var fieldInfo = typeof(TestClass.TestClass).GetField("TestName", BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.NotNull(fieldInfo);
+
+        var activitySource = Assert.IsType<ActivitySource>(fieldInfo.GetValue(null));
+
+        Assert.Equal(typeof(TestClass.TestClass).FullName, activitySource.Name);
+    }
+
+    [Fact]
     public async Task SuppressInstrumentationScope()
     {
         await SuppressInstrumentationScopeTest(
@@ -139,7 +151,7 @@ public class FunctionTest
 
         var stackFrame = new EnhancedStackTrace(ex).GetFrame(0);
 
-        Assert.Equal(142, stackFrame.GetFileLineNumber());
+        Assert.Equal(143, stackFrame.GetFileLineNumber());
         Assert.Equal(Path.GetFullPath(
             "../../../../OpenTelemetry.StaticProxy.TestClass/TestClass.cs"), stackFrame.GetFileName());
 

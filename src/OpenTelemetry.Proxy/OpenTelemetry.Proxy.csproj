@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Description>Automatically generate activity by defined [Activity].</Description>
     <TargetFrameworks>net472;netstandard2.0;netstandard2.1</TargetFrameworks>
-    <Version>$(AssemblyVersion).1$(VersionSuffix)</Version>
+    <Version>$(AssemblyVersion).2$(VersionSuffix)</Version>
 
     <PolySharpIncludeGeneratedTypes>System.Diagnostics.StackTraceHiddenAttribute;System.Runtime.CompilerServices.IsExternalInit</PolySharpIncludeGeneratedTypes>
   </PropertyGroup>

@@ -21,6 +21,8 @@ internal class ImplicateActivitySourceContext(
 {
     public string ActivitySourceName { get; set; } = activitySourceName;
 
+    public string VariableName { get; set; } = "@ActivitySource@";
+
     public MethodSyntaxContexts Methods { get; } = methods;
 
     public Dictionary<string, MemberType> PropertyOrField { get; } = propertyOrField;

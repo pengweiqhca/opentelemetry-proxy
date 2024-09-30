@@ -75,14 +75,13 @@ internal sealed class ProxyVisitor(
                     {
                         if (TryGetRequiredValue(arg, out var value)) context.ActivitySourceName = value;
                     }
-                    else if (arg.NameEquals.Name.ToString().Equals("Kind", StringComparison.Ordinal))
-                        context.Kind = GetKindValue(arg);
-                    else if (arg.NameEquals.Name.ToString()
-                             .Equals("IncludeNonAsyncStateMachineMethod", StringComparison.Ordinal))
+                    else if (arg.NameEquals.Is(nameof(context.Kind))) context.Kind = GetKindValue(arg);
+                    else if (arg.NameEquals.Is(nameof(context.IncludeNonAsyncStateMachineMethod)))
                         context.IncludeNonAsyncStateMachineMethod = GetValue<bool>(arg);
-                    else if (arg.NameEquals.Name.ToString()
-                             .Equals("SuppressInstrumentation", StringComparison.Ordinal))
+                    else if (arg.NameEquals.Is(nameof(context.SuppressInstrumentation)))
                         context.SuppressInstrumentation = GetValue<bool>(arg);
+                    else if (arg.NameEquals.Is(nameof(context.VariableName)) && TryGetRequiredValue(arg, out var value))
+                        context.VariableName = value;
 
             break;
         }
@@ -146,7 +145,7 @@ internal sealed class ProxyVisitor(
 
         if (attr1 != null)
         {
-            context = ProcessActivity(typeMethods.TypeName, method, attr1);
+            context = ProcessActivity(typeMethods.TypeName, method, attr1, typeMethods.Context);
 
             typeMethods.Context = typeMethods.Context switch
             {
@@ -174,6 +173,7 @@ internal sealed class ProxyVisitor(
                     {
                         Kind = typeContext.Kind,
                         SuppressInstrumentation = typeContext.SuppressInstrumentation,
+                        ActivitySourceVariableName = typeContext.VariableName,
                     },
                 _ => null
             };
@@ -191,7 +191,7 @@ internal sealed class ProxyVisitor(
     }
 
     private ActivityContext ProcessActivity(string typeName, MethodDeclarationSyntax method,
-        AttributeSyntax attribute)
+        AttributeSyntax attribute, ITypeContext typeContext)
     {
         var context = new ActivityContext(GetActivityName(method, null, typeName));
 
@@ -203,10 +203,12 @@ internal sealed class ProxyVisitor(
                 {
                     if (TryGetRequiredValue(arg, out var value)) context.ActivityName = value;
                 }
-                else if (arg.NameEquals.Name.ToString().Equals("Kind", StringComparison.Ordinal))
-                    context.Kind = GetKindValue(arg);
-                else if (arg.NameEquals.Name.ToString().Equals("SuppressInstrumentation", StringComparison.Ordinal))
+                else if (arg.NameEquals.Is(nameof(context.Kind))) context.Kind = GetKindValue(arg);
+                else if (arg.NameEquals.Is(nameof(context.SuppressInstrumentation)))
                     context.SuppressInstrumentation = GetValue<bool>(arg);
+
+        if (typeContext is IActivitySourceContext activitySourceContext)
+            context.ActivitySourceVariableName = activitySourceContext.VariableName;
 
         return context;
     }
@@ -227,8 +229,7 @@ internal sealed class ProxyVisitor(
             {
                 if (TryGetRequiredValue(arg, out var value)) context.ActivityName = value;
             }
-            else if (arg.NameEquals.Name.ToString().Equals("AdjustStartTime", StringComparison.Ordinal))
-                context.AdjustStartTime = GetValue<bool>(arg);
+            else if (arg.NameEquals.Is(nameof(context.AdjustStartTime))) context.AdjustStartTime = GetValue<bool>(arg);
 
         if (string.IsNullOrWhiteSpace(context.ActivityName)) context.ActivityName = typeName;
 
@@ -247,8 +248,7 @@ internal sealed class ProxyVisitor(
             {
                 if (TryGetRequiredValue(arg, out var value)) context.ActivityName = value;
             }
-            else if (arg.NameEquals.Name.ToString().Equals("AdjustStartTime", StringComparison.Ordinal))
-                context.AdjustStartTime = GetValue<bool>(arg);
+            else if (arg.NameEquals.Is(nameof(context.AdjustStartTime))) context.AdjustStartTime = GetValue<bool>(arg);
 
         return context;
     }
@@ -344,8 +344,7 @@ internal sealed class ProxyVisitor(
                         if (TryGetRequiredValue(arg, out var value) && !string.IsNullOrWhiteSpace(value))
                             name = value;
                     }
-                    else if (arg.NameEquals.Name.ToString().Equals("Expression", StringComparison.Ordinal))
-                        expression = GetValue<string>(arg);
+                    else if (arg.NameEquals.Is("Expression")) expression = GetValue<string>(arg);
 
                 yield return new(name, expression);
             }
