@@ -6,12 +6,12 @@
     <IncludeSymbols>false</IncludeSymbols>
     <NoWarn>$(NoWarn);NU5100</NoWarn>
     <PackageTags>$(PackageTags), Activity, AOP, Metalama, Source Generator</PackageTags>
-    <TargetFrameworks>net472;netstandard2.0;netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net471;netstandard2.0;netstandard2.1</TargetFrameworks>
     <Version>$(AssemblyVersion).1$(VersionSuffix)</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="_._" PackagePath="lib\net472;lib\netstandard2.0;lib\netstandard2.1" Pack="True" />
+    <None Include="_._" PackagePath="lib\net471;lib\netstandard2.0;lib\netstandard2.1" Pack="True" />
 
     <ProjectReference Include="..\OpenTelemetry.Proxy\OpenTelemetry.Proxy.csproj" />
     <ProjectReference Include="..\OpenTelemetry.StaticProxy.SourceTransformer\OpenTelemetry.StaticProxy.SourceTransformer.csproj" PrivateAssets="All" />
