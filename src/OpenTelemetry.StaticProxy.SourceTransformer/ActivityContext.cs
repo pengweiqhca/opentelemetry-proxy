@@ -16,5 +16,7 @@ internal sealed class ActivityContext(string activityName) : IMethodTagContext
 
     public string ActivitySourceVariableName { get; set; } = "@ActivitySource@";
 
+    public string VariableName { get; set; } = "activity@";
+
     public bool IsStatic { get; set; }
 }

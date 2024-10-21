@@ -228,7 +228,7 @@ internal sealed class ProxyRewriter(
     private static SyntaxNode AddActivity(TypeDeclarationSyntax type,
         MethodDeclarationSyntax node, ActivityContext context)
     {
-        var activity = SyntaxFactory.IdentifierName("activity@");
+        var activity = SyntaxFactory.IdentifierName(context.VariableName);
 
         MethodDeclarationSyntax method;
         int indent;

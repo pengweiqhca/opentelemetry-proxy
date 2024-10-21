@@ -68,6 +68,7 @@ public class ActivityTest
         Assert.True(activityContext.SuppressInstrumentation);
         Assert.Equal("ActivityTestClass2`1.TestMethod1", activityContext.ActivityName);
         Assert.Equal("default", activityContext.Kind);
+        Assert.Equal("activity@", activityContext.VariableName);
     }
 
     [Fact]
@@ -85,5 +86,6 @@ public class ActivityTest
         var activityContext = Assert.IsAssignableFrom<ActivityContext>(Assert.Single(typeMethods.MethodContexts.Values));
 
         Assert.Equal("ActivityTestClass3.TestMethod1", activityContext.ActivityName);
+        Assert.Equal("test", activityContext.VariableName);
     }
 }

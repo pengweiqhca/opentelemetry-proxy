@@ -206,6 +206,8 @@ internal sealed class ProxyVisitor(
                 else if (arg.NameEquals.Is(nameof(context.Kind))) context.Kind = GetKindValue(arg);
                 else if (arg.NameEquals.Is(nameof(context.SuppressInstrumentation)))
                     context.SuppressInstrumentation = GetValue<bool>(arg);
+                else if (arg.NameEquals.Is(nameof(context.VariableName)) && TryGetRequiredValue(arg, out var value))
+                    context.VariableName = value;
 
         if (typeContext is IActivitySourceContext activitySourceContext)
             context.ActivitySourceVariableName = activitySourceContext.VariableName;

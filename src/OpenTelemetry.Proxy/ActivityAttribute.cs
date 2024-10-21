@@ -19,4 +19,9 @@ public class ActivityAttribute : Attribute
     /// Gets or sets a value indicating whether down stream instrumentation is suppressed (disabled).
     /// </summary>
     public bool SuppressInstrumentation { get; set; }
+
+    /// <summary>
+    /// Gets or sets the <see cref="ActivitySource" /> variable name, it only works for static proxy. Default value is activity@ />.
+    /// </summary>
+    public string? VariableName { get; set; }
 }
