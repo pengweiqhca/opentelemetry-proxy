@@ -1,5 +1,4 @@
-﻿using OpenTelemetry.Trace;
-using System.Collections;
+﻿using System.Collections;
 using System.Reflection;
 
 namespace OpenTelemetry.Proxy;
@@ -37,7 +36,7 @@ public static class ActivityExtensions
     /// <returns>Return false always.</returns>
     public static bool SetExceptionStatus(Activity? activity, Exception ex)
     {
-        activity?.SetStatus(ActivityStatusCode.Error, GetInnerExceptionMessage(ex)).RecordException(ex.Demystify());
+        activity?.SetStatus(ActivityStatusCode.Error, GetInnerExceptionMessage(ex)).AddException(ex.Demystify());
 
         return false;
 
