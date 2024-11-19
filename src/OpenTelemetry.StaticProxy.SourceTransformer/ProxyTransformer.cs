@@ -22,12 +22,12 @@ public class ProxyTransformer : ISourceTransformer
         var proxyRewriterContext = new ProxyRewriterContext();
 
         foreach (var tree in methods.SelectMany(x => x.MethodContexts.Select(m => new
-                 {
-                     m.Key.SyntaxTree,
-                     TypeMethods = x,
-                     Method = m.Key,
-                     MethodContext = m.Value
-                 })).GroupBy(x => x.SyntaxTree))
+        {
+            m.Key.SyntaxTree,
+            TypeMethods = x,
+            Method = m.Key,
+            MethodContext = m.Value
+        })).GroupBy(x => x.SyntaxTree))
         {
             var rewriter = new ProxyRewriter(proxyRewriterContext,
                 tree.Select(x => x.TypeMethods).Distinct().ToDictionary(x => x.TypeNode, x => x.Context),

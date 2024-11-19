@@ -2,6 +2,7 @@
 using System.Linq.Expressions;
 
 // ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130
 namespace Microsoft.Extensions.Internal;
 
 /// <summary>

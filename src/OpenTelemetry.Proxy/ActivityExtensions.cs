@@ -1,7 +1,6 @@
 ﻿using OpenTelemetry.Trace;
 using System.Collections;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 
 namespace OpenTelemetry.Proxy;
 
@@ -26,7 +25,7 @@ public static class ActivityExtensions
 #if NETSTANDARD2_0
         return activity.SetTag(key, value);
 #else
-        if (value is not ITuple tuple) return activity.SetTag(key, value);
+        if (value is not System.Runtime.CompilerServices.ITuple tuple) return activity.SetTag(key, value);
 
         for (var index = 0; index < tuple.Length; index++)
             activity.SetTagEnumerable($"{key}.Item{index + 1}", tuple[index]);

@@ -2,6 +2,7 @@
 using System.Linq.Expressions;
 
 // ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130
 namespace Microsoft.Extensions.Internal;
 
 internal sealed class ObjectMethodExecutor
@@ -22,9 +23,7 @@ internal sealed class ObjectMethodExecutor
 
     private ObjectMethodExecutor(MethodInfo methodInfo, TypeInfo targetTypeInfo, object?[]? parameterDefaultValues)
     {
-        if (methodInfo == null) throw new ArgumentNullException(nameof(methodInfo));
-
-        MethodInfo = methodInfo;
+        MethodInfo = methodInfo ?? throw new ArgumentNullException(nameof(methodInfo));
         MethodParameters = methodInfo.GetParameters();
         TargetTypeInfo = targetTypeInfo;
         MethodReturnType = methodInfo.ReturnType;
@@ -163,12 +162,11 @@ internal sealed class ObjectMethodExecutor
         }
     }
 
-    private static MethodExecutor WrapVoidMethod(VoidMethodExecutor executor) =>
-        delegate(object target, object?[]? parameters)
-        {
-            executor(target, parameters);
-            return null;
-        };
+    private static MethodExecutor WrapVoidMethod(VoidMethodExecutor executor) => (target, parameters) =>
+    {
+        executor(target, parameters);
+        return null;
+    };
 
     private static MethodExecutorAsync GetExecutorAsync(MethodInfo methodInfo,
         TypeInfo targetTypeInfo,

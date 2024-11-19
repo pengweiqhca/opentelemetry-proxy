@@ -40,8 +40,9 @@ public class InnerActivityContext
         }
 
         if (outer._tags == null || outer._tags.Count < 1) return;
-
+#pragma warning disable CA1859
         if (_tags is IDictionary<string, object?> tags)
+#pragma warning restore CA1859
         {
             foreach (var tag in outer._tags) tags[tag.Key] = tag.Value;
 
