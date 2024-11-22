@@ -22,7 +22,7 @@
 
     <OpenTelemetryVersion>1.10.*</OpenTelemetryVersion>
     <OpenTelemetryInstrumentationVersion>1.9.*-*</OpenTelemetryInstrumentationVersion>
-    <MetalamaVersion>2024.1.12</MetalamaVersion>
+    <MetalamaVersion>2024.*</MetalamaVersion>
     <CodeAnalysisVersion>4.7.0</CodeAnalysisVersion>
   </PropertyGroup>
 

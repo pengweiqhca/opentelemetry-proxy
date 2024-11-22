@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="DynamicExpresso.Core" Version="2.16.1" />
+    <PackageReference Include="DynamicExpresso.Core" Version="2.17.2" />
     
     <ProjectReference Include="..\OpenTelemetry.DynamicProxy\OpenTelemetry.DynamicProxy.csproj" />
   </ItemGroup>
