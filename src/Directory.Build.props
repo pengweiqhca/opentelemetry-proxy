@@ -8,7 +8,7 @@
     <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
 
     <!--<VersionSuffix Condition="'$(VersionSuffix)' == ''">-preview.1</VersionSuffix>-->
-    <AssemblyVersion>3.1</AssemblyVersion>
+    <AssemblyVersion>3.2</AssemblyVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PolySharpExcludeGeneratedTypes>System.Runtime.CompilerServices.ModuleInitializerAttribute</PolySharpExcludeGeneratedTypes>
 
