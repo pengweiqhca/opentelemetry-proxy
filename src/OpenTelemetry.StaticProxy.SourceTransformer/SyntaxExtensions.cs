@@ -27,7 +27,7 @@ internal static class SyntaxExtensions
     public static bool IsOut(this BaseParameterSyntax member) => member.Modifiers.HasModifier("out");
 
     public static bool IsAsync(this MethodDeclarationSyntax method) =>
-        !method.IsVoid() && method.Modifiers.HasModifier("async");
+        /*!method.IsVoid() && */method.Modifiers.HasModifier("async");
 
     public static bool IsVoid(this MethodDeclarationSyntax method) =>
         method.ReturnType is PredefinedTypeSyntax predefinedType &&

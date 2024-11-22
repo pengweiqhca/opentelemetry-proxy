@@ -24,7 +24,7 @@ public class ActivityTest
 #endif
         var methods = typeMethods.MethodContexts.Values.ToArray();
 
-        Assert.Equal(2, methods.Length);
+        Assert.Equal(3, methods.Length);
 
         var activityContext = Assert.IsAssignableFrom<ActivityContext>(methods[0]);
 
@@ -36,6 +36,15 @@ public class ActivityTest
         Assert.Equal("ActivityKind.Server", activityContext.Kind);
 #endif
         activityContext = Assert.IsAssignableFrom<ActivityContext>(methods[1]);
+
+        Assert.False(activityContext.SuppressInstrumentation);
+        Assert.Equal("ActivityTestClass1.TestMethod3", activityContext.ActivityName);
+#if NETFRAMEWORK
+        Assert.Equal("(System.Diagnostics.ActivityKind)" + (int)ActivityKind.Client, activityContext.Kind);
+#else
+        Assert.Equal("ActivityKind.Client", activityContext.Kind);
+#endif
+        activityContext = Assert.IsAssignableFrom<ActivityContext>(methods[2]);
 
         Assert.False(activityContext.SuppressInstrumentation);
         Assert.Equal("ActivityTestClass1.TestMethod4", activityContext.ActivityName);
