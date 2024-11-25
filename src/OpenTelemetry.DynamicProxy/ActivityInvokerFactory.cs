@@ -224,7 +224,8 @@ public class ActivityInvokerFactory(IExpressionParser? parser = null) : IActivit
 
             var expression = Expression.Call(invocation, GetArgumentValue, Expression.Constant(index));
 
-            foreach (var tag in GetActivityTags(parameterName, parameter.GetCustomAttributes<ActivityTagAttribute>())
+            foreach (var tag in GetActivityTags(string.IsNullOrEmpty(parameterName) ? "p@" + index : parameterName,
+                             parameter.GetCustomAttributes<ActivityTagAttribute>())
                          .Union(tags.Where(kv => kv.Value == parameterName).Select(kv => kv.Key)).ToList())
             {
                 if (parameter.IsOut) outTags[tag] = expression;

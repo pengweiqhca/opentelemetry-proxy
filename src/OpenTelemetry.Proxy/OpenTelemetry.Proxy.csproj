@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Description>Automatically generate activity by defined [Activity].</Description>
-    <TargetFrameworks>net471;netstandard2.0;netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net471;netstandard2.0;net6.0;net8.0</TargetFrameworks>
     <Version>$(AssemblyVersion).0$(VersionSuffix)</Version>
 
     <PolySharpIncludeGeneratedTypes>System.Diagnostics.StackTraceHiddenAttribute;System.Runtime.CompilerServices.IsExternalInit</PolySharpIncludeGeneratedTypes>
@@ -13,6 +13,7 @@
 
     <PackageReference Include="Ben.Demystifier" Version="0.4.1" />
     <PackageReference Include="OpenTelemetry" Version="$(OpenTelemetryVersion)" />
+    <PackageReference Update="OpenTelemetry" Version="1.9.*" Condition="'$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'net6.0'" />
   </ItemGroup>
 
 </Project>

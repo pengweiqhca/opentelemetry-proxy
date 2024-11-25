@@ -6,7 +6,7 @@
     <IncludeSymbols>false</IncludeSymbols>
     <NoWarn>$(NoWarn);NU5100</NoWarn>
     <PackageTags>$(PackageTags), Activity, AOP, Metalama, Source Generator</PackageTags>
-    <TargetFrameworks>net471;netstandard2.0;netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net471;netstandard2.0;net8.0</TargetFrameworks>
     <Version>$(AssemblyVersion).0$(VersionSuffix)</Version>
   </PropertyGroup>
 

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Description>Automatically generate activity by defined [Activity] on runtime.</Description>
-    <TargetFrameworks>net472;netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net472;net6.0;net8.0</TargetFrameworks>
     <Version>$(AssemblyVersion).0$(VersionSuffix)</Version>
     <DefineConstants>$(DefineConstants);DynamicProxy</DefineConstants>
     <PolySharpExcludeGeneratedTypes Condition="'$(TargetFramework)' == 'netstandard2.1'">System.Runtime.CompilerServices.CallerArgumentExpressionAttribute</PolySharpExcludeGeneratedTypes>

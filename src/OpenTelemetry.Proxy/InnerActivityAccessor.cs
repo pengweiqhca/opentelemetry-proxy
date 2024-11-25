@@ -5,7 +5,7 @@ namespace OpenTelemetry.Proxy;
 public static class InnerActivityAccessor
 {
     private static readonly AsyncLocal<ActivityHolder?> Holder = new();
-#if NETSTANDARD2_1_OR_GREATER
+#if NET
     private static readonly ConditionalWeakTable<Activity, ActivityHolder> ActivityTable = [];
 #else
     private static readonly ConditionalWeakTable<Activity, ActivityHolder> ActivityTable = new();

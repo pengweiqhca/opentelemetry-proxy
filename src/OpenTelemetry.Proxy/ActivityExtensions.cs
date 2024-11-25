@@ -1,5 +1,8 @@
 ﻿using System.Collections;
 using System.Reflection;
+#if NETSTANDARD2_0 || NET6_0
+using OpenTelemetry.Trace;
+#endif
 
 namespace OpenTelemetry.Proxy;
 
@@ -36,8 +39,11 @@ public static class ActivityExtensions
     /// <returns>Return false always.</returns>
     public static bool SetExceptionStatus(Activity? activity, Exception ex)
     {
+#if NETSTANDARD2_0 || NET6_0
+        activity?.SetStatus(ActivityStatusCode.Error, GetInnerExceptionMessage(ex)).RecordException(ex.Demystify());
+#else
         activity?.SetStatus(ActivityStatusCode.Error, GetInnerExceptionMessage(ex)).AddException(ex.Demystify());
-
+#endif
         return false;
 
         static string GetInnerExceptionMessage(Exception ex)
