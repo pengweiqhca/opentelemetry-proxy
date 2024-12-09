@@ -139,7 +139,7 @@ internal sealed class ProxyRewriter(
 
     private static MethodDeclarationSyntax AddSuppressInstrumentation(MethodDeclarationSyntax node)
     {
-        var method = AddLineNumber(node, Expression2Return(node, out var indent));
+        var method = AddLineNumber(node, Expression2Body(node, out var indent));
         if (method.Body == null) return method;
 
         var usingStatement = SyntaxFactory.UsingStatement(SyntaxFactory.Block(method.Body.Statements).WithNewLine())
@@ -157,7 +157,7 @@ internal sealed class ProxyRewriter(
     private static MethodDeclarationSyntax AddActivityName(TypeDeclarationSyntax type, MethodDeclarationSyntax node,
         MethodActivityNameContext context)
     {
-        var method = AddLineNumber(node, Expression2Return(node, out var indent));
+        var method = AddLineNumber(node, Expression2Body(node, out var indent));
         if (method.Body == null) return method;
 
         ExpressionSyntax dictionaryCreation;
@@ -235,12 +235,12 @@ internal sealed class ProxyRewriter(
 
         if (context.OutTags.Count < 1 ||
             node.ExpressionBody is { Expression: ThrowExpressionSyntax })
-            method = AddLineNumber(node, Expression2Return(node, out indent));
+            method = AddLineNumber(node, Expression2Body(node, out indent));
         else
         {
             var syntaxNode = new ReturnRewriter(type, context, activity,
                     node.ExpressionBody?.Expression.GetLineNumber())
-                .Visit(Expression2Return(node, out indent));
+                .Visit(Expression2Body(node, out indent));
 
             if (syntaxNode is not MethodDeclarationSyntax newMethod) return syntaxNode;
 
@@ -347,7 +347,7 @@ internal sealed class ProxyRewriter(
                     SyntaxFactory.Argument(GetTagValue(type, tag.Value, tag.Key.Expression)).WithLeadingWhiteSpace()
                 ]))));
 
-    private static MethodDeclarationSyntax Expression2Return(MethodDeclarationSyntax method,
+    private static MethodDeclarationSyntax Expression2Body(MethodDeclarationSyntax method,
         out int indent)
     {
         indent = method.GetIndent() + 4;
