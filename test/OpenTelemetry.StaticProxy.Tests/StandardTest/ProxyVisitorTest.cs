@@ -12,7 +12,7 @@ namespace OpenTelemetry.StaticProxy.Tests.StandardTest;
 internal class ProxyVisitorTest : AnalyzerTest<DefaultVerifier>
 {
     private static readonly LanguageVersion DefaultLanguageVersion =
-        Enum.TryParse("Default", out LanguageVersion version) ? version : LanguageVersion.CSharp6;
+        Enum.TryParse("Default", out LanguageVersion version) ? version : LanguageVersion.CSharp10;
 
     protected override string DefaultFileExt => "cs";
 
@@ -23,7 +23,7 @@ internal class ProxyVisitorTest : AnalyzerTest<DefaultVerifier>
         TestCode = File.ReadAllText("StandardFiles\\" + codeFileName + ".cs");
 
         ReferenceAssemblies = ReferenceAssemblies.Default
-            .AddPackages([..new[] { new PackageIdentity("OpenTelemetry", "1.9.0") }])
+            .AddPackages([..new[] { new PackageIdentity("OpenTelemetry", "1.10.0") }])
             .AddAssemblies([..new[] { typeof(ActivityTagAttribute).Assembly.Location }]);
     }
 
@@ -51,10 +51,9 @@ internal class ProxyVisitorTest : AnalyzerTest<DefaultVerifier>
                 fixableDiagnostics, DefaultFilePath);
 
         var project = await CreateProjectAsync(new(testState, ReferenceAssemblies), [
-                ..testState.AdditionalProjects.Values.Select(additionalProject =>
-                    new EvaluatedProjectState(additionalProject, ReferenceAssemblies))
-            ],
-            cancellationToken).ConfigureAwait(false);
+            ..testState.AdditionalProjects.Values.Select(additionalProject =>
+                new EvaluatedProjectState(additionalProject, ReferenceAssemblies))
+        ], cancellationToken).ConfigureAwait(false);
 
         return (project, testState, await project.GetCompilationAsync(cancellationToken).ConfigureAwait(false) ??
             throw new InvalidOperationException());
