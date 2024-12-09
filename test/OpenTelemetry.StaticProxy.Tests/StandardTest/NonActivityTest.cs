@@ -5,7 +5,7 @@ public class NonActivityTest
     [Fact]
     public async Task ClassHaveActivitySource()
     {
-        var test = new ProxyRewriterTest("NonActivityTestClass1");
+        var test = new ProxyVisitorTest("NonActivityTestClass1");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 
@@ -26,7 +26,7 @@ public class NonActivityTest
     [Fact]
     public async Task ClassHaveActivityName()
     {
-        var test = new ProxyRewriterTest("NonActivityTestClass2");
+        var test = new ProxyVisitorTest("NonActivityTestClass2");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 
@@ -43,7 +43,7 @@ public class NonActivityTest
     [Fact]
     public async Task ClassHaveNoAttribute()
     {
-        var test = new ProxyRewriterTest("NonActivityTestClass3");
+        var test = new ProxyVisitorTest("NonActivityTestClass3");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 

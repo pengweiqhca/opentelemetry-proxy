@@ -5,7 +5,7 @@ public class ActivityTest
     [Fact]
     public async Task NotIncludeNonAsyncStateMachineMethod()
     {
-        var test = new ProxyRewriterTest("ActivityTestClass1");
+        var test = new ProxyVisitorTest("ActivityTestClass1");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 
@@ -58,7 +58,7 @@ public class ActivityTest
     [Fact]
     public async Task IncludeNonAsyncStateMachineMethod()
     {
-        var test = new ProxyRewriterTest("ActivityTestClass2");
+        var test = new ProxyVisitorTest("ActivityTestClass2");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 
@@ -83,7 +83,7 @@ public class ActivityTest
     [Fact]
     public async Task TypeNoAttribute()
     {
-        var test = new ProxyRewriterTest("ActivityTestClass3");
+        var test = new ProxyVisitorTest("ActivityTestClass3");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 

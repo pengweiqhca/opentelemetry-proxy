@@ -8,7 +8,7 @@ public class AttributeValueTest
     [Fact]
     public async Task Test1()
     {
-        var test = new ProxyRewriterTest("AttributeValueTestClass1");
+        var test = new ProxyVisitorTest("AttributeValueTestClass1");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 
@@ -22,7 +22,7 @@ public class AttributeValueTest
     [Fact]
     public async Task Test2()
     {
-        var test = new ProxyRewriterTest("AttributeValueTestClass2");
+        var test = new ProxyVisitorTest("AttributeValueTestClass2");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 
@@ -36,7 +36,7 @@ public class AttributeValueTest
     [Fact]
     public async Task Test3()
     {
-        var test = new ProxyRewriterTest("AttributeValueTestClass3");
+        var test = new ProxyVisitorTest("AttributeValueTestClass3");
 #if !NETFRAMEWORK
         test.ExpectedDiagnostics.Add(new DiagnosticResult(new(
             "OTSP001",

@@ -9,7 +9,7 @@ using System.Reflection;
 
 namespace OpenTelemetry.StaticProxy.Tests.StandardTest;
 
-internal class ProxyRewriterTest : AnalyzerTest<DefaultVerifier>
+internal class ProxyVisitorTest : AnalyzerTest<DefaultVerifier>
 {
     private static readonly LanguageVersion DefaultLanguageVersion =
         Enum.TryParse("Default", out LanguageVersion version) ? version : LanguageVersion.CSharp6;
@@ -18,13 +18,13 @@ internal class ProxyRewriterTest : AnalyzerTest<DefaultVerifier>
 
     public override string Language => LanguageNames.CSharp;
 
-    public ProxyRewriterTest(string codeFileName)
+    public ProxyVisitorTest(string codeFileName)
     {
         TestCode = File.ReadAllText("StandardFiles\\" + codeFileName + ".cs");
 
         ReferenceAssemblies = ReferenceAssemblies.Default
-            .AddPackages(new[] { new PackageIdentity("OpenTelemetry", "1.9.0") }.ToImmutableArray())
-            .AddAssemblies(new[] { typeof(ActivityTagAttribute).Assembly.Location }.ToImmutableArray());
+            .AddPackages([..new[] { new PackageIdentity("OpenTelemetry", "1.9.0") }])
+            .AddAssemblies([..new[] { typeof(ActivityTagAttribute).Assembly.Location }]);
     }
 
     protected override CompilationOptions CreateCompilationOptions() =>
@@ -47,12 +47,13 @@ internal class ProxyRewriterTest : AnalyzerTest<DefaultVerifier>
 
         var testState = TestState.WithInheritedValuesApplied(null, fixableDiagnostics)
             .WithProcessedMarkup(MarkupOptions, GetDefaultDiagnostic(analyzers),
-                analyzers.SelectMany(analyzer => analyzer.SupportedDiagnostics).ToImmutableArray(),
+                [..analyzers.SelectMany(analyzer => analyzer.SupportedDiagnostics)],
                 fixableDiagnostics, DefaultFilePath);
 
-        var project = await CreateProjectAsync(new(testState, ReferenceAssemblies),
-            testState.AdditionalProjects.Values.Select(additionalProject =>
-                new EvaluatedProjectState(additionalProject, ReferenceAssemblies)).ToImmutableArray(),
+        var project = await CreateProjectAsync(new(testState, ReferenceAssemblies), [
+                ..testState.AdditionalProjects.Values.Select(additionalProject =>
+                    new EvaluatedProjectState(additionalProject, ReferenceAssemblies))
+            ],
             cancellationToken).ConfigureAwait(false);
 
         return (project, testState, await project.GetCompilationAsync(cancellationToken).ConfigureAwait(false) ??
@@ -71,8 +72,10 @@ internal class ProxyRewriterTest : AnalyzerTest<DefaultVerifier>
             .GetMethod("VerifyDiagnosticResults", BindingFlags.Instance | BindingFlags.NonPublic)!
             .Invoke(this,
             [
-                list.Select(d => (project, d)), GetDiagnosticAnalyzers().ToImmutableArray(),
-                solution.ExpectedDiagnostics.ToArray(), Verify
+                list.Select(d => (project, d)),
+                GetDiagnosticAnalyzers().ToImmutableArray(),
+                solution.ExpectedDiagnostics.ToArray(),
+                Verify
             ]);
 
         return methods.ToArray();

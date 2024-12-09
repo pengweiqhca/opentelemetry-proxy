@@ -13,6 +13,7 @@
 
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzer.Testing" Version="$(CodeAnalysisTestingVersion)" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="$(CodeAnalysisVersion)" />
+    <PackageReference Include="System.Collections.Immutable" Version="8.0.0" Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.*" PrivateAssets="None" />
 
     <ProjectReference Include="..\..\src\OpenTelemetry.Proxy\OpenTelemetry.Proxy.csproj" />

@@ -5,7 +5,7 @@ public class ActivityNameTest
     [Fact]
     public async Task ActivityNameNoName()
     {
-        var test = new ProxyRewriterTest("ActivityNameTestClass1");
+        var test = new ProxyVisitorTest("ActivityNameTestClass1");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 
@@ -31,7 +31,7 @@ public class ActivityNameTest
     [Fact]
     public async Task ActivityNameHaveName()
     {
-        var test = new ProxyRewriterTest("ActivityNameTestClass2");
+        var test = new ProxyVisitorTest("ActivityNameTestClass2");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 
@@ -57,7 +57,7 @@ public class ActivityNameTest
     [Fact]
     public async Task TypeHaveNoActivityName()
     {
-        var test = new ProxyRewriterTest("ActivityNameTestClass3");
+        var test = new ProxyVisitorTest("ActivityNameTestClass3");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 
@@ -79,7 +79,7 @@ public class ActivityNameTest
     [Fact]
     public async Task TypeHaveActivityNameAndActivitySource()
     {
-        var test = new ProxyRewriterTest("ActivityNameTestClass4");
+        var test = new ProxyVisitorTest("ActivityNameTestClass4");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 

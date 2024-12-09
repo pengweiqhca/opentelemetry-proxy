@@ -5,7 +5,7 @@ public class PartialTest
     [Fact]
     public async Task Test1()
     {
-        var test = new ProxyRewriterTest("PartialTestClass1");
+        var test = new ProxyVisitorTest("PartialTestClass1");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 
@@ -20,7 +20,7 @@ public class PartialTest
     [Fact]
     public async Task Test2()
     {
-        var test = new ProxyRewriterTest("PartialTestClass2");
+        var test = new ProxyVisitorTest("PartialTestClass2");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 

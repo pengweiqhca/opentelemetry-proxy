@@ -5,7 +5,7 @@ public class ActivityTagTest
     [Fact]
     public async Task ActivityTagsTest()
     {
-        var test = new ProxyRewriterTest("ActivityTagTestClass1");
+        var test = new ProxyVisitorTest("ActivityTagTestClass1");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 
@@ -24,7 +24,7 @@ public class ActivityTagTest
     [Fact]
     public async Task InoutTagsTest()
     {
-        var test = new ProxyRewriterTest("ActivityTagTestClass2");
+        var test = new ProxyVisitorTest("ActivityTagTestClass2");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 
@@ -71,7 +71,7 @@ public class ActivityTagTest
     [Fact]
     public async Task TypeHaveTagsTest()
     {
-        var test = new ProxyRewriterTest("ActivityTagTestClass3");
+        var test = new ProxyVisitorTest("ActivityTagTestClass3");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 
@@ -113,7 +113,7 @@ public class ActivityTagTest
     [Fact]
     public async Task TypeNoTagsTest()
     {
-        var test = new ProxyRewriterTest("ActivityTagTestClass4");
+        var test = new ProxyVisitorTest("ActivityTagTestClass4");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 
@@ -148,7 +148,7 @@ public class ActivityTagTest
     [Fact]
     public async Task ExpressionTest()
     {
-        var test = new ProxyRewriterTest("ActivityTagTestClass5");
+        var test = new ProxyVisitorTest("ActivityTagTestClass5");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 

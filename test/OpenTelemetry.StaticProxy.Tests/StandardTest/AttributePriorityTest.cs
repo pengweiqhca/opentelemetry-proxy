@@ -5,7 +5,7 @@ public class AttributePriorityTest
     [Fact]
     public async Task ActivitySourceTest()
     {
-        var test = new ProxyRewriterTest("AttributePriorityTestClass1");
+        var test = new ProxyVisitorTest("AttributePriorityTestClass1");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 
@@ -16,7 +16,7 @@ public class AttributePriorityTest
     [Fact]
     public async Task ActivityNameTest()
     {
-        var test = new ProxyRewriterTest("AttributePriorityTestClass2");
+        var test = new ProxyVisitorTest("AttributePriorityTestClass2");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 

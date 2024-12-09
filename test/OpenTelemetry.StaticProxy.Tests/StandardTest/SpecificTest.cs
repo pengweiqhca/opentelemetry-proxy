@@ -6,7 +6,7 @@ public class SpecificTest
     [Fact]
     public async Task InterfaceTest()
     {
-        var test = new ProxyRewriterTest("TestInterface");
+        var test = new ProxyVisitorTest("TestInterface");
 
         var results = await test.VisitAsync().ConfigureAwait(false);
 
