@@ -1,4 +1,6 @@
-﻿namespace OpenTelemetry.StaticProxy.Tests.StandardTest;
+﻿using System.Reflection;
+
+namespace OpenTelemetry.StaticProxy.Tests.StandardTest;
 
 public class ActivityTagTest
 {

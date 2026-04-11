@@ -10,6 +10,7 @@
     <None Include="StandardFiles\**" CopyToOutputDirectory="PreserveNewest" />
 
     <None Include="..\OpenTelemetry.Proxy.StandardFiles\*.cs" Link="StandardFiles\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\OpenTelemetry.StaticProxy.TestClass\KeepLineNumberTestClass.cs" Link="StandardFiles\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
 
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzer.Testing" Version="$(CodeAnalysisTestingVersion)" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="$(CodeAnalysisVersion)" />
