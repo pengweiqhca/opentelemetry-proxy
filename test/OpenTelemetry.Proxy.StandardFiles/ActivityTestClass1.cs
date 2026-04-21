@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace OpenTelemetry.Proxy.StandardFiles;
 
-[ActivitySource("ActivityTestClass", Kind = ActivityKind.Client, VariableName = "TestName")]
+[ActivitySource("ActivityTestClass", Kind = ActivityKind.Client)]
 public class ActivityTestClass1
 {
     public void TestMethod1() { }

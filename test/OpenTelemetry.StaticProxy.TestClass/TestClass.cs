@@ -6,7 +6,7 @@ using System.Reflection;
 
 namespace OpenTelemetry.StaticProxy.TestClass;
 
-[ActivitySource(IncludeNonAsyncStateMachineMethod = true, VariableName = "TestName")]
+[ActivitySource(IncludeNonAsyncStateMachineMethod = true)]
 public static partial class TestClass
 {
     [NonActivity(true)]

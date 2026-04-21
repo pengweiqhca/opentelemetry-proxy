@@ -72,8 +72,8 @@ public class ActivityInvokerFactory(IExpressionParser? parser = null) : IActivit
 
     private IActivityInvoker? CreateActivityInvoker(Type type, MethodInfo method, ImplicitActivityContext context)
     {
-        // If it has been processed by metalama, invoke directly.
-        if (type.IsDefined(typeof(ProxyHasGeneratedAttribute)) && !type.IsInterface) return null;
+        // If it is not an interface, invoke directly (no dynamic proxy needed).
+        // ProxyHasGeneratedAttribute was removed as it is no longer needed with Source Generator + Interceptors.
 
         var proxyMethod = ActivityInvokerHelper.GetProxyMethod(method, type);
 

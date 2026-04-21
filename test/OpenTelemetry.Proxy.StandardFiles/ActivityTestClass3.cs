@@ -5,6 +5,6 @@ namespace OpenTelemetry.Proxy.StandardFiles;
 [ActivityName]
 public class ActivityTestClass3
 {
-    [Activity(" ", VariableName = "test")]
+    [Activity(" ")]
     public void TestMethod1() { }
 }

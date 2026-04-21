@@ -20,6 +20,10 @@
 
             Console.WriteLine($"Demo end: {_asyncLocal.Value}");
 
+            await Demo5().ConfigureAwait(false);
+
+            Demo6();
+
             return arg;
         }
 
@@ -82,5 +86,8 @@
 
             Console.WriteLine($"Demo5 end: {_asyncLocal.Value}");
         }
+
+        [Activity]
+        public static void Demo6() { }
     }
 }

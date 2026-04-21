@@ -1,8 +1,5 @@
 ﻿using System.Collections;
 using System.Reflection;
-#if NETSTANDARD2_0 || NET6_0
-using OpenTelemetry.Trace;
-#endif
 
 namespace OpenTelemetry.Proxy;
 
@@ -24,26 +21,20 @@ public static class ActivityExtensions
 
             return activity;
         }
-#if NETSTANDARD2_0
-        return activity.SetTag(key, value);
-#else
+
         if (value is not System.Runtime.CompilerServices.ITuple tuple) return activity.SetTag(key, value);
 
         for (var index = 0; index < tuple.Length; index++)
             activity.SetTagEnumerable($"{key}.Item{index + 1}", tuple[index]);
 
         return activity;
-#endif
     }
 
     /// <returns>Return false always.</returns>
     public static bool SetExceptionStatus(Activity? activity, Exception ex)
     {
-#if NETSTANDARD2_0 || NET6_0
-        activity?.SetStatus(ActivityStatusCode.Error, GetInnerExceptionMessage(ex)).RecordException(ex.Demystify());
-#else
         activity?.SetStatus(ActivityStatusCode.Error, GetInnerExceptionMessage(ex)).AddException(ex.Demystify());
-#endif
+
         return false;
 
         static string GetInnerExceptionMessage(Exception ex)

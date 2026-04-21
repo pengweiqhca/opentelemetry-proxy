@@ -1,21 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-
-    <MetalamaDebugTransformedCode>true</MetalamaDebugTransformedCode>
+    <TargetFramework>net10.0</TargetFramework>
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);OpenTelemetry.StaticProxy.Generated</InterceptorsNamespaces>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Metalama.Compiler" Version="$(MetalamaVersion)" PrivateAssets="all" />
-
     <Content Include="..\OpenTelemetry.Proxy.Demo\*.json" CopyToOutputDirectory="PreserveNewest" />
-    <Compile Include="..\OpenTelemetry.Proxy.Demo\ActivityExtensions.cs" />
     <Compile Include="..\OpenTelemetry.Proxy.Demo\DemoClass.cs" />
     <Compile Include="..\OpenTelemetry.Proxy.Demo\Program.cs" />
 
     <ProjectReference Include="..\..\src\OpenTelemetry.Proxy\OpenTelemetry.Proxy.csproj" />
-    <ProjectReference Include="..\..\src\OpenTelemetry.StaticProxy.SourceTransformer\OpenTelemetry.StaticProxy.SourceTransformer.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\OpenTelemetry.StaticProxy.SourceGenerator\OpenTelemetry.StaticProxy.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

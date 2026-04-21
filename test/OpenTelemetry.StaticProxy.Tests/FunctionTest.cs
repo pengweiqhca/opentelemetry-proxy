@@ -10,27 +10,7 @@ namespace OpenTelemetry.StaticProxy.Tests;
 
 public class FunctionTest
 {
-    [Fact]
-    public void ProxyHasGeneratedAttributeTest()
-    {
-        Assert.Null(typeof(EmptyClass2).GetCustomAttribute<ProxyHasGeneratedAttribute>());
-
-        Assert.NotNull(typeof(TestClass.TestClass).GetCustomAttribute<ProxyHasGeneratedAttribute>());
-
-        Assert.NotNull(typeof(TestClass.TestClass).Assembly.GetCustomAttribute<ProxyHasGeneratedAttribute>());
-    }
-
-    [Fact]
-    public void VariableNameTest()
-    {
-        var fieldInfo = typeof(TestClass.TestClass).GetField("TestName", BindingFlags.NonPublic | BindingFlags.Static);
-
-        Assert.NotNull(fieldInfo);
-
-        var activitySource = Assert.IsType<ActivitySource>(fieldInfo.GetValue(null));
-
-        Assert.Equal(typeof(TestClass.TestClass).FullName, activitySource.Name);
-    }
+    // ProxyHasGeneratedAttributeTest and VariableNameTest removed — no longer applicable with Source Generator + Interceptors
 
     [Fact]
     public async Task SuppressInstrumentationScope()

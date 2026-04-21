@@ -16,7 +16,7 @@ Generate an activity to wrap the method, modify name of the inner activity or di
 
 `IncludeNonAsyncStateMachineMethod`: public methods defined in the class that are marked with the [AsyncStateMachine] attribute (except for `async void` method). If true, will include all methods of class.
 
-> Needs to be installed in each working project, and install `Metalama.Compiler` or `Fody` (`Fody` need some additional file), recommend  `Metalama.Compiler`.
+> Needs dotnet sdk 10.0+.
 
 ### [Activity]
 [Activity] can be defined on method only.
