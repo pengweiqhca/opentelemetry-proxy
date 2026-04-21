@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-
-namespace OpenTelemetry.Proxy;
+﻿namespace OpenTelemetry.Proxy;
 
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Interface)]
 public class ActivitySourceAttribute : Attribute
@@ -24,15 +22,4 @@ public class ActivitySourceAttribute : Attribute
     /// Gets or sets a value indicating whether down stream instrumentation is suppressed (disabled).
     /// </summary>
     public bool SuppressInstrumentation { get; set; }
-
-    public static string GetActivitySourceName(Type type) => GetActivitySourceName(type, null);
-
-    internal static string GetActivitySourceName(Type type, string? activitySourceName)
-    {
-        var name = type.GetCustomAttribute<ActivitySourceAttribute>()?.ActivitySourceName;
-
-        return string.IsNullOrWhiteSpace(name)
-            ? string.IsNullOrWhiteSpace(activitySourceName) ? type.FullName ?? type.ToString() : activitySourceName!
-            : name!;
-    }
 }

@@ -7,7 +7,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddDemoClass(this IServiceCollection services)
     {
-        services.AddSingleton<DemoClass, DemoClassProxy>();
+        services.AddSingleton<DemoClass>();
 
         return services;
     }

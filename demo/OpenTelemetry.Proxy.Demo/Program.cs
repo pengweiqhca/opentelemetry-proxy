@@ -6,9 +6,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
-using OpenTelemetry.Proxy;
 using OpenTelemetry.Proxy.Demo;
 using OpenTelemetry.Resources;
+using OpenTelemetry.Proxy.Generated;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,7 +20,7 @@ builder.Services
     .WithMetrics(static builder => ConfigureOtlp.ConfigureResource(builder).AddOtlpExporter())
     .WithTracing(static builder => ConfigureOtlp.ConfigureResource(builder)
         .AddAspNetCoreInstrumentation()
-        .AddSource(ActivitySourceAttribute.GetActivitySourceName(typeof(DemoClass)))
+        .AddOpenTelemetryProxyDemoSources()
         .AddOtlpExporter());
 
 builder.Services.AddSingleton<IConfigureOptions<OpenTelemetryLoggerOptions>>(provider =>
@@ -54,32 +54,3 @@ app.Services.GetRequiredService<MeterProvider>();
 app.Services.GetRequiredService<TracerProvider>();
 
 app.Run();
-
-namespace OpenTelemetry.Proxy.Demo
-{
-    record ConfigureOtlp(IServiceProvider Services)
-    {
-        public static MeterProviderBuilder ConfigureResource(
-            MeterProviderBuilder tracerProviderBuilder)
-        {
-            if (tracerProviderBuilder is IDeferredMeterProviderBuilder meterProviderBuilder1)
-                meterProviderBuilder1.Configure((provider, mpb) =>
-                    mpb.ConfigureResource(new ConfigureOtlp(provider).ConfigureResource));
-
-            return tracerProviderBuilder;
-        }
-
-        public static TracerProviderBuilder ConfigureResource(
-            TracerProviderBuilder tracerProviderBuilder)
-        {
-            if (tracerProviderBuilder is IDeferredTracerProviderBuilder tracerProviderBuilder1)
-                tracerProviderBuilder1.Configure((provider, mpb) =>
-                    mpb.ConfigureResource(new ConfigureOtlp(provider).ConfigureResource));
-
-            return tracerProviderBuilder;
-        }
-
-        private void ConfigureResource(ResourceBuilder builder) =>
-            builder.AddService(Services.GetRequiredService<IHostEnvironment>().ApplicationName);
-    }
-}

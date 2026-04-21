@@ -16,7 +16,7 @@ Generate an activity to wrap the method, modify name of the inner activity or di
 
 `IncludeNonAsyncStateMachineMethod`: public methods defined in the class that are marked with the [AsyncStateMachine] attribute (except for `async void` method). If true, will include all methods of class.
 
-> Needs dotnet sdk 10.0+.
+> Needs dotnet sdk 9.0.200+.
 
 ### [Activity]
 [Activity] can be defined on method only.

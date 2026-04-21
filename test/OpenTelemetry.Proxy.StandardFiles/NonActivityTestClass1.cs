@@ -1,5 +1,4 @@
 ﻿using OpenTelemetry.Proxy;
-using System.Diagnostics;
 
 namespace OpenTelemetry.Proxy.StandardFiles;
 
