@@ -1,4 +1,5 @@
 using FsCheck;
+using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -40,28 +41,46 @@ public class MethodFilterPropertyTest
         public static Gen<string> SafeId() =>
             from f in Gen.Elements(Letters)
             from len in Gen.Choose(2, 5)
-            from rest in Gen.ArrayOf(len, Gen.Elements(LowerLetters))
+            from rest in Gen.ArrayOf<char>(Gen.Elements(LowerLetters), len)
             select f + new string(rest);
 
         public static Gen<MethodConfig> MethodCfg(int index) =>
             from vis in Gen.Elements(Visibility.Public, Visibility.Private, Visibility.Internal)
-            from isAsync in Arb.Generate<bool>()
-            from hasActivity in Arb.Generate<bool>()
+            from isAsync in Gen.Elements(true, false)
+            from hasActivity in Gen.Elements(true, false)
             from hasActivityName in Gen.Constant(false) // simplify: don't combine with hasActivity
             from hasNonActivity in Gen.Constant(false)
             select new MethodConfig($"Method{index}", vis, isAsync, hasActivity, hasActivityName, hasNonActivity);
 
-        public static Gen<TestScenario> Scenario() =>
-            from includeNonAsync in Arb.Generate<bool>()
-            from count in Gen.Choose(1, 4)
-            from methods in Gen.Sequence(Enumerable.Range(0, count).Select(MethodCfg))
-            select new TestScenario(includeNonAsync, methods.ToArray());
+        public static Gen<TestScenario> Scenario()
+        {
+            return
+                from includeNonAsync in Gen.Elements(true, false)
+                from count in Gen.Choose(1, 4)
+                from scenario in BuildScenario(includeNonAsync, count)
+                select scenario;
+        }
+
+        private static Gen<TestScenario> BuildScenario(bool includeNonAsync, int count)
+        {
+            Gen<MethodConfig[]> methodsGen = Gen.Constant(Array.Empty<MethodConfig>());
+            for (var i = 0; i < count; i++)
+            {
+                var idx = i;
+                methodsGen =
+                    from prev in methodsGen
+                    from next in MethodCfg(idx)
+                    select prev.Append(next).ToArray();
+            }
+            return from methods in methodsGen
+                   select new TestScenario(includeNonAsync, methods);
+        }
     }
 
     public class Arbs
     {
         public static Arbitrary<TestScenario> ArbScenario() =>
-            Generators.Scenario().ToArbitrary();
+            Arb.From(Generators.Scenario());
     }
 
     #endregion

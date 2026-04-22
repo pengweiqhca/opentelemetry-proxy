@@ -1,4 +1,5 @@
 using FsCheck;
+using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -28,7 +29,7 @@ public class GenericPropertyTest
     public class Arbs
     {
         public static Arbitrary<GenericArityConfig> ArbGenericArity() =>
-            Generators.GenericArityCfg().ToArbitrary();
+            Arb.From(Generators.GenericArityCfg());
     }
 
     #endregion

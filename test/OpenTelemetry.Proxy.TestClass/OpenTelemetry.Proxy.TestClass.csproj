@@ -4,13 +4,16 @@
     <NoWarn>$(NoWarn);IDE2000</NoWarn>
     <SuppressTfmSupportBuildErrors>true</SuppressTfmSupportBuildErrors>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <IsTestProject>false</IsTestProject>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="../AssemblyToProcess/*.cs" />
+    <Using Include="Xunit" />
 
     <PackageReference Include="fasterflect" Version="3.*" />
     <PackageReference Include="FSharp.Core" Version="8.*" />
+    <PackageReference Include="xunit.v3.assert" Version="3.*" />
 
     <ProjectReference Include="..\..\src\OpenTelemetry.Proxy\OpenTelemetry.Proxy.csproj" />
   </ItemGroup>

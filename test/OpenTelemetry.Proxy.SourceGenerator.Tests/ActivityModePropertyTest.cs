@@ -1,4 +1,5 @@
 using FsCheck;
+using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -37,7 +38,7 @@ public class ActivityModePropertyTest
         public static Gen<string> SafeId() =>
             from f in Gen.Elements(Letters)
             from len in Gen.Choose(2, 5)
-            from rest in Gen.ArrayOf(len, Gen.Elements(LowerLetters))
+            from rest in Gen.ArrayOf<char>(Gen.Elements(LowerLetters), len)
             select f + new string(rest);
 
         public static Gen<MethodSignatureConfig> MethodSigCfg() =>
@@ -64,18 +65,18 @@ public class ActivityModePropertyTest
             select new TagConfig(pn, tagName, pt);
 
         public static Gen<SuppressConfig> SuppressCfg() =>
-            from sup in Arb.Generate<bool>()
+            from sup in Gen.Elements(true, false)
             select new SuppressConfig(sup);
     }
 
     public class Arbs
     {
         public static Arbitrary<MethodSignatureConfig> ArbMethodSig() =>
-            Generators.MethodSigCfg().ToArbitrary();
+            Arb.From(Generators.MethodSigCfg());
         public static Arbitrary<TagConfig> ArbTag() =>
-            Generators.TagCfg().ToArbitrary();
+            Arb.From(Generators.TagCfg());
         public static Arbitrary<SuppressConfig> ArbSuppress() =>
-            Generators.SuppressCfg().ToArbitrary();
+            Arb.From(Generators.SuppressCfg());
     }
 
     #endregion

@@ -1,4 +1,5 @@
 using FsCheck;
+using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -41,7 +42,7 @@ public class ActivitySourceAndTagPropertyTest
         public static Gen<string> SafeId() =>
             from f in Gen.Elements(Letters)
             from len in Gen.Choose(2, 5)
-            from rest in Gen.ArrayOf(len, Gen.Elements(LowerLetters))
+            from rest in Gen.ArrayOf<char>(Gen.Elements(LowerLetters), len)
             select f + new string(rest);
 
         public static Gen<ActivitySourceConfig> ActivitySourceCfg() =>
@@ -49,14 +50,14 @@ public class ActivitySourceAndTagPropertyTest
             select new ActivitySourceConfig(name);
 
         public static Gen<DedupConfig> DedupCfg() =>
-            from same in Arb.Generate<bool>()
+            from same in Gen.Elements(true, false)
             select new DedupConfig(same);
 
         public static Gen<TagSourceConfig> TagSourceCfg() =>
             Gen.OneOf(
                 // Parameter with optional Expression (only [ActivityTag] supports Expression)
                 from memberName in SafeId()
-                from hasExpr in Arb.Generate<bool>()
+                from hasExpr in Gen.Elements(true, false)
                 let expression = hasExpr ? "$.Length" : null
                 select new TagSourceConfig(TagSourceKind.Parameter, memberName, expression),
                 // Instance field (no Expression - [ActivityTags] encodes it in tag name)
@@ -76,11 +77,11 @@ public class ActivitySourceAndTagPropertyTest
     public class Arbs
     {
         public static Arbitrary<ActivitySourceConfig> ArbActivitySource() =>
-            Generators.ActivitySourceCfg().ToArbitrary();
+            Arb.From(Generators.ActivitySourceCfg());
         public static Arbitrary<DedupConfig> ArbDedup() =>
-            Generators.DedupCfg().ToArbitrary();
+            Arb.From(Generators.DedupCfg());
         public static Arbitrary<TagSourceConfig> ArbTagSource() =>
-            Generators.TagSourceCfg().ToArbitrary();
+            Arb.From(Generators.TagSourceCfg());
     }
 
     #endregion

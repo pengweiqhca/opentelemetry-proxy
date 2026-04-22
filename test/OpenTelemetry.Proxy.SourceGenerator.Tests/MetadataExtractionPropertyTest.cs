@@ -1,4 +1,5 @@
 using FsCheck;
+using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -33,8 +34,8 @@ public class MetadataExtractionPropertyTest
         public static Gen<string> SafeId() =>
             from f in Gen.Elements('A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P')
             from len in Gen.Choose(1, 6)
-            from rest in Gen.ArrayOf(len, Gen.Elements(
-                'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t'))
+            from rest in Gen.ArrayOf<char>(Gen.Elements(
+                'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t'), len)
             select f + new string(rest);
 
         public static Gen<string?> OptName() =>
@@ -43,19 +44,19 @@ public class MetadataExtractionPropertyTest
         public static Gen<ActivitySourceConfig> ActivitySourceCfg() =>
             from name in OptName()
             from kind in Gen.Choose(0, 4)
-            from inc in Arb.Generate<bool>()
-            from sup in Arb.Generate<bool>()
+            from inc in Gen.Elements(true, false)
+            from sup in Gen.Elements(true, false)
             select new ActivitySourceConfig(name, kind, inc, sup);
 
         public static Gen<ActivityConfig> ActivityCfg() =>
             from name in OptName()
             from kind in Gen.Choose(0, 4)
-            from sup in Arb.Generate<bool>()
+            from sup in Gen.Elements(true, false)
             select new ActivityConfig(name, kind, sup);
 
         public static Gen<ActivityNameMethodConfig> ActivityNameCfg() =>
             from name in OptName()
-            from adj in Arb.Generate<bool>()
+            from adj in Gen.Elements(true, false)
             select new ActivityNameMethodConfig(name, adj);
 
         public static Gen<ActivityTagOnParamConfig> ActivityTagCfg() =>
@@ -68,13 +69,13 @@ public class MetadataExtractionPropertyTest
     public class Arbs
     {
         public static Arbitrary<ActivitySourceConfig> ArbActivitySource() =>
-            Generators.ActivitySourceCfg().ToArbitrary();
+            Arb.From(Generators.ActivitySourceCfg());
         public static Arbitrary<ActivityConfig> ArbActivity() =>
-            Generators.ActivityCfg().ToArbitrary();
+            Arb.From(Generators.ActivityCfg());
         public static Arbitrary<ActivityNameMethodConfig> ArbActivityName() =>
-            Generators.ActivityNameCfg().ToArbitrary();
+            Arb.From(Generators.ActivityNameCfg());
         public static Arbitrary<ActivityTagOnParamConfig> ArbActivityTag() =>
-            Generators.ActivityTagCfg().ToArbitrary();
+            Arb.From(Generators.ActivityTagCfg());
     }
 
     #endregion

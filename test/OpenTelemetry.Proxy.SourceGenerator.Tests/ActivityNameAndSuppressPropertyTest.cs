@@ -1,4 +1,5 @@
 using FsCheck;
+using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -29,26 +30,26 @@ public class ActivityNameAndSuppressPropertyTest
         public static Gen<string> SafeId() =>
             from f in Gen.Elements(Letters)
             from len in Gen.Choose(2, 5)
-            from rest in Gen.ArrayOf(len, Gen.Elements(LowerLetters))
+            from rest in Gen.ArrayOf<char>(Gen.Elements(LowerLetters), len)
             select f + new string(rest);
 
         public static Gen<ActivityNameConfig> ActivityNameCfg() =>
             from name in SafeId()
-            from adjust in Arb.Generate<bool>()
+            from adjust in Gen.Elements(true, false)
             select new ActivityNameConfig(name, adjust);
 
         public static Gen<SuppressInstrumentationModeConfig> SuppressModeConfig() =>
-            from suppress in Arb.Generate<bool>()
+            from suppress in Gen.Elements(true, false)
             select new SuppressInstrumentationModeConfig(suppress);
     }
 
     public class Arbs
     {
         public static Arbitrary<ActivityNameConfig> ArbActivityName() =>
-            Generators.ActivityNameCfg().ToArbitrary();
+            Arb.From(Generators.ActivityNameCfg());
 
         public static Arbitrary<SuppressInstrumentationModeConfig> ArbSuppressMode() =>
-            Generators.SuppressModeConfig().ToArbitrary();
+            Arb.From(Generators.SuppressModeConfig());
     }
 
     #endregion

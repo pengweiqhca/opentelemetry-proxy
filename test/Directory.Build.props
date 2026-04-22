@@ -8,13 +8,14 @@
     <RollForward>Major</RollForward>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(IsTestProject)' != 'false'">
     <Using Include="Xunit" />
 
     <PackageReference Include="coverlet.collector" Version="6.*" PrivateAssets="None" />
     <PackageReference Include="JetBrains.DotMemoryUnit" Version="3.*" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.*" PrivateAssets="None" />
-    <PackageReference Include="xunit" Version="2.*" PrivateAssets="None" />
+    <PackageReference Include="xunit.v3" Version="3.*" PrivateAssets="None" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.*" PrivateAssets="None" />
   </ItemGroup>
 
 </Project>
