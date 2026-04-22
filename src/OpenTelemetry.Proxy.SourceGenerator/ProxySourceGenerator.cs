@@ -39,11 +39,18 @@ public class ProxySourceGenerator : IIncrementalGenerator
                 predicate: static (node, _) => node is MethodDeclarationSyntax,
                 transform: static (ctx, ct) => MetadataExtractor.ExtractNonActivityMetadata(ctx, ct));
 
-        // 5. Collect and combine all metadata
-        var combined = typeProvider.Collect()
+        // 5. Collect and combine all metadata, then flatten into a clean model
+        var pipeline = typeProvider.Collect()
             .Combine(activityMethodProvider.Collect())
             .Combine(activityNameProvider.Collect())
-            .Combine(nonActivityProvider.Collect());
+            .Combine(nonActivityProvider.Collect())
+            .Combine(context.CompilationProvider)
+            .Select(static (source, _) => new GeneratorInput(
+                source.Left.Left.Left.Left,
+                source.Left.Left.Left.Right,
+                source.Left.Left.Right,
+                source.Left.Right,
+                source.Right));
 
         // 6. Read project properties (e.g. DisableProxyGenerator)
         var disabledProvider = context.AnalyzerConfigOptionsProvider.Select(
@@ -54,60 +61,43 @@ public class ProxySourceGenerator : IIncrementalGenerator
                 return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
             });
 
-        // 7. Combine with CompilationProvider and disabled flag, register source output
+        // 7. Combine with disabled flag, register source output
         context.RegisterSourceOutput(
-            combined.Combine(context.CompilationProvider).Combine(disabledProvider),
-            static (spc, source) => Execute(spc, source));
+            pipeline.Combine(disabledProvider),
+            static (spc, source) =>
+            {
+                if (source.Right) return;
+
+                Execute(spc, source.Left);
+            });
     }
 
-    /// <summary>
-    /// Entry point for the source output callback. Destructures the combined pipeline tuple
-    /// and delegates to the main Execute logic.
-    /// </summary>
-    private static void Execute(
-        SourceProductionContext spc,
-        ((((( ImmutableArray<TypeExtractionResult> Types,
-              ImmutableArray<MethodExtractionResult> ActivityMethods),
-             ImmutableArray<ActivityNameExtractionResult> ActivityNameItems),
-            ImmutableArray<MethodExtractionResult> NonActivityMethods) Metadata,
-          Compilation Compilation) Left,
-         bool Disabled) source)
-    {
-        if (source.Disabled) return;
-
-        var types = source.Left.Metadata.Item1.Item1.Types;
-        var activityMethods = source.Left.Metadata.Item1.Item1.ActivityMethods;
-        var activityNameItems = source.Left.Metadata.Item1.ActivityNameItems;
-        var nonActivityMethods = source.Left.Metadata.NonActivityMethods;
-
-        Execute(spc, source.Left.Compilation, types, activityMethods, activityNameItems, nonActivityMethods);
-    }
+    private record GeneratorInput(
+        ImmutableArray<TypeExtractionResult> Types,
+        ImmutableArray<MethodExtractionResult> ActivityMethods,
+        ImmutableArray<ActivityNameExtractionResult> ActivityNameItems,
+        ImmutableArray<MethodExtractionResult> NonActivityMethods,
+        Compilation Compilation);
 
     /// <summary>
     /// Main execution logic: reports diagnostics, filters out errored items,
     /// merges metadata, applies filtering, and invokes call site scanning and code generation.
     /// </summary>
-    private static void Execute(
-        SourceProductionContext context,
-        Compilation compilation,
-        ImmutableArray<TypeExtractionResult> typeResults,
-        ImmutableArray<MethodExtractionResult> activityMethodResults,
-        ImmutableArray<ActivityNameExtractionResult> activityNameResults,
-        ImmutableArray<MethodExtractionResult> nonActivityMethodResults)
+    private static void Execute(SourceProductionContext context, GeneratorInput input)
     {
         var ct = context.CancellationToken;
         ct.ThrowIfCancellationRequested();
 
         // Report all diagnostics and filter out items with errors
-        var types = ReportAndFilterTypes(context, typeResults);
-        var activityMethods = ReportAndFilterMethods(context, activityMethodResults);
-        var nonActivityMethods = ReportAndFilterMethods(context, nonActivityMethodResults);
+        var types = ReportAndFilterTypes(context, input.Types);
+        var activityMethods = ReportAndFilterMethods(context, input.ActivityMethods);
+        var nonActivityMethods = ReportAndFilterMethods(context, input.NonActivityMethods);
 
         // Separate ActivityName items into TypeMetadata and MethodMetadata
         var activityNameTypes = ImmutableArray.CreateBuilder<TypeMetadata>();
         var activityNameMethods = ImmutableArray.CreateBuilder<MethodMetadata>();
 
-        foreach (var result in activityNameResults)
+        foreach (var result in input.ActivityNameItems)
         {
             // Report diagnostics for ActivityName items
             ReportDiagnostics(context, result.Diagnostics);
@@ -145,10 +135,10 @@ public class ProxySourceGenerator : IIncrementalGenerator
         ct.ThrowIfCancellationRequested();
 
         // Scan all call sites that match target methods
-        var callSites = CallSiteScanner.ScanCallSites(compilation, filteredMethods, allTypes.ToImmutable(), ct);
+        var callSites = CallSiteScanner.ScanCallSites(input.Compilation, filteredMethods, allTypes.ToImmutable(), ct);
 
         // Generate interceptor code for all matched call sites
-        InterceptorEmitter.Emit(context, compilation, callSites, allTypes.ToImmutable());
+        InterceptorEmitter.Emit(context, input.Compilation, callSites, allTypes.ToImmutable());
     }
 
     #region Diagnostic Reporting
