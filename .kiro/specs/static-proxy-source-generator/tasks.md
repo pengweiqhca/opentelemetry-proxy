@@ -2,7 +2,7 @@
 
 ## 概述
 
-将 OpenTelemetry.StaticProxy 从 Metalama ISourceTransformer 迁移到 C# 14 Roslyn Incremental Source Generator + Interceptors。实现分为：项目搭建、属性清理、元数据提取、调用点扫描、代码生成（三种模式）、ActivitySource 管理、泛型支持、诊断报告、测试迁移。
+将 OpenTelemetry.Proxy 从 Metalama ISourceTransformer 迁移到 C# 14 Roslyn Incremental Source Generator + Interceptors。DynamicProxy 已移除。实现分为：项目搭建、属性清理、元数据提取、调用点扫描、代码生成（三种模式）、ActivitySource 管理、泛型支持、诊断报告、测试迁移。
 
 ## 任务
 

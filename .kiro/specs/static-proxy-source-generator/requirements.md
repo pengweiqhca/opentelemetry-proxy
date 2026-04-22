@@ -2,7 +2,7 @@
 
 ## 简介
 
-将 OpenTelemetry.StaticProxy 从基于 Metalama 的静态代理织入重构为基于 C# 14 Source Generator + Interceptors 的实现。当前实现依赖 Metalama.Compiler.Sdk 的 ISourceTransformer 在编译期重写语法树，注入 Activity 创建、Tag 设置、异常处理和资源释放代码。新实现将使用 Roslyn Incremental Source Generator 分析用户代码中的特性标注，并通过 C# 14 Interceptors 机制在编译期拦截目标方法调用，生成包含 OpenTelemetry 插桩逻辑的拦截方法，从而完全移除对 Metalama 的依赖。
+将 OpenTelemetry.Proxy 从基于 Metalama 的静态代理织入重构为基于 C# 14 Source Generator + Interceptors 的实现。当前实现依赖 Metalama.Compiler.Sdk 的 ISourceTransformer 在编译期重写语法树，注入 Activity 创建、Tag 设置、异常处理和资源释放代码。新实现将使用 Roslyn Incremental Source Generator 分析用户代码中的特性标注，并通过 C# 14 Interceptors 机制在编译期拦截目标方法调用，生成包含 OpenTelemetry 插桩逻辑的拦截方法，从而完全移除对 Metalama 和 DynamicProxy 的依赖。
 
 ## 术语表
 

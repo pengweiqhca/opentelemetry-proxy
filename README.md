@@ -1,88 +1,111 @@
 # OpenTelemetry.Proxy
 
-Generate an activity to wrap the method, modify name of the inner activity or discard inner activity.
+Generate OpenTelemetry Activity instrumentation at compile time using Roslyn Source Generator + C# 14 Interceptors.
 
-## Attribute
+## How it works
+
+The Source Generator scans your code for attribute annotations (`[ActivitySource]`, `[Activity]`, etc.) and generates interceptor methods that wrap your method calls with OpenTelemetry instrumentation — Activity creation, tag setting, exception handling, and resource cleanup. All at compile time, zero runtime overhead.
+
+## Attributes
 
 ### [ActivitySource]
 
-#### DynamicProxy
-[ActivitySource] all methods defined in the interface or virtual methods defined in the class will automatically generate activity, unless defined [NonActivity] on method.
+Mark a type to automatically generate Activity for its methods.
 
-`IncludeNonAsyncStateMachineMethod`: default include all async methods of defined in an interface, or all [AsyncStateMachine] public or protected virtual method of class (except for `async void` method). If true, all methods defined in the interface will be included and all public or protected virtual methods of the class.
-
-#### StaticProxy
-[ActivitySource] all methods will automatically generate activity, except for those that are defined [NonActivity] on method.
-
-`IncludeNonAsyncStateMachineMethod`: public methods defined in the class that are marked with the [AsyncStateMachine] attribute (except for `async void` method). If true, will include all methods of class.
-
-> Needs dotnet sdk 9.0.200+.
+`IncludeNonAsyncStateMachineMethod`: By default, only `async` methods are auto-included. Set to `true` to include all public methods.
 
 ### [Activity]
-[Activity] can be defined on method only.
+
+Mark a method to generate Activity wrapping. Can specify `ActivityName`, `Kind`, and `SuppressInstrumentation`.
 
 ### [NonActivity]
-If defined [NonActivity] on method, call method will not generate an activity. if `SuppressInstrumentation` is true, the inner activity will be discarded.
+
+Exclude a method from Activity generation. If `SuppressInstrumentation` is `true`, downstream instrumentation will be suppressed.
 
 ### [ActivityName]
-To modify the DisplayName of an inner activity, you must invoke `TracerProviderBuilder.AddActivityNameProcessor()`. If a type is defined with the [ActivitySource] attribute or a method is defined with the [Activity] or [NonActivity] attribute, the [ActivityName] attribute will not take effect.
+
+Modify the DisplayName of an inner activity. Requires `TracerProviderBuilder.AddActivityNameProcessor()`.
 
 > Priority: [NonActivity] > [Activity] > [ActivityName] (method) > [ActivitySource] > [ActivityName] (class)
 
 ### [ActivityTag]
 
-To add tag to activity, it defined on parameter or return value.
+Add a tag to the Activity. Can be defined on parameters or return values.
 
 ### [ActivityTags]
 
-To add tags to activity, it defined on type or method.
+Add multiple tags to the Activity. Can be defined on types or methods. Tags are resolved against method parameters, instance fields/properties, and static fields/properties.
 
-## About DynamicProxy and StaticProxy
+## Setup
 
-|                  | DynamicProxy                                                 | StaticProxy                     |
-| ---------------- | ------------------------------------------------------------ | ------------------------------- |
-| AOT              | ❌                                                            | ✔️                               |
-| Work in          | Runtime                                                      | Compiling                       |
-| Support scenario | interface or virtual method                                  | Any method with a body of type. |
-| Work order (ASC) | 2                                                            | 1                               |
-| Performance      | ⭐⭐⭐                                                          | ⭐⭐⭐⭐⭐                           |
-| Expression       | Default: public property, field or parameterless method.<br />DynamicExpressionParser: see [DynamicExpresso.Core]() | Any valid code.                 |
+### 1. Install the NuGet package
+
+```
+dotnet add package PW.OpenTelemetry.Proxy
+```
+
+### 2. Register ActivitySources
+
+The Source Generator creates an `ActivitySourceHolder` class with an extension method to register all generated ActivitySources:
+
+```csharp
+builder.Services.AddOpenTelemetry()
+    .WithTracing(b => b
+        .AddMyAppSources()           // Generated: registers all ActivitySources in this assembly
+        .AddActivityNameProcessor()   // Required for [ActivityName] support
+        .AddOtlpExporter());
+```
+
+The method name is `Add{AssemblyName}Sources()`, unique per assembly.
+
+### 3. Disable generation (optional)
+
+```xml
+<PropertyGroup>
+  <DisableProxyGenerator>true</DisableProxyGenerator>
+</PropertyGroup>
+```
 
 ## Tag expression
 
-Must start with `$` on `[ActivityTag]`
+Must start with `$` on `[ActivityTag]`.
 
-### DynamicProxy
+Any valid C# member access expression. For example:
+- `[ActivityTag(Expression = "$.Length")]` on a `string` parameter generates `param.Length`
+- `[ActivityTag(Expression = "$.Hour")]` on a `DateTime` return value generates `@return.Hour`
 
-> Parse expression on runtime.
+## Example
 
-#### Default
+```csharp
+[ActivitySource]
+public class OrderService
+{
+    [Activity]
+    public async Task<Order> CreateOrder([ActivityTag] int customerId, [ActivityTag] string product)
+    {
+        // Activity is automatically created with tags "customerId" and "product"
+        return await SaveOrder(customerId, product);
+    }
 
-Public property, field or parameterless method only.
+    [ActivityName(AdjustStartTime = true)]
+    public async Task ProcessPayment([ActivityTag] decimal amount)
+    {
+        // Inner activity name is set to "OrderService.ProcessPayment"
+        await ChargeCard(amount);
+    }
 
-#### DynamicExpressionParser
-
-See [DynamicExpresso.Core](https://github.com/dynamicexpresso/DynamicExpresso)
-
-### StaticProxy
-
-> Parse expression on compiling.
-
-Any valid code.
+    [NonActivity(true)]
+    public void InternalCleanup()
+    {
+        // Downstream instrumentation is suppressed
+    }
+}
+```
 
 ## QA
 
 ### How to get ActivitySource name?
-`ActivitySourceAttribute.GetActivitySourceName(typeof(YourType))`
 
-See [demo](https://github.com/pengweiqhca/opentelemetry-proxy/blob/main/demo/OpenTelemetry.Proxy.Demo/Program.cs#L23)
-
-### How to generate proxy class?
-``` C#
-ProxyGenerator generator = ...
-IActivityInvokerFactory invokerFactory = ...
-
-var proxyType = generator.CreateClassProxy<YourType>(new ActivityInterceptor(invokerFactory));
+```csharp
+ActivitySourceAttribute.GetActivitySourceName(typeof(YourType))
 ```
-See [demo](https://github.com/pengweiqhca/opentelemetry-proxy/blob/main/demo/OpenTelemetry.DynamicProxy.Demo/ServiceCollectionExtensions.cs#L13).
-~~~~~~~~~~~~
