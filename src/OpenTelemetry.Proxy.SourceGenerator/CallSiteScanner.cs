@@ -159,7 +159,7 @@ internal static class CallSiteScanner
     /// Try to auto-include a method based on its containing type's [ActivitySource] configuration.
     /// Methods without explicit attributes can be auto-included if:
     /// - The containing type is in our types collection
-    /// - The method passes the IncludeNonAsyncStateMachineMethod filter
+    /// - The method passes the IncludeAllMethods filter
     /// </summary>
     private static MethodMetadata? TryAutoIncludeMethod(
         IMethodSymbol invokedMethod,
@@ -182,9 +182,24 @@ internal static class CallSiteScanner
                 methodInfo.HasNonActivityAttribute)
                 return null;
 
-            // Apply auto-include filtering
-            if (!typeMetadata.IncludeNonAsyncStateMachineMethod && !methodInfo.IsAsync)
-                return null;
+            // Apply auto-include filtering — for interface/abstract methods check return type
+            // instead of async modifier (they can't have async keyword)
+            if (!typeMetadata.IncludeAllMethods)
+            {
+                // async void excluded when not IncludeAllMethods
+                if (invokedMethod.IsAsync && invokedMethod.ReturnsVoid)
+                    return null;
+
+                if (!methodInfo.IsAsync)
+                {
+                    if (invokedMethod.ContainingType.TypeKind != TypeKind.Interface && !invokedMethod.IsAbstract)
+                        return null;
+
+                    // For interface/abstract: check if return type is Task/ValueTask
+                    if (!IsAsyncReturnType(invokedMethod.ReturnType))
+                        return null;
+                }
+            }
 
             if (!methodInfo.IsPublic && invokedMethod.ContainingType.TypeKind != TypeKind.Interface)
                 return null;
@@ -286,7 +301,7 @@ internal static class CallSiteScanner
         foreach (var namedArg in typeAttr.NamedArguments)
             switch (namedArg.Key)
             {
-                case "IncludeNonAsyncStateMachineMethod":
+                case "IncludeAllMethods":
                     if (namedArg.Value.Value is bool b1) includeNonAsync = b1;
                     break;
                 case "SuppressInstrumentation":
@@ -297,8 +312,23 @@ internal static class CallSiteScanner
                     break;
             }
 
-        // Filter: non-async methods excluded when IncludeNonAsyncStateMachineMethod=false
-        if (!includeNonAsync && !invokedMethod.IsAsync) return null;
+        // Filter: when IncludeAllMethods=false, apply async filtering
+        if (!includeNonAsync)
+        {
+            // async void excluded when not IncludeAllMethods
+            if (invokedMethod.ReturnsVoid && invokedMethod.IsAsync)
+                return null;
+
+            if (!invokedMethod.IsAsync)
+            {
+                // For interface/abstract methods: check return type instead of async modifier
+                if (invokedMethod.ContainingType.TypeKind != TypeKind.Interface && !invokedMethod.IsAbstract)
+                    return null;
+
+                if (!IsAsyncReturnType(invokedMethod.ReturnType))
+                    return null;
+            }
+        }
 
         // Filter: non-public methods excluded (unless interface)
         if (invokedMethod.DeclaredAccessibility != Accessibility.Public &&
@@ -681,6 +711,13 @@ internal static class CallSiteScanner
 
         return typePart;
     }
+
+    /// <summary>
+    /// Check if a return type is an async-compatible type (Task, ValueTask, or custom awaitable).
+    /// </summary>
+    private static bool IsAsyncReturnType(ITypeSymbol returnType) =>
+        returnType.Name is "Task" or "ValueTask" &&
+        returnType.ContainingNamespace?.ToDisplayString() == "System.Threading.Tasks";
 
     /// <summary>
     /// Get the simple type name (without namespace) for activity naming.

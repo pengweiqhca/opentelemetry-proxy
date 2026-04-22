@@ -9,7 +9,7 @@ namespace OpenTelemetry.Proxy.Tests;
 /// Feature: static-proxy-source-generator, Property 10: 方法过滤规则正确性
 ///
 /// For any type annotated with [ActivitySource], the method filtering rules should correctly
-/// determine which methods are included based on IncludeNonAsyncStateMachineMethod flag,
+/// determine which methods are included based on IncludeAllMethods flag,
 /// method visibility, async modifier, and explicit attribute annotations.
 ///
 /// **Validates: Requirements 8.1, 8.2, 8.3**
@@ -29,7 +29,7 @@ public class MethodFilterPropertyTest
         bool HasNonActivityAttribute);
 
     public record TestScenario(
-        bool IncludeNonAsyncStateMachineMethod,
+        bool IncludeAllMethods,
         MethodConfig[] Methods);
 
     public static class Generators
@@ -134,8 +134,8 @@ public class MethodFilterPropertyTest
 
     private static string BuildSource(TestScenario scenario)
     {
-        var includeArg = scenario.IncludeNonAsyncStateMachineMethod
-            ? "IncludeNonAsyncStateMachineMethod = true"
+        var includeArg = scenario.IncludeAllMethods
+            ? "IncludeAllMethods = true"
             : "";
         var attrArgs = string.IsNullOrEmpty(includeArg) ? "" : $"({includeArg})";
 
@@ -172,12 +172,12 @@ namespace TestNs {{
         if (m.HasActivityAttribute || m.HasActivityNameAttribute)
             return true;
 
-        // Requirement 8.1: When IncludeNonAsyncStateMachineMethod=false,
+        // Requirement 8.1: When IncludeAllMethods=false,
         // only async methods are auto-included (among public methods)
         if (!includeNonAsync)
             return isPublic && m.IsAsync;
 
-        // Requirement 8.2: When IncludeNonAsyncStateMachineMethod=true,
+        // Requirement 8.2: When IncludeAllMethods=true,
         // all public methods are included
         return isPublic;
     }
@@ -189,9 +189,9 @@ namespace TestNs {{
     /// <summary>
     /// Property 10: Method filtering rules correctness.
     ///
-    /// When IncludeNonAsyncStateMachineMethod=false: only async methods and explicitly
+    /// When IncludeAllMethods=false: only async methods and explicitly
     /// attributed methods are included.
-    /// When IncludeNonAsyncStateMachineMethod=true: all public methods are included.
+    /// When IncludeAllMethods=true: all public methods are included.
     /// Non-public methods without explicit attributes are never included.
     ///
     /// **Validates: Requirements 8.1, 8.2, 8.3**
@@ -257,19 +257,19 @@ namespace TestNs {{
             // A method "should be included" means it would be picked up for interception.
             // The MethodInfo flags allow the downstream code to apply the filter.
             // We verify the flags are correct so the filter CAN be applied correctly.
-            var shouldInclude = ShouldMethodBeIncluded(m, scenario.IncludeNonAsyncStateMachineMethod);
+            var shouldInclude = ShouldMethodBeIncluded(m, scenario.IncludeAllMethods);
 
             // Verify the filtering logic using the extracted flags matches our expectation
             var actualShouldInclude = ShouldMethodBeIncludedFromFlags(
                 reported.HasActivity, reported.HasActivityName, reported.HasNonActivity,
                 reported.IsAsync, reported.IsPublic,
-                scenario.IncludeNonAsyncStateMachineMethod);
+                scenario.IncludeAllMethods);
 
             if (shouldInclude != actualShouldInclude)
             {
                 allCorrect = false;
                 labels.Add($"{m.Name}: filter expected={shouldInclude} actual={actualShouldInclude} " +
-                           $"(vis={m.Visibility}, async={m.IsAsync}, hasActivity={m.HasActivityAttribute}, includeNonAsync={scenario.IncludeNonAsyncStateMachineMethod})");
+                           $"(vis={m.Visibility}, async={m.IsAsync}, hasActivity={m.HasActivityAttribute}, includeNonAsync={scenario.IncludeAllMethods})");
             }
         }
 

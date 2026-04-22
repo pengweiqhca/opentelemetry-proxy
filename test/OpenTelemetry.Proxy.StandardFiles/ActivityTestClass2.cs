@@ -1,8 +1,8 @@
-﻿using OpenTelemetry.Proxy;
+using OpenTelemetry.Proxy;
 
 namespace OpenTelemetry.Proxy.StandardFiles;
 
-[ActivitySource(IncludeNonAsyncStateMachineMethod = true, SuppressInstrumentation = true)]
+[ActivitySource(IncludeAllMethods = true, SuppressInstrumentation = true)]
 public class ActivityTestClass2<T>
 {
     public void TestMethod1() { }

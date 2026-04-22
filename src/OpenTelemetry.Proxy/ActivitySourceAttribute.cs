@@ -15,8 +15,8 @@ public class ActivitySourceAttribute : Attribute
     /// </summary>
     public ActivityKind Kind { get; set; }
 
-    /// <summary>DynamicProxy: default include all async method of interface or async return type and define [AsyncStateMachine] public or protected virtual method of class. If true, will include all method of interface and all public or protected virtual method of class.<br />StaticProxy: default include async return type and define [AsyncStateMachine] public method. If true, will include all method of class.</summary>
-    public bool IncludeNonAsyncStateMachineMethod { get; set; }
+    /// <summary>By default, only async methods (or methods returning Task/ValueTask for interfaces) are auto-included. Set to true to include all public methods.</summary>
+    public bool IncludeAllMethods { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether down stream instrumentation is suppressed (disabled).

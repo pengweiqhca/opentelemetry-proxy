@@ -139,7 +139,7 @@ public class ProxySourceGenerator : IIncrementalGenerator
         allTypes.AddRange((IEnumerable<TypeMetadata>)types);
         allTypes.AddRange(activityNameTypes);
 
-        // Apply method filtering rules based on type-level IncludeNonAsyncStateMachineMethod
+        // Apply method filtering rules based on type-level IncludeAllMethods
         var filteredMethods = ApplyMethodFiltering(allTypes.ToImmutable(), allMethods.ToImmutable());
 
         ct.ThrowIfCancellationRequested();
@@ -224,9 +224,9 @@ public class ProxySourceGenerator : IIncrementalGenerator
 
     /// <summary>
     /// Apply method filtering rules:
-    /// - For each type with IncludeNonAsyncStateMachineMethod=false, only async methods
+    /// - For each type with IncludeAllMethods=false, only async methods
     ///   and explicitly attributed methods are included.
-    /// - For each type with IncludeNonAsyncStateMachineMethod=true, all public methods are included.
+    /// - For each type with IncludeAllMethods=true, all public methods are included.
     /// - Interface types include all methods regardless.
     /// Methods with explicit [Activity], [ActivityName], or [NonActivity] attributes are always included.
     /// </summary>
@@ -240,13 +240,13 @@ public class ProxySourceGenerator : IIncrementalGenerator
         result.AddRange((IEnumerable<MethodMetadata>)methods);
 
         // For each type, check if there are implicit methods that should be included
-        // based on IncludeNonAsyncStateMachineMethod and visibility rules.
+        // based on IncludeAllMethods and visibility rules.
         // Note: Actual MethodMetadata for implicit methods will be fully constructed
         // during call site scanning (Task 4.2) when we have full semantic info.
         // Here we just track which method names from each type should be eligible.
         foreach (var type in types)
         {
-            var includeNonAsync = type.IncludeNonAsyncStateMachineMethod;
+            var includeNonAsync = type.IncludeAllMethods;
 
             foreach (var methodInfo in type.Methods)
             {

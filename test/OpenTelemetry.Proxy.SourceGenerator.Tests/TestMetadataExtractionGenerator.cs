@@ -66,7 +66,7 @@ public class TestMetadataExtractionGenerator : IIncrementalGenerator
                 sb.AppendLine($"// TYPE: TypeFullName={t.TypeFullName}");
                 sb.AppendLine($"// TYPE: ActivitySourceName={t.ActivitySourceName}");
                 sb.AppendLine($"// TYPE: Kind={t.Kind}");
-                sb.AppendLine($"// TYPE: IncludeNonAsync={t.IncludeNonAsyncStateMachineMethod}");
+                sb.AppendLine($"// TYPE: IncludeNonAsync={t.IncludeAllMethods}");
                 sb.AppendLine($"// TYPE: SuppressInstrumentation={t.SuppressInstrumentation}");
                 foreach (var tag in t.TypeTags)
                     sb.AppendLine($"// TYPE_TAG: TagName={tag.TagName} SourceName={tag.SourceName} Expression={tag.Expression}");

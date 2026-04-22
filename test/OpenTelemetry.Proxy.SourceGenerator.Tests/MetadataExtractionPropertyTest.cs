@@ -20,7 +20,7 @@ public class MetadataExtractionPropertyTest
 
     public record ActivitySourceConfig(
         string? ActivitySourceName, int Kind,
-        bool IncludeNonAsyncStateMachineMethod, bool SuppressInstrumentation);
+        bool IncludeAllMethods, bool SuppressInstrumentation);
 
     public record ActivityConfig(string? ActivityName, int Kind, bool SuppressInstrumentation);
 
@@ -146,7 +146,7 @@ public class MetadataExtractionPropertyTest
 
     /// <summary>
     /// [ActivitySource] metadata extraction: ActivitySourceName, Kind,
-    /// IncludeNonAsyncStateMachineMethod, SuppressInstrumentation.
+    /// IncludeAllMethods, SuppressInstrumentation.
     /// **Validates: Requirements 2.1**
     /// </summary>
     [Property(MaxTest = 100, Arbitrary = [typeof(Arbs)])]
@@ -154,7 +154,7 @@ public class MetadataExtractionPropertyTest
     {
         var named = BuildNamedArgs(
             ("Kind", KindLiteral(cfg.Kind), cfg.Kind != 0),
-            ("IncludeNonAsyncStateMachineMethod", "true", cfg.IncludeNonAsyncStateMachineMethod),
+            ("IncludeAllMethods", "true", cfg.IncludeAllMethods),
             ("SuppressInstrumentation", "true", cfg.SuppressInstrumentation));
 
         var ctorPart = cfg.ActivitySourceName != null ? $"\"{cfg.ActivitySourceName}\"" : "";
@@ -175,7 +175,7 @@ namespace TestNs {{
 
         return (output.Contains($"ActivitySourceName={expectedName}")
              && output.Contains($"Kind={ExpectedKind(cfg.Kind)}")
-             && output.Contains($"IncludeNonAsync={cfg.IncludeNonAsyncStateMachineMethod}")
+             && output.Contains($"IncludeNonAsync={cfg.IncludeAllMethods}")
              && output.Contains($"SuppressInstrumentation={cfg.SuppressInstrumentation}"))
             .Label($"Output:\n{output}");
     }

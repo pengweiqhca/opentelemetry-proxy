@@ -8,7 +8,7 @@ internal sealed class ActivitySourceContext(
 {
     public string Kind { get; set; } = "default";
 
-    public bool IncludeNonAsyncStateMachineMethod { get; set; }
+    public bool IncludeAllMethods { get; set; }
 
     public bool SuppressInstrumentation { get; set; }
 }

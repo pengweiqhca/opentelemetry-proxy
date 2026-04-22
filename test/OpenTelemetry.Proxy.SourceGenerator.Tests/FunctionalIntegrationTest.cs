@@ -74,7 +74,7 @@ public class FunctionalIntegrationTest
 using OpenTelemetry.Proxy;
 
 namespace TestNs {
-    [ActivitySource(IncludeNonAsyncStateMachineMethod = true)]
+    [ActivitySource(IncludeAllMethods = true)]
     public static class TestClass {
         [NonActivity(true)]
         public static bool SuppressInstrumentationScope() => true;
@@ -100,7 +100,7 @@ namespace TestNs {
 using OpenTelemetry.Proxy;
 
 namespace TestNs {
-    [ActivitySource(IncludeNonAsyncStateMachineMethod = true)]
+    [ActivitySource(IncludeAllMethods = true)]
     public static class TestClass {
         [Activity(SuppressInstrumentation = true)]
         public static bool SuppressInstrumentationScope2() => true;
@@ -413,7 +413,7 @@ using OpenTelemetry.Proxy;
 using System;
 
 namespace TestNs {
-    [ActivitySource(IncludeNonAsyncStateMachineMethod = true)]
+    [ActivitySource(IncludeAllMethods = true)]
     public static class TestClass {
         [Activity]
         [return: ActivityTag(""def"")]
@@ -715,7 +715,7 @@ using OpenTelemetry.Proxy;
 using System;
 
 namespace TestNs {
-    [ActivitySource(IncludeNonAsyncStateMachineMethod = true)]
+    [ActivitySource(IncludeAllMethods = true)]
     public static class TestClass {
         [Activity]
         public static void VoidMethod() {
@@ -744,7 +744,7 @@ using OpenTelemetry.Proxy;
 using System;
 
 namespace TestNs {
-    [ActivitySource(IncludeNonAsyncStateMachineMethod = true)]
+    [ActivitySource(IncludeAllMethods = true)]
     public static class TestClass {
         [Activity]
         [return: ActivityTag(""ret"", Expression = ""$.Hour"")]

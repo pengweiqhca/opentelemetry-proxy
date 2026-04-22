@@ -68,7 +68,7 @@ public class EdgeCaseTest
 using OpenTelemetry.Proxy;
 
 namespace TestNs {
-    [ActivitySource(IncludeNonAsyncStateMachineMethod = true)]
+    [ActivitySource(IncludeAllMethods = true)]
     public class MathService {
         [Activity]
         public int DoWork(int x) => x + 1;
@@ -105,7 +105,7 @@ using OpenTelemetry.Proxy;
 using System;
 
 namespace TestNs {
-    [ActivitySource(IncludeNonAsyncStateMachineMethod = true)]
+    [ActivitySource(IncludeAllMethods = true)]
     public class ThrowService {
         [Activity]
         public int DoWork() => throw new NotImplementedException();

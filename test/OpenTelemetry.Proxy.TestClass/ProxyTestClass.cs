@@ -1,10 +1,10 @@
-﻿using Fasterflect;
+using Fasterflect;
 using Microsoft.FSharp.Control;
 using System.Reflection;
 
 namespace OpenTelemetry.Proxy.TestClass;
 
-[ActivitySource(IncludeNonAsyncStateMachineMethod = true)]
+[ActivitySource(IncludeAllMethods = true)]
 public static class ProxyTestClass
 {
     [NonActivity(true)]

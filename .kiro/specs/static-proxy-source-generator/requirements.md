@@ -38,7 +38,7 @@
 
 #### 验收标准
 
-1. WHEN 类型标注了 [ActivitySource] 特性时，THE Source_Generator SHALL 识别该类型并提取 ActivitySourceName、Kind、IncludeNonAsyncStateMachineMethod 和 SuppressInstrumentation 配置
+1. WHEN 类型标注了 [ActivitySource] 特性时，THE Source_Generator SHALL 识别该类型并提取 ActivitySourceName、Kind、IncludeAllMethods 和 SuppressInstrumentation 配置
 2. WHEN 方法标注了 [Activity] 特性时，THE Source_Generator SHALL 识别该方法并提取 ActivityName、Kind 和 SuppressInstrumentation 配置
 3. WHEN 类型或方法标注了 [ActivityName] 特性时，THE Source_Generator SHALL 识别并提取 ActivityName 和 AdjustStartTime 配置
 4. WHEN 参数或返回值标注了 [ActivityTag] 特性时，THE Source_Generator SHALL 识别并提取 Name 和 Expression 配置
@@ -118,8 +118,8 @@
 
 #### 验收标准
 
-1. WHEN 类型标注了 [ActivitySource] 且 IncludeNonAsyncStateMachineMethod 为 false 时，THE Source_Generator SHALL 仅对 async 方法和显式标注了 [Activity] 的方法生成拦截代码
-2. WHEN 类型标注了 [ActivitySource] 且 IncludeNonAsyncStateMachineMethod 为 true 时，THE Source_Generator SHALL 对所有 public 方法生成拦截代码
+1. WHEN 类型标注了 [ActivitySource] 且 IncludeAllMethods 为 false 时，THE Source_Generator SHALL 仅对 async 方法和显式标注了 [Activity] 的方法生成拦截代码
+2. WHEN 类型标注了 [ActivitySource] 且 IncludeAllMethods 为 true 时，THE Source_Generator SHALL 对所有 public 方法生成拦截代码
 3. WHEN 方法未标注 [Activity] 或 [ActivityName] 且不是 public 方法时，THE Source_Generator SHALL 跳过该方法
 4. WHEN 类型为 interface 时，THE Source_Generator SHALL 对所有方法生成拦截代码（无论可见性）
 5. WHEN 接口方法标注了 [Activity] 或所在接口标注了 [ActivitySource] 时，THE Source_Generator SHALL 在调用点生成拦截代码，包装对接口方法的调用

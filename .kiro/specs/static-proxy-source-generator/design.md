@@ -130,7 +130,7 @@ public class ProxySourceGenerator : IIncrementalGenerator
 
 负责从语法和语义模型中提取特性配置，复用现有 `ProxyVisitor` 的分析逻辑：
 
-- `ExtractTypeMetadata`：提取 `[ActivitySource]` 的 ActivitySourceName、Kind、IncludeNonAsyncStateMachineMethod、SuppressInstrumentation
+- `ExtractTypeMetadata`：提取 `[ActivitySource]` 的 ActivitySourceName、Kind、IncludeAllMethods、SuppressInstrumentation
 - `ExtractActivityMethodMetadata`：提取 `[Activity]` 的 ActivityName、Kind、SuppressInstrumentation
 - `ExtractActivityNameMetadata`：提取 `[ActivityName]` 的 ActivityName、AdjustStartTime
 - `ExtractNonActivityMetadata`：提取 `[NonActivity]` 的 SuppressInstrumentation
@@ -200,7 +200,7 @@ internal readonly record struct TypeMetadata(
     string TypeFullName,
     string ActivitySourceName,
     string Kind,
-    bool IncludeNonAsyncStateMachineMethod,
+    bool IncludeAllMethods,
     bool SuppressInstrumentation,
     EquatableArray<TagMetadata> TypeTags,
     EquatableArray<MemberInfo> Members,        // 字段和属性信息
@@ -387,9 +387,14 @@ Tag 值的解析逻辑与现有实现保持一致：
 | ref 参数 | 同时作为 InTag 和 OutTag | 入口和出口各设置一次 |
 | out 参数 | 仅作为 OutTag | 仅在返回前设置 |
 
-### IncludeNonAsyncStateMachineMethod 判断逻辑
+### IncludeAllMethods 判断逻辑
 
-`IncludeNonAsyncStateMachineMethod = false`（默认）时，仅检查方法是否有 `async` 关键字修饰符，不检查返回类型。这与当前 Metalama 实现的行为一致（`SyntaxExtensions.IsAsync()` 检查 `method.Modifiers.HasModifier("async")`）。
+`IncludeAllMethods = false`（默认）时：
+- **普通方法**：检查是否有 `async` 关键字修饰符
+- **接口/抽象方法**：检查返回类型是否为 `Task`/`ValueTask`（因为接口和抽象方法不能有 `async` 修饰符）
+- **`async void` 方法**：排除（拦截器中无法 await）
+
+`IncludeAllMethods = true` 时，包含所有 public 方法（包括 `async void`）。
 
 ### 泛型处理
 
@@ -433,7 +438,7 @@ C# 14 中 Interceptors 是正式特性，消费方项目无需额外配置即可
 
 ### Property 1: 特性元数据提取正确性
 
-*For any* 带有 `[ActivitySource]`、`[Activity]`、`[ActivityName]`、`[ActivityTag]` 或 `[ActivityTags]` 特性的有效类型或方法声明，元数据提取器提取的配置值（ActivitySourceName、Kind、IncludeNonAsyncStateMachineMethod、SuppressInstrumentation、ActivityName、AdjustStartTime、Tag Name、Tag Expression）应与特性参数中指定的值完全一致。
+*For any* 带有 `[ActivitySource]`、`[Activity]`、`[ActivityName]`、`[ActivityTag]` 或 `[ActivityTags]` 特性的有效类型或方法声明，元数据提取器提取的配置值（ActivitySourceName、Kind、IncludeAllMethods、SuppressInstrumentation、ActivityName、AdjustStartTime、Tag Name、Tag Expression）应与特性参数中指定的值完全一致。
 
 **Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5**
 
@@ -487,7 +492,7 @@ C# 14 中 Interceptors 是正式特性，消费方项目无需额外配置即可
 
 ### Property 10: 方法过滤规则正确性
 
-*For any* 标注了 `[ActivitySource]` 的类型，当 `IncludeNonAsyncStateMachineMethod = false` 时，仅 `async` 修饰符方法和显式标注了 `[Activity]`/`[ActivityName]` 的方法应被拦截；当 `IncludeNonAsyncStateMachineMethod = true` 时，所有 public 方法应被拦截。未标注且非 public 的方法在两种情况下都不应被拦截。
+*For any* 标注了 `[ActivitySource]` 的类型，当 `IncludeAllMethods = false` 时，仅异步方法（普通方法检查 `async` 修饰符，接口/抽象方法检查返回类型）和显式标注了 `[Activity]`/`[ActivityName]` 的方法应被拦截；当 `IncludeAllMethods = true` 时，所有 public 方法应被拦截。`async void` 方法始终排除。未标注且非 public 的方法在两种情况下都不应被拦截。
 
 **Validates: Requirements 8.1, 8.2, 8.3**
 

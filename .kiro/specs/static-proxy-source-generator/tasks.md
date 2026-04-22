@@ -38,7 +38,7 @@
 
 - [x] 3. 元数据提取与不可变模型
   - [x] 3.1 定义不可变元数据模型
-    - 创建 `Models/TypeMetadata.cs`，定义 `readonly record struct TypeMetadata`（TypeFullName、ActivitySourceName、Kind、IncludeNonAsyncStateMachineMethod、SuppressInstrumentation、TypeTags、Members、Methods）
+    - 创建 `Models/TypeMetadata.cs`，定义 `readonly record struct TypeMetadata`（TypeFullName、ActivitySourceName、Kind、IncludeAllMethods、SuppressInstrumentation、TypeTags、Members、Methods）
     - 创建 `Models/MethodMetadata.cs`，定义 `readonly record struct MethodMetadata`（ContainingTypeFullName、MethodName、MethodSymbolKey、Mode、ActivityName、Kind、SuppressInstrumentation、AdjustStartTime、IsStatic、IsVoid、IsAsync、InTags、OutTags、Parameters、ReturnType）
     - 创建 `Models/TagMetadata.cs`，定义 `readonly record struct TagMetadata`（TagName、SourceName、Source、Expression）
     - 创建 `Models/InterceptCallSite.cs`，定义 `readonly record struct InterceptCallSite`（Target、Location、ResolvedMethod）
@@ -50,12 +50,12 @@
 
   - [x] 3.2 实现 MetadataExtractor
     - 创建 `MetadataExtractor.cs`，复用 `ProxyVisitor` 的特性解析逻辑
-    - 实现 `ExtractTypeMetadata(GeneratorAttributeSyntaxContext, CancellationToken)` → `TypeMetadata`：解析 `[ActivitySource]` 的 ActivitySourceName、Kind、IncludeNonAsyncStateMachineMethod、SuppressInstrumentation，收集类型级 `[ActivityTags]`，收集成员（字段/属性）信息和方法列表
+    - 实现 `ExtractTypeMetadata(GeneratorAttributeSyntaxContext, CancellationToken)` → `TypeMetadata`：解析 `[ActivitySource]` 的 ActivitySourceName、Kind、IncludeAllMethods、SuppressInstrumentation，收集类型级 `[ActivityTags]`，收集成员（字段/属性）信息和方法列表
     - 实现 `ExtractActivityMethodMetadata(GeneratorAttributeSyntaxContext, CancellationToken)` → `MethodMetadata`：解析 `[Activity]` 的 ActivityName、Kind、SuppressInstrumentation，解析参数和返回值上的 `[ActivityTag]`，解析 `[ActivityTags]` 中的 Tag 映射
     - 实现 `ExtractActivityNameMetadata(GeneratorAttributeSyntaxContext, CancellationToken)` → 类型或方法级元数据：解析 `[ActivityName]` 的 ActivityName、AdjustStartTime
     - 实现 `ExtractNonActivityMetadata(GeneratorAttributeSyntaxContext, CancellationToken)` → `MethodMetadata`：解析 `[NonActivity]` 的 SuppressInstrumentation 参数
     - 实现 Tag 来源解析逻辑：参数 → Parameter、返回值 → ReturnValue、实例字段/属性 → InstanceFieldOrProperty、静态字段/属性 → StaticFieldOrProperty、ref 参数 → 同时 InTag 和 OutTag、out 参数 → 仅 OutTag
-    - 实现方法过滤规则：`IncludeNonAsyncStateMachineMethod=false` 时仅检查 `async` 关键字修饰符；接口类型中所有方法均包含
+    - 实现方法过滤规则：`IncludeAllMethods=false` 时仅检查 `async` 关键字修饰符；接口类型中所有方法均包含
     - _需求: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 8.1, 8.2, 8.3, 8.4_
 
   - [x] 3.3 编写元数据提取的属性测试
@@ -65,7 +65,7 @@
 
   - [x] 3.4 编写方法过滤规则的属性测试
     - **Property 10: 方法过滤规则正确性**
-    - 生成随机方法可见性（public/private/internal）和 async/非 async 组合，验证 IncludeNonAsyncStateMachineMethod 标志的过滤行为
+    - 生成随机方法可见性（public/private/internal）和 async/非 async 组合，验证 IncludeAllMethods 标志的过滤行为
     - **验证: 需求 8.1, 8.2, 8.3**
 
 - [x] 4. IIncrementalGenerator 管线与调用点扫描

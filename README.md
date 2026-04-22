@@ -12,7 +12,7 @@ The Source Generator scans your code for attribute annotations (`[ActivitySource
 
 Mark a type to automatically generate Activity for its methods.
 
-`IncludeNonAsyncStateMachineMethod`: By default, only `async` methods are auto-included. Set to `true` to include all public methods.
+`IncludeAllMethods`: By default, only async methods are auto-included (for interfaces/abstract classes, methods returning `Task`/`ValueTask` are considered async; `async void` methods are excluded). Set to `true` to include all public methods including `async void`.
 
 ### [Activity]
 

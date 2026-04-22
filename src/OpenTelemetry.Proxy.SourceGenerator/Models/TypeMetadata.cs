@@ -8,7 +8,7 @@ internal readonly record struct TypeMetadata(
     string TypeFullName,
     string ActivitySourceName,
     string Kind,
-    bool IncludeNonAsyncStateMachineMethod,
+    bool IncludeAllMethods,
     bool SuppressInstrumentation,
     EquatableArray<TagMetadata> TypeTags,
     EquatableArray<MemberInfo> Members,

@@ -50,7 +50,7 @@ internal static class MetadataExtractor
                     case "Kind":
                         kind = ConvertKindValue(namedArg.Value, context.TargetNode, namedArg.Key, diagnostics);
                         break;
-                    case "IncludeNonAsyncStateMachineMethod":
+                    case "IncludeAllMethods":
                         if (!TryGetBoolValue(namedArg.Value, context.TargetNode, namedArg.Key, diagnostics, out var b1))
                             break;
                         includeNonAsync = b1;

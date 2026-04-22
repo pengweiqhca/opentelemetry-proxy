@@ -145,7 +145,7 @@ namespace TestNs {
 using OpenTelemetry.Proxy;
 
 namespace TestNs {
-    [ActivitySource(IncludeNonAsyncStateMachineMethod = true, SuppressInstrumentation = true)]
+    [ActivitySource(IncludeAllMethods = true, SuppressInstrumentation = true)]
     public class MyService {
         public async System.Threading.Tasks.Task DoWork() { }
     }
@@ -183,7 +183,7 @@ namespace TestNs {
 using OpenTelemetry.Proxy;
 
 namespace TestNs {
-    [ActivitySource(IncludeNonAsyncStateMachineMethod = true)]
+    [ActivitySource(IncludeAllMethods = true)]
     public class MyService {
         [NonActivity(true)]
         public void DoWork() { }
